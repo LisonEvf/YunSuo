@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>市场情绪仪表盘模板</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #1e1e32;
+      --bg-card-hover: #252540;
+      --color-up: #f5455e;
+      --color-down: #07b752;
+      --color-flat: #f6c90c;
+      --color-accent: #3d7eff;
+      --color-pink: #ef2c67;
+      --color-orange: #f5a400;
+      --color-green: #19a76a;
+      --text-primary: #e8e8e8;
+      --text-secondary: #8888aa;
+      --text-muted: #555566;
+      --border-color: #2a2a3e;
+      --shadow: 0 7px 18px rgba(0, 0, 0, .3);
+      --font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      margin: 0;
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      font-size: 13px;
+      line-height: 1.4;
+      background: var(--bg-primary);
+    }
+
+    .page {
+      width: min(2200px, calc(100vw - 72px));
+      margin: 18px auto 64px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 32px;
+      padding: 4px 0 34px;
+    }
+
+    .version {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+
+    .version b {
+      padding: 4px 14px;
+      color: var(--color-accent);
+      background: rgba(61, 126, 255, 0.15);
+      border: 1px solid rgba(61, 126, 255, 0.3);
+      border-radius: 7px;
+      font-size: 16px;
+      letter-spacing: .02em;
+    }
+
+    h1 {
+      margin: 0 0 22px;
+      font-size: 36px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 20px;
+    }
+
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 8px;
+    }
+
+    .datebox, .range {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      min-height: 62px;
+      padding: 10px 22px;
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      background: var(--bg-secondary);
+    }
+
+    .datebox label { color: var(--text-secondary); font-weight: 700; }
+    .datebox strong {
+      display: inline-flex;
+      min-width: 220px;
+      padding: 10px 18px;
+      border-radius: 18px;
+      background: var(--bg-card);
+      font-size: 24px;
+    }
+
+    .range span {
+      padding: 11px 19px;
+      border-radius: 14px;
+      font-size: 24px;
+      color: var(--text-secondary);
+    }
+
+    .range .active {
+      color: #fff;
+      background: var(--color-accent);
+    }
+
+    .grid-top {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+    }
+
+    .card {
+      position: relative;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric-card {
+      min-height: 300px;
+      padding: 30px 34px;
+    }
+
+    .accent-blue { border-left: 4px solid var(--color-accent); }
+    .accent-pink { border-left: 4px solid var(--color-pink); }
+    .accent-orange { border-left: 4px solid var(--color-orange); }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--text-secondary);
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      box-shadow: inset 0 0 0 5px rgba(255,255,255,.1);
+    }
+
+    .info {
+      display: inline-grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--border-color);
+      border-radius: 50%;
+      color: var(--text-secondary);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .tag {
+      margin-left: auto;
+      padding: 6px 13px;
+      border-radius: 8px;
+      background: rgba(245, 164, 0, 0.15);
+      color: var(--color-orange);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .gauge-row {
+      display: grid;
+      grid-template-columns: 164px 1fr;
+      align-items: center;
+      gap: 34px;
+      margin-top: 38px;
+    }
+
+    .gauge {
+      width: 152px;
+      height: 152px;
+      border-radius: 50%;
+      background: conic-gradient(var(--color-orange) 0 46%, var(--border-color) 46% 100%);
+      display: grid;
+      place-items: center;
+    }
+
+    .gauge::before {
+      content: "";
+      position: absolute;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+    }
+
+    .gauge-value {
+      position: relative;
+      text-align: center;
+      color: var(--color-orange);
+      font-size: 39px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+
+    .gauge-value small {
+      display: block;
+      margin-top: 8px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .scale-labels {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .scale {
+      height: 12px;
+      margin: 14px 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--color-down), var(--color-flat), var(--color-up), var(--border-color) 52%);
+    }
+
+    .pill {
+      display: inline-flex;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(7, 183, 82, 0.15);
+      color: var(--color-down);
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .big-date {
+      margin: 32px 0 12px;
+      font-size: 44px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+
+    .note {
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .mini-box {
+      padding: 13px 16px;
+      border-radius: 10px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+
+    .mini-box b {
+      color: var(--text-primary);
+      margin-left: 8px;
+    }
+
+    .triple {
+      margin: 32px 0 12px;
+      font-size: 42px;
+      font-weight: 900;
+    }
+
+    .triple .red { color: var(--color-pink); }
+    .triple .orange { color: var(--color-orange); }
+    .triple .green { color: var(--color-down); }
+    .link {
+      position: absolute;
+      right: 34px;
+      top: 92px;
+      color: var(--text-secondary);
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .fact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px 30px;
+      margin-top: 26px;
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+    .fact-grid b { color: var(--text-primary); }
+
+    .rate {
+      margin: 30px 0 22px;
+      color: var(--color-orange);
+      font-size: 44px;
+      font-weight: 900;
+    }
+
+    .progress {
+      position: relative;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--border-color);
+      overflow: hidden;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 30%;
+      background: var(--color-orange);
+      border-radius: inherit;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 22px;
+      margin: 26px 0 30px;
+    }
+
+    .stat {
+      min-height: 132px;
+      padding: 26px 28px;
+    }
+
+    .stat .label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .stat .num {
+      margin: 18px 0 8px;
+      font-size: 31px;
+      font-weight: 900;
+      letter-spacing: .06em;
+    }
+
+    .stat .sub { color: var(--text-secondary); font-size: 16px; }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 640px;
+      gap: 28px;
+    }
+
+    .panel {
+      padding: 34px 38px;
+      margin-bottom: 28px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      color: var(--text-secondary);
+      font-size: 23px;
+      font-weight: 500;
+    }
+
+    .legend {
+      display: flex;
+      justify-content: flex-end;
+      gap: 24px;
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+
+    .chart-wrap {
+      margin-top: 70px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .summary-cells {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      margin-top: 28px;
+    }
+
+    .summary-cells div {
+      min-height: 94px;
+      padding: 18px;
+      text-align: center;
+      background: var(--bg-card);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+    .summary-cells b {
+      display: block;
+      margin: 10px 0 2px;
+      color: var(--text-primary);
+      font-size: 22px;
+    }
+
+    .two-box {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 22px;
+      margin-top: 22px;
+    }
+
+    .plain-box {
+      min-height: 140px;
+      padding: 24px;
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+
+    .plain-box h3 {
+      margin: 0 0 22px;
+      color: var(--text-primary);
+      font-size: 20px;
+    }
+
+    .warn {
+      min-height: 150px;
+      border-left: 4px solid var(--color-pink);
+    }
+
+    .small-kpi {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .small-kpi span {
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .small-kpi b {
+      display: block;
+      margin-top: 12px;
+      font-size: 26px;
+    }
+
+    .rank-list {
+      padding: 32px 34px;
+    }
+
+    .rank-title {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 26px;
+      font-size: 22px;
+      color: var(--text-secondary);
+    }
+
+    .rank-item {
+      display: grid;
+      grid-template-columns: 34px 1fr 56px;
+      align-items: center;
+      gap: 14px;
+      margin: 19px 0;
+      color: var(--text-primary);
+      font-size: 18px;
+    }
+
+    .bar {
+      height: 7px;
+      margin-top: 10px;
+      border-radius: 999px;
+      background: var(--border-color);
+      overflow: hidden;
+    }
+    .bar span { display: block; height: 100%; border-radius: inherit; background: var(--color-pink); }
+    .bar.orange span { background: var(--color-orange); }
+
+    .heat-panel {
+      padding: 34px 38px 44px;
+      margin-top: 10px;
+    }
+
+    .heat-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 52px;
+    }
+
+    .toggle {
+      display: inline-flex;
+      gap: 8px;
+      padding: 7px;
+      border-radius: 16px;
+      background: var(--bg-card);
+    }
+    .toggle b {
+      padding: 9px 18px;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--color-accent);
+    }
+    .toggle span { padding: 9px 12px; color: var(--text-primary); }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: 150px repeat(18, minmax(48px, 1fr));
+      border-left: 1px solid var(--border-color);
+      border-top: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .heatmap div {
+      min-height: 46px;
+      display: grid;
+      place-items: center;
+      border-right: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 16px;
+    }
+
+    .heatmap .rowlabel {
+      justify-content: end;
+      padding-right: 18px;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+
+    .heatmap .empty { background: var(--bg-card); color: transparent; }
+    .h1 { background: rgba(245, 201, 12, 0.2); }
+    .h2 { background: rgba(245, 201, 12, 0.35); }
+    .h3 { background: rgba(245, 201, 12, 0.5); }
+    .h4 { background: rgba(245, 201, 12, 0.65); }
+    .h5 { background: rgba(245, 85, 94, 0.6); color: #fff !important; }
+
+    .date-grid {
+      display: grid;
+      grid-template-columns: repeat(18, 1fr);
+      margin: 42px 0 0 150px;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .date-grid > div {
+      min-height: 230px;
+      border-right: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+    .date-grid > div:last-child { border-right: 0; }
+    .date-grid h4 {
+      margin: 0;
+      padding: 16px 6px;
+      text-align: center;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+    .date-grid p {
+      margin: 12px 8px;
+      color: var(--text-primary);
+      font-weight: 800;
+      text-align: center;
+      font-size: 16px;
+    }
+    .status {
+      display: inline-flex;
+      margin-top: 10px;
+      padding: 4px 12px;
+      border-radius: 8px;
+      background: rgba(61, 126, 255, 0.15);
+      color: var(--color-accent);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 1300px) {
+      .page { width: calc(100vw - 32px); }
+      .topbar, .main-grid { grid-template-columns: 1fr; }
+      .grid-top { grid-template-columns: repeat(2, 1fr); }
+      .stat-row { grid-template-columns: repeat(3, 1fr); }
+      .heat-panel { overflow-x: auto; }
+      .heatmap, .date-grid { min-width: 1500px; }
+    }
+
+    @media (max-width: 760px) {
+      .grid-top, .stat-row, .summary-cells, .two-box { grid-template-columns: 1fr; }
+      .filters { flex-wrap: wrap; }
+      .metric-card { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="topbar">
+      <section>
+        <div class="version"><b>V3.0 PRO</b><span>数据更新于 <strong>2026/05/18</strong></span></div>
+        <h1>市场情绪仪表盘</h1>
+        <p class="subtitle">基于多维度情绪数据的综合分析系统</p>
+      </section>
+      <section class="filters">
+        <div class="datebox"><label>交易日</label><strong>2026/05/18</strong><span>▣</span></div>
+        <div class="range"><span>近14日</span><span>近30日</span><span class="active">近60日</span></div>
+      </section>
+    </header>
+
+    <section class="grid-top">
+      <article class="card metric-card">
+        <div class="card-title"><span class="dot"></span>情绪综合指数 <span class="info">i</span><span class="tag">中性观望</span></div>
+        <div class="note">综合市场情绪量化指标</div>
+        <div class="gauge-row">
+          <div class="gauge"><div class="gauge-value">46<small>指数</small></div></div>
+          <div>
+            <div class="scale-labels"><span>极度低迷</span><span>高潮</span></div>
+            <div class="scale"></div>
+            <div class="scale-labels"><span>强度 0</span><span class="pill">+16.6</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card metric-card accent-blue">
+        <div class="card-title">▣ 最新交易日 <span class="tag" style="background:#f4f7fa;color:#6e7b8b">样本 60</span></div>
+        <div class="big-date">2026/05/18</div>
+        <div class="note"><span style="color:var(--blue)">●</span> 当前情绪日径归属日</div>
+        <div class="mini-grid">
+          <div class="mini-box">周期 <b>常态</b></div>
+          <div class="mini-box">信号 <b>强度 0</b></div>
+          <div class="mini-box">口径 <b>正常口径</b></div>
+          <div class="mini-box">策略 <b>半仓试错，优先低吸</b></div>
+        </div>
+      </article>
+
+      <article class="card metric-card accent-pink">
+        <div class="card-title"><span style="color:var(--pink)">◉</span> 涨停 / 炸板 / 跌停 <span class="tag" style="background:#fff1f6;color:var(--pink)">-4</span></div>
+        <div class="triple"><span class="red">82</span> <span style="color:#9aa3af">/</span> <span class="orange">34</span> <span style="color:#9aa3af">/</span> <span class="green">17</span></div>
+        <div class="link">详情 &gt;</div>
+        <div class="note">封板 / 炸板 / 跌停（情绪强弱与风险指标）</div>
+        <div class="fact-grid">
+          <span>封板率 <b>70.7%</b></span><span>净强度 <b>65</b></span>
+          <span>封跌比分级 <b>偏强</b></span><span>昨日涨停溢价 <b>-1.2%</b></span>
+        </div>
+      </article>
+
+      <article class="card metric-card accent-orange">
+        <div class="card-title"><span style="color:var(--orange)">●</span> 炸板率 <span class="tag" style="background:#fff1f6;color:var(--pink)">-12.0</span></div>
+        <div class="rate">29.31%</div>
+        <div class="progress"><span></span></div>
+        <div class="scale-labels" style="margin-top:18px"><span>5日均炸板率</span><strong>30.5%</strong></div>
+        <div class="note" style="margin-top:16px;color:#9b6a00">风险中：半仓试错，优先低吸（开盘溢价 -0.4% / 收盘溢价 -1.2%）</div>
+      </article>
+    </section>
+
+    <section class="stat-row">
+      <article class="card stat"><div class="label">大盘系数 <span class="info">i</span></div><div class="num" style="color:var(--pink)">40.4</div><div class="sub">指数环境 <span class="pill" style="float:right">+11.2</span></div></article>
+      <article class="card stat"><div class="label">超短情绪 <span class="info">i</span></div><div class="num" style="color:#8755d8">55.1</div><div class="sub">短线接力温度 <span class="pill" style="float:right">+26.7</span></div></article>
+      <article class="card stat"><div class="label">亏钱效应 <span class="info">i</span></div><div class="num" style="color:var(--green)">58.1</div><div class="sub">风险压力指标 <span class="pill" style="background:#fff1f6;color:var(--pink);float:right">-12.0</span></div></article>
+      <article class="card stat"><div class="label">三线分歧度</div><div class="num">9.5</div><div class="sub">分化强度</div></article>
+      <article class="card stat"><div class="label">大盘VS超短</div><div class="num">14.7</div><div class="sub">差值正常</div></article>
+      <article class="card stat"><div class="label" style="color:var(--pink)">交易建议</div><div class="num" style="font-size:22px">按系统常规仓位执行</div><div class="sub" style="color:var(--pink)">系统执行建议</div></article>
+    </section>
+
+    <section class="main-grid">
+      <section>
+        <article class="card panel">
+          <div class="panel-title"><span style="color:var(--blue)">✦</span> 情绪周期三线监控 <span class="info">i</span></div>
+          <div class="note">大盘系数 · 超短情绪 · 亏钱效应 · 综合指数</div>
+          <div class="legend"><span style="color:var(--pink)">● 高潮区 80-100</span><span style="color:var(--blue)">● 冰点区 0-20</span><span class="tag" style="margin-left:0;background:#e3f0ff;color:#2f73c7">冰点信号 7 次</span></div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 1260 560" width="100%" height="560" role="img" aria-label="三线趋势图">
+              <rect x="80" y="40" width="1100" height="92" fill="#fff0f0"/>
+              <rect x="80" y="392" width="1100" height="92" fill="#edf3ff"/>
+              <g stroke="#e9eef5" stroke-width="1">
+                <line x1="80" y1="40" x2="80" y2="484"/><line x1="80" y1="484" x2="1180" y2="484"/>
+                <line x1="80" y1="128" x2="1180" y2="128"/><line x1="80" y1="216" x2="1180" y2="216"/><line x1="80" y1="304" x2="1180" y2="304"/><line x1="80" y1="392" x2="1180" y2="392"/>
+              </g>
+              <g fill="#778392" font-size="18"><text x="30" y="48">100</text><text x="42" y="136">80</text><text x="42" y="224">60</text><text x="42" y="312">40</text><text x="42" y="400">20</text><text x="56" y="490">0</text></g>
+              <text x="560" y="24" fill="#7b8796" font-size="17">高潮区 80-100</text>
+              <text x="540" y="382" fill="#7b8796" font-size="17">冰点区 0-20</text>
+              <polyline points="105,180 170,238 230,190 280,315 345,178 410,290 480,245 540,338 610,268 660,320 710,180 760,282 820,180 890,250 950,235 1000,390 1050,180 1088,424 1160,342" fill="none" stroke="#e6464e" stroke-width="5" stroke-linecap="round"/>
+              <polyline points="105,252 170,260 230,236 280,182 345,210 410,215 480,332 540,300 610,288 660,252 710,245 760,130 820,204 890,138 950,145 1000,260 1050,115 1088,310 1160,300" fill="none" stroke="#7442dd" stroke-width="5" stroke-linecap="round"/>
+              <polyline points="105,300 170,302 230,305 280,303 345,302 410,296 480,360 540,302 610,90 660,338 710,96 760,88 820,270 890,240 950,320 1000,252 1050,316 1088,90 1160,245" fill="none" stroke="#18a86d" stroke-width="5" stroke-linecap="round"/>
+              <g fill="#e6464e"><circle cx="105" cy="180" r="6"/><circle cx="345" cy="178" r="6"/><circle cx="710" cy="180" r="6"/><circle cx="1160" cy="342" r="10" fill="#fff" stroke="#e6464e" stroke-width="5"/></g>
+              <g fill="#7442dd"><circle cx="280" cy="182" r="6"/><circle cx="760" cy="130" r="6"/><circle cx="1050" cy="115" r="6"/><circle cx="1160" cy="300" r="10" fill="#fff" stroke="#7442dd" stroke-width="5"/></g>
+              <g fill="#2f83e6"><path d="M610 50 l11 22 h-22z"/><path d="M710 54 l11 22 h-22z"/><path d="M760 48 l11 22 h-22z"/><path d="M1088 48 l11 22 h-22z"/></g>
+              <g fill="#6b7586" font-size="17" transform="translate(88 526) rotate(-45)"><text>04/10</text><text x="78">04/13</text><text x="156">04/14</text><text x="234">04/15</text><text x="312">04/16</text><text x="390">04/20</text><text x="468">04/23</text><text x="546">04/27</text><text x="624">04/29</text><text x="702">05/06</text><text x="780">05/11</text><text x="858">05/13</text><text x="936">05/14</text><text x="1014">05/18</text></g>
+            </svg>
+          </div>
+          <div class="summary-cells">
+            <div>最新节点 <span class="info">i</span><b>常态</b>情绪标签</div>
+            <div>三线分歧<b style="color:var(--orange)">9.5</b>标准差</div>
+            <div>大盘VS超短<b>14.7</b>同步正常</div>
+            <div>综合指数<b style="color:#2872d9">45.8</b>情绪读数</div>
+          </div>
+          <div class="two-box">
+            <div class="plain-box"><h3>短线执行看板</h3><p>5日情绪变化 <b>+11.9</b>　5日均炸板率 <b>30.5%</b></p><p>背离状态 <b>轻度背离</b>　冰点密度(10日) <b>2/10</b></p></div>
+            <div class="plain-box"><h3>今日操作框架</h3><p>均衡试错：控制仓位，优先主线分歧后的转强。</p><p><span class="tag" style="margin-left:0;background:#e4f0ff;color:#2d77c8">风险中</span> <span class="tag" style="margin-left:8px">半仓试错，优先低吸</span> <span class="pill">收盘溢价 -1.2%</span></p></div>
+          </div>
+        </article>
+      </section>
+
+      <aside>
+        <article class="card panel warn">
+          <div class="panel-title"><span style="color:var(--pink)">▲</span> 风险提示</div>
+          <p class="note" style="margin-top:38px;color:#566273">· 三线未明显失衡，可继续观察主线与板块集中度</p>
+        </article>
+        <article class="card small-kpi">
+          <div><span>涨停家数</span><b style="color:var(--pink)">82</b></div>
+          <div><span>炸板家数</span><b style="color:var(--orange)">34</b></div>
+          <div><span>跌停家数</span><b style="color:var(--green)">17</b></div>
+          <div><span>综合指数</span><b style="color:#2872d9">45.8</b></div>
+          <div><span>冰点信号</span><b style="color:var(--green)">7</b></div>
+          <div><span>封跌比</span><b>4.82</b></div>
+        </article>
+        <article class="card rank-list">
+          <div class="rank-title"><span>▰ 板块强度 TOP8</span><small>2026/05/18</small></div>
+          <div class="rank-item"><span>1</span><div>元件<div class="bar"><span style="width:96%"></span></div></div><b style="color:var(--pink)">爆发</b></div>
+          <div class="rank-item"><span>2</span><div>电网设备<div class="bar"><span style="width:82%"></span></div></div><b style="color:var(--pink)">爆发</b></div>
+          <div class="rank-item"><span>3</span><div>自动化设<div class="bar"><span style="width:80%"></span></div></div><b style="color:var(--pink)">爆发</b></div>
+          <div class="rank-item"><span>4</span><div>非白酒<div class="bar orange"><span style="width:54%"></span></div></div><b style="color:var(--orange)">活跃</b></div>
+          <div class="rank-item"><span>5</span><div>电池<div class="bar orange"><span style="width:53%"></span></div></div><b style="color:var(--orange)">活跃</b></div>
+          <div class="rank-item"><span>6</span><div>化学制品<div class="bar orange"><span style="width:51%"></span></div></div><b style="color:var(--orange)">活跃</b></div>
+          <div class="rank-item"><span>7</span><div>一般零售<div class="bar orange"><span style="width:51%"></span></div></div><b style="color:var(--orange)">活跃</b></div>
+          <div class="rank-item"><span>8</span><div>半导体<div class="bar orange"><span style="width:50%"></span></div></div><b style="color:var(--orange)">活跃</b></div>
+        </article>
+      </aside>
+    </section>
+
+    <section class="card heat-panel">
+      <div class="heat-head">
+        <div>
+          <div class="panel-title"><span style="color:#ff7a00">●</span> 板块情绪热力分布图</div>
+          <div class="note">概念板块强度 | 红色=强势 绿色=弱势</div>
+        </div>
+        <div><span style="color:var(--pink)">■ 涨停潮</span>　<span style="color:var(--orange)">■ 活跃</span>　<span style="color:#23bd83">■ 调整</span> <span class="toggle"><b>热→冷</b><span>冷→热</span></span></div>
+      </div>
+      <div class="heatmap">
+        <div></div><div>04/24</div><div>04/27</div><div>04/28</div><div>04/29</div><div>04/30</div><div>05/06</div><div>05/07</div><div>05/08</div><div>05/11</div><div>05/12</div><div>05/13</div><div>05/14</div><div>05/15</div><div>05/18</div><div>04/20</div><div>04/21</div><div>04/22</div><div>04/23</div>
+        <div class="rowlabel">通信设备</div><div class="empty"></div><div class="empty"></div><div class="h2">23640</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">6752</div><div class="h1">7870</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">房地产开发</div><div class="empty"></div><div class="h2">17863</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7222</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">光伏设备</div><div class="empty"></div><div class="empty"></div><div class="h1">7983</div><div class="empty"></div><div class="h1">6743</div><div class="empty"></div><div class="empty"></div><div class="h2">16189</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7683</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">消费电子</div><div class="h1">7868</div><div class="h1">7260</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">6078</div><div class="h3">20383</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7696</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">通用设备</div><div class="h1">11768</div><div class="empty"></div><div class="h3">23434</div><div class="h4">35421</div><div class="h3">21681</div><div class="empty"></div><div class="empty"></div><div class="h1">7283</div><div class="h2">17058</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">电力</div><div class="h1">6955</div><div class="h2">14348</div><div class="h3">21666</div><div class="empty"></div><div class="h2">21435</div><div class="h5">51396</div><div class="h2">21178</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7873</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">半导体</div><div class="h2">13618</div><div class="empty"></div><div class="h2">14727</div><div class="h3">25906</div><div class="h2">23629</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7683</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">化学制品</div><div class="h2">15891</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h2">23789</div><div class="h2">20051</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h1">7753</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">电网设备</div><div class="h2">13796</div><div class="empty"></div><div class="h1">6958</div><div class="empty"></div><div class="empty"></div><div class="h4">29030</div><div class="h4">27058</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h2">17468</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+        <div class="rowlabel">元件</div><div class="empty"></div><div class="empty"></div><div class="h3">23178</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="h3">21540</div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div><div class="empty"></div>
+      </div>
+
+      <div class="date-grid">
+        <div><h4>04/20</h4><p>汽车零部件</p><p>通用设备</p><p>光学光电</p><p class="status">常态</p></div>
+        <div><h4>04/21</h4><p>汽车零部件</p><p>电力</p><p>包装印刷</p><p class="status">常态</p></div>
+        <div><h4>04/22</h4><p>元件</p><p>通信设备</p><p>房地产开发</p><p class="status" style="color:#7d3ee4">耦合</p></div>
+        <div><h4>04/23</h4><p>电力</p><p>化学制品</p><p>汽车零部件</p><p class="status">冰冰点</p></div>
+        <div><h4>04/24</h4><p>化学制品</p><p>电网设备</p><p>物流</p><p class="status">常态</p></div>
+        <div><h4>04/27</h4><p>光学光电</p><p>服装家纺</p><p>半导体</p><p class="status">冰冰点</p></div>
+        <div><h4>04/28</h4><p>电力</p><p>医疗服务</p><p>通用设备</p><p class="status">冰冰点</p></div>
+        <div><h4>04/29</h4><p>电池</p><p>小金属</p><p>专用设备</p><p class="status">常态</p></div>
+        <div><h4>04/30</h4><p>房地产开发</p><p>通用设备</p><p>半导体</p><p class="status">常态</p></div>
+        <div><h4>05/06</h4><p>通用设备</p><p>半导体</p><p>电力</p><p class="status">常态</p></div>
+        <div><h4>05/07</h4><p>通信设备</p><p>通用设备</p><p>元件</p><p class="status">常态</p></div>
+        <div><h4>05/08</h4><p>通用设备</p><p>汽车零部件</p><p>包装印刷</p><p class="status">常态</p></div>
+        <div><h4>05/11</h4><p>半导体</p><p>自动化设</p><p>通用设备</p><p class="status" style="color:#bd5a19;background:#fff3e2">背离</p></div>
+        <div><h4>05/12</h4><p>电网设备</p><p>电力</p><p>汽车零部件</p><p class="status" style="color:#bd5a19;background:#fff3e2">背离</p></div>
+        <div><h4>05/13</h4><p>电力</p><p>电网设备</p><p>消费电子</p><p class="status" style="color:#bd5a19;background:#fff3e2">背离</p></div>
+        <div><h4>05/14</h4><p>化学制品</p><p>电力</p><p>光伏设备</p><p class="status">冰冰点</p></div>
+        <div><h4>05/15</h4><p>化学制品</p><p>汽车零部件</p><p>通用设备</p><p class="status">冰冰点</p></div>
+        <div><h4>05/18</h4><p>元件</p><p>电网设备</p><p>自动化设</p><p class="status">常态</p></div>
+      </div>
+      <p class="note" style="margin-top:26px">区间：2026/02/10 ~ 2026/05/18 | 窗口 60 天 | 口径：爆发板块(≥8000) + 活跃板块(≥2000)</p>
+    </section>
+  </main>
+</body>
+</html>

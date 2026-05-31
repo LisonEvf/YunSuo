@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>明日策略看板模板</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #1e1e32;
+      --bg-card-hover: #252540;
+      --color-up: #f5455e;
+      --color-down: #07b752;
+      --color-flat: #f6c90c;
+      --color-accent: #3d7eff;
+      --color-pink: #e6094f;
+      --color-green: #069b6d;
+      --color-blue: #2078df;
+      --color-orange: #d98a00;
+      --color-gold: #f4b128;
+      --text-primary: #e8e8e8;
+      --text-secondary: #8888aa;
+      --text-muted: #555566;
+      --border-color: #2a2a3e;
+      --shadow: 0 7px 18px rgba(0, 0, 0, .3);
+      --font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      margin: 0;
+      font-family: var(--font-family);
+      color: var(--text-primary);
+      font-size: 13px;
+      line-height: 1.4;
+      background: var(--bg-primary);
+    }
+
+    .page {
+      width: min(2320px, calc(100vw - 68px));
+      margin: 22px auto 70px;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .overview {
+      min-height: 260px;
+      padding: 34px 38px;
+      background: linear-gradient(100deg, rgba(230, 9, 79, 0.1) 0%, rgba(245, 201, 12, 0.08) 100%);
+      border-color: var(--border-color);
+    }
+
+    .overview-top {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 20px;
+      margin-bottom: 28px;
+    }
+
+    .overview-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr 1fr 1.05fr;
+      gap: 0;
+    }
+
+    .overview-grid > div {
+      padding: 0 26px;
+      min-height: 150px;
+      border-left: 1px solid var(--border-color);
+    }
+    .overview-grid > div:first-child {
+      border-left: 0;
+      padding-left: 0;
+    }
+
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--color-pink);
+      font-size: 20px;
+      font-weight: 900;
+    }
+
+    .state {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 42px;
+      font-weight: 900;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px 12px;
+      min-height: 28px;
+      border-radius: 9px;
+      font-size: 16px;
+      font-weight: 900;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .badge.red { background: rgba(230, 9, 79, 0.15); color: var(--color-pink); border: 1px solid rgba(230, 9, 79, 0.3); }
+    .badge.yellow { background: rgba(245, 201, 12, 0.15); color: var(--color-flat); border: 1px solid rgba(245, 201, 12, 0.3); }
+    .badge.blue { background: rgba(61, 126, 255, 0.15); color: var(--color-accent); border: 1px solid rgba(61, 126, 255, 0.3); }
+    .badge.green { background: rgba(7, 183, 82, 0.15); color: var(--color-down); border: 1px solid rgba(7, 183, 82, 0.3); }
+
+    .emotion-line {
+      margin-top: 14px;
+      color: var(--text-secondary);
+      font-size: 22px;
+    }
+    .emotion-line b { color: var(--color-pink); font-size: 30px; }
+
+    .advice-row {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 22px;
+      line-height: 1.7;
+    }
+    .advice-row b { color: var(--color-flat); }
+    .advice-row strong { color: var(--color-pink); }
+
+    .thin-progress {
+      height: 12px;
+      margin: 8px 0 10px;
+      border-radius: 999px;
+      background: var(--border-color);
+      overflow: hidden;
+    }
+    .thin-progress span {
+      display: block;
+      width: 31%;
+      height: 100%;
+      background: var(--color-pink);
+      border-radius: inherit;
+    }
+
+    .risk-list {
+      color: var(--text-secondary);
+      font-size: 22px;
+      line-height: 1.75;
+    }
+    .risk-list .ok { color: var(--color-down); }
+
+    .time-list {
+      display: grid;
+      gap: 11px;
+    }
+    .time-list div {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 7px;
+      background: var(--bg-card);
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+    .time-list b { color: var(--color-flat); font-weight: 500; }
+
+    .panel {
+      margin-top: 32px;
+      padding: 28px 28px;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 26px;
+      color: var(--text-secondary);
+      font-size: 24px;
+      font-weight: 500;
+    }
+
+    .index-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .index-card {
+      min-width: 0;
+      min-height: 138px;
+      padding: 20px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 4px 11px rgba(0, 0, 0, 0.2);
+      background: var(--bg-card);
+    }
+
+    .index-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+    .index-head span { min-width: 0; overflow-wrap: anywhere; }
+    .index-number {
+      margin: 24px 0 10px;
+      color: var(--color-down);
+      font-size: clamp(24px, 1.25vw, 30px);
+      font-weight: 900;
+      letter-spacing: .06em;
+      overflow-wrap: anywhere;
+    }
+    .index-number.red { color: var(--color-up); }
+    .index-foot {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 17px;
+    }
+
+    .diagnose {
+      margin-top: 18px;
+      padding: 12px 18px;
+      border: 1px solid var(--border-color);
+      border-radius: 9px;
+      color: var(--text-secondary);
+      font-size: 19px;
+    }
+    .diagnose b { color: var(--text-primary); }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-top: 32px;
+    }
+
+    .kpi {
+      min-height: 166px;
+      padding: 28px;
+    }
+    .kpi h3 {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 20px;
+      font-weight: 500;
+    }
+    .kpi b {
+      display: block;
+      margin: 22px 0 8px;
+      color: var(--color-pink);
+      font-size: 50px;
+      line-height: 1;
+    }
+    .kpi p { margin: 0; color: var(--text-secondary); font-size: 18px; }
+
+    .body-grid {
+      display: grid;
+      grid-template-columns: 680px minmax(0, 1fr);
+      gap: 26px;
+      margin-top: 32px;
+    }
+
+    .left-panel, .right-panel {
+      padding: 28px;
+    }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      align-items: start;
+      gap: 0;
+      margin: 24px 20px 38px;
+      position: relative;
+    }
+    .stepper::before {
+      content: "";
+      position: absolute;
+      left: 30px;
+      right: 30px;
+      top: 15px;
+      height: 3px;
+      background: var(--border-color);
+    }
+    .step {
+      position: relative;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 18px;
+    }
+    .step::before {
+      content: "";
+      display: block;
+      width: 28px;
+      height: 28px;
+      margin: 0 auto 12px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      box-shadow: 0 0 0 8px var(--bg-secondary);
+    }
+    .step.active {
+      color: var(--color-accent);
+      font-weight: 900;
+    }
+    .step.active::before {
+      background: var(--color-accent);
+      box-shadow: 0 0 0 8px rgba(61, 126, 255, 0.2);
+    }
+
+    .data-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 19px;
+    }
+    .data-row b { color: var(--text-primary); }
+
+    .mini-chart {
+      margin-top: 26px;
+      padding: 20px 20px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+    }
+
+    .mini-chart-head {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-secondary);
+      font-size: 17px;
+      margin-bottom: 10px;
+    }
+
+    .conclusion {
+      margin-top: 24px;
+      padding: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-secondary);
+      font-size: 20px;
+      line-height: 1.8;
+    }
+
+    .tabs {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: -56px;
+      margin-bottom: 24px;
+    }
+
+    .ladder-card {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 210px;
+      gap: 28px;
+      min-height: 186px;
+      margin-bottom: 18px;
+      padding: 26px 26px 22px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .ladder-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      background: var(--color-pink);
+    }
+    .ladder-card.support::before { background: var(--color-gold); }
+    .ladder-card.support { background: linear-gradient(90deg, rgba(245, 201, 12, 0.05), var(--bg-secondary)); }
+    .ladder-card.main { background: linear-gradient(90deg, rgba(230, 9, 79, 0.05), var(--bg-secondary)); }
+
+    .ladder-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      font-size: 28px;
+      font-weight: 900;
+    }
+    .ladder-meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px 44px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      line-height: 1.7;
+    }
+    .strength {
+      text-align: right;
+      color: var(--color-accent);
+      font-size: 24px;
+      font-weight: 900;
+    }
+    .strength.red { color: var(--color-up); }
+    .small-bar {
+      width: 150px;
+      height: 8px;
+      margin: 16px 0 0 auto;
+      border-radius: 999px;
+      background: var(--border-color);
+      overflow: hidden;
+    }
+    .small-bar span { display: block; height: 100%; width: 82%; background: var(--color-pink); border-radius: inherit; }
+    .support .small-bar span { width: 32%; background: var(--color-accent); }
+
+    .method-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .method {
+      min-height: 142px;
+      padding: 24px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      background: var(--bg-card);
+    }
+    .method h3 {
+      display: flex;
+      justify-content: space-between;
+      margin: 0 0 18px;
+      font-size: 23px;
+    }
+    .method b {
+      display: block;
+      margin-bottom: 12px;
+      font-size: 37px;
+    }
+    .method p { margin: 0; color: var(--text-secondary); font-size: 18px; }
+
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-top: 32px;
+    }
+
+    .risk-box, .watch-box {
+      min-height: 365px;
+      padding: 30px;
+    }
+    .risk-box { border-color: rgba(230, 9, 79, 0.3); background: rgba(230, 9, 79, 0.05); }
+    .watch-box { border-color: rgba(7, 183, 82, 0.3); background: rgba(7, 183, 82, 0.05); }
+
+    .alert {
+      position: relative;
+      padding: 24px 28px;
+      margin-top: 22px;
+      border: 1px solid rgba(245, 201, 12, 0.3);
+      border-radius: 14px;
+      background: rgba(245, 201, 12, 0.08);
+      color: var(--color-flat);
+      font-size: 20px;
+      line-height: 1.8;
+    }
+    .alert b, .opportunity b { display: block; font-size: 24px; }
+    .level {
+      position: absolute;
+      right: 28px;
+      top: 26px;
+      color: var(--color-flat);
+    }
+    .opportunity {
+      margin-top: 22px;
+      padding: 26px;
+      border: 1px solid rgba(7, 183, 82, 0.3);
+      border-radius: 14px;
+      background: rgba(7, 183, 82, 0.08);
+      color: var(--color-down);
+      font-size: 20px;
+      line-height: 1.8;
+    }
+
+    .pool {
+      margin-top: 34px;
+      overflow: hidden;
+    }
+    .pool-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 30px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .pool-head .panel-title { margin: 0; }
+    .class-tags { display: flex; gap: 12px; }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 20px;
+    }
+    .table th {
+      padding: 20px 28px;
+      text-align: left;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      font-weight: 800;
+    }
+    .table td {
+      padding: 22px 28px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+    .table tr:nth-child(2) { background: rgba(230, 9, 79, 0.05); }
+    .table tr:nth-child(3), .table tr:nth-child(4) { background: rgba(245, 201, 12, 0.05); }
+    .table tr:nth-child(n+5) { background: transparent; }
+    .code { display: block; margin-top: 4px; color: var(--text-secondary); }
+
+    .tip {
+      padding: 20px 28px 30px;
+      border-top: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    @media (max-width: 1050px) {
+      .overview-grid, .body-grid, .bottom-grid { grid-template-columns: 1fr; }
+      .overview-grid > div { border-left: 0; border-top: 1px solid var(--border-color); padding: 22px 0; }
+      .overview-grid > div:first-child { border-top: 0; }
+      .index-grid { grid-template-columns: repeat(3, 1fr); }
+      .kpi-grid, .method-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 780px) {
+      .page { width: calc(100vw - 28px); }
+      .index-grid, .kpi-grid, .method-grid { grid-template-columns: 1fr; }
+      .ladder-card, .ladder-meta { grid-template-columns: 1fr; }
+      .overview-top { flex-direction: column; gap: 10px; }
+      .pool { overflow-x: auto; }
+      .table { min-width: 980px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card overview">
+      <div class="overview-top">
+        <span>数据日期：2026/05/18</span>
+        <span>数据最后更新时间：2026/5/18 20:00:45</span>
+      </div>
+      <div class="overview-grid">
+        <div>
+          <div class="section-label">情绪周期节点 <span class="badge" style="background:#fff;color:#6b7686;border:1px solid #d8e0ea">i</span></div>
+          <div class="state">常态 <span class="badge">常态</span></div>
+          <div class="emotion-line">情绪综合指数 <b>45.8</b> <span class="badge" style="background:#fff;color:#6b7686;border:1px solid #d8e0ea">i</span></div>
+        </div>
+        <div>
+          <div class="section-label">明日仓位建议</div>
+          <div class="advice-row"><span>激进型</span><b>1-3成试错</b></div>
+          <div class="advice-row"><span>稳健型</span><strong>1-2成</strong></div>
+          <div class="thin-progress"><span></span></div>
+          <div style="text-align:right;color:#727d8d;font-size:18px">建议仓位：10% - 30%</div>
+        </div>
+        <div>
+          <div class="section-label">技术风格匹配</div>
+          <div class="risk-list">
+            <div class="ok">- 主线核心</div>
+            <div class="ok">- 龙头换手板</div>
+            <div>- 回避：无逻辑跟风</div>
+          </div>
+        </div>
+        <div>
+          <div class="section-label">关键时点预案</div>
+          <div class="time-list">
+            <div><span>09:25</span><b>观察跌停家数是否&gt;17</b></div>
+            <div><span>09:35</span><b>观察炸板率是否&lt;21%</b></div>
+            <div><span>10:00</span><b>若主线继续加强，聚焦前排核心</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-title">▰ 核心指数监控</div>
+      <div class="index-grid">
+        <article class="index-card"><div class="index-head"><span>上证指数</span><span>000001.SH</span></div><div class="index-number">4131.53</div><div class="index-foot"><span>-0.09%</span><span>-3.86</span></div></article>
+        <article class="index-card"><div class="index-head"><span>深证成指</span><span>399001.SZ</span></div><div class="index-number">15530.20</div><div class="index-foot"><span>-0.20%</span><span>-31.14</span></div></article>
+        <article class="index-card"><div class="index-head"><span>创业板指</span><span>399006.SZ</span></div><div class="index-number">3914.88</div><div class="index-foot"><span>-0.36%</span><span>-14.19</span></div></article>
+        <article class="index-card"><div class="index-head"><span>科创50</span><span>000688.SH</span></div><div class="index-number red">1709.96</div><div class="index-foot"><span style="color:var(--pink)">+0.81%</span><span>13.70</span></div></article>
+        <article class="index-card"><div class="index-head"><span>上证50</span><span>000016.SH</span></div><div class="index-number">2934.96</div><div class="index-foot"><span>-0.77%</span><span>-22.64</span></div></article>
+        <article class="index-card"><div class="index-head"><span>沪深300</span><span>000300.SH</span></div><div class="index-number">4833.52</div><div class="index-foot"><span>-0.54%</span><span>-26.07</span></div></article>
+        <article class="index-card"><div class="index-head"><span>北证50</span><span>899050.BJ</span></div><div class="index-number">1356.95</div><div class="index-foot"><span>-1.55%</span><span>-21.35</span></div></article>
+      </div>
+      <div class="diagnose"><b>大盘诊断：震荡分化</b>　北证50-1.55% 至 科创50+0.81%，平均涨跌幅 -0.39%　上涨：2375 / 下跌：3003</div>
+    </section>
+
+    <section class="kpi-grid">
+      <article class="card kpi"><h3>情绪综合指数 ⓘ</h3><b>45.8</b><p>较昨日 +16.6%</p></article>
+      <article class="card kpi"><h3>炸板率 ⓘ</h3><b>29.3%</b><p style="color:#a20c43">炸板伤害：-5.3%</p></article>
+      <article class="card kpi"><h3>昨日涨停溢价 ⓘ</h3><b>-1.2%</b><p>收盘 -1.2% / 开盘 -0.4%</p></article>
+      <article class="card kpi" style="border-color:#eadc9d"><h3>连板空间高度 ⓘ</h3><b>6</b><p style="color:#9a6500">利仁科技 | 风险累积</p></article>
+    </section>
+
+    <section class="body-grid">
+      <aside class="card left-panel">
+        <div class="panel-title">◉ 情绪周期定位 ⓘ</div>
+        <div class="stepper">
+          <div class="step">退潮</div><div class="step">冰冰点</div><div class="step active">常态</div><div class="step">启动</div><div class="step">发酵</div><div class="step">高潮</div>
+        </div>
+        <div class="data-row"><span>大盘VS超短 ⓘ</span><b>14.7 <span style="color:var(--pink);font-weight:500">轻度背离</span></b></div>
+        <div class="data-row"><span>市场温度 ⓘ</span><b style="color:#bd7800">70/100 <span style="color:#566273;font-weight:500">非连板股</span></b></div>
+        <div class="data-row"><span>涨跌停家数</span><b>涨停83 / 跌停17 <span style="color:#566273;font-weight:500">(首板74/连板9)</span></b></div>
+        <div class="data-row"><span>两市成交额</span><b>28,939.8亿 <span style="color:var(--pink)">↓13.5%</span></b></div>
+
+        <div class="mini-chart">
+          <div class="mini-chart-head"><b>近5日情绪评分走势</b><span>区间：0-100</span></div>
+          <svg viewBox="0 0 580 260" width="100%" height="260">
+            <g stroke="#e7edf4"><line x1="55" y1="36" x2="540" y2="36"/><line x1="55" y1="80" x2="540" y2="80"/><line x1="55" y1="124" x2="540" y2="124"/><line x1="55" y1="168" x2="540" y2="168"/><line x1="55" y1="212" x2="540" y2="212"/></g>
+            <path d="M56 178 C130 102, 192 70, 250 94 S330 198, 386 184 S480 154, 540 136 L540 212 L56 212 Z" fill="#ffe4ec"/>
+            <path d="M56 178 C130 102, 192 70, 250 94 S330 198, 386 184 S480 154, 540 136" fill="none" stroke="#e92a63" stroke-width="4"/>
+            <g fill="#e92a63" stroke="#fff" stroke-width="4"><circle cx="56" cy="178" r="8"/><circle cx="250" cy="94" r="8"/><circle cx="386" cy="184" r="8"/><circle cx="480" cy="154" r="8"/><circle cx="540" cy="136" r="8"/></g>
+            <g fill="#596677" font-size="18"><text x="55" y="250">5/12</text><text x="205" y="250">5/13</text><text x="342" y="250">5/14</text><text x="455" y="250">5/15</text><text x="518" y="250">5/18</text></g>
+          </svg>
+        </div>
+
+        <div class="mini-chart">
+          <div class="mini-chart-head"><b>近5日涨跌停家数</b><span><i style="color:var(--pink)">●</i> 涨停　<i style="color:#16b990">●</i> 跌停</span></div>
+          <svg viewBox="0 0 580 250" width="100%" height="250">
+            <g stroke="#e7edf4"><line x1="55" y1="42" x2="540" y2="42"/><line x1="55" y1="108" x2="540" y2="108"/><line x1="55" y1="174" x2="540" y2="174"/></g>
+            <g><rect x="105" y="108" width="12" height="66" fill="#ef3c75"/><rect x="118" y="166" width="12" height="8" fill="#22bd91"/><rect x="220" y="50" width="12" height="124" fill="#ef3c75"/><rect x="234" y="168" width="12" height="6" fill="#22bd91"/><rect x="340" y="112" width="12" height="62" fill="#ef3c75"/><rect x="354" y="154" width="12" height="20" fill="#22bd91"/><rect x="455" y="115" width="12" height="59" fill="#ef3c75"/><rect x="469" y="156" width="12" height="18" fill="#22bd91"/><rect x="526" y="88" width="12" height="86" fill="#ef3c75"/><rect x="540" y="153" width="12" height="21" fill="#22bd91"/></g>
+            <g fill="#596677" font-size="18"><text x="92" y="230">5/12</text><text x="206" y="230">5/13</text><text x="326" y="230">5/14</text><text x="442" y="230">5/15</text><text x="513" y="230">5/18</text></g>
+          </svg>
+        </div>
+
+        <div class="mini-chart">
+          <div class="mini-chart-head"><b>近5日两市成交额趋势（亿）</b><span>最新：28,939.8</span></div>
+          <svg viewBox="0 0 580 220" width="100%" height="220">
+            <path d="M56 126 C150 132, 206 130, 270 108 S405 76, 470 98 S520 154, 540 176 L540 190 L56 190 Z" fill="#e8f2ff"/>
+            <path d="M56 126 C150 132, 206 130, 270 108 S405 76, 470 98 S520 154, 540 176" fill="none" stroke="#2f83e6" stroke-width="4"/>
+            <g fill="#2f83e6" stroke="#fff" stroke-width="3"><circle cx="56" cy="126" r="6"/><circle cx="205" cy="130" r="6"/><circle cx="330" cy="86" r="6"/><circle cx="470" cy="98" r="6"/><circle cx="540" cy="176" r="6"/></g>
+            <g fill="#596677" font-size="18"><text x="55" y="212">5/12</text><text x="205" y="212">5/13</text><text x="340" y="212">5/14</text><text x="455" y="212">5/15</text><text x="518" y="212">5/18</text></g>
+          </svg>
+        </div>
+
+        <div class="conclusion"><b>周期结论</b><br>周期结构处于常态，不能等同于启动确认；结合主线强度、晋级率和亏钱效应决定仓位。</div>
+      </aside>
+
+      <section class="card right-panel">
+        <div class="panel-title">▦ 板块梯队复盘</div>
+        <div class="tabs"><span class="badge red">主线</span><span class="badge yellow">支线</span><span class="badge blue">轮动</span></div>
+        <article class="ladder-card main">
+          <div>
+            <div class="ladder-title">元件 <span class="badge red">主线</span> <span style="font-size:18px;color:#667384">高潮</span></div>
+            <div class="ladder-meta"><span>最高板：1</span><span>3板+：0</span><span>2板：0</span><span>首板：5</span><span>龙头：弘信电子</span><span>中军：艾华集团</span><span>资金：机构主导</span><span>占比：23%</span><span style="grid-column:span 2">策略：主线前排优先，后排仅在分歧转一致时跟随。</span><span style="grid-column:span 2">风险：关注次日竞价强弱与回封效率。</span></div>
+          </div>
+          <div><div class="strength red">强度:21539.8</div><div class="small-bar"><span></span></div></div>
+        </article>
+        <article class="ladder-card main">
+          <div>
+            <div class="ladder-title">电网设备 <span class="badge red">主线</span> <span style="font-size:18px;color:#667384">发酵</span></div>
+            <div class="ladder-meta"><span>最高板：1</span><span>3板+：0</span><span>2板：0</span><span>首板：5</span><span>龙头：科陆电子</span><span>中军：四方股份</span><span>资金：机构主导</span><span>占比：18%</span><span style="grid-column:span 2">策略：主线前排优先，后排仅在分歧转一致时跟随。</span><span style="grid-column:span 2">风险：关注次日竞价强弱与回封效率。</span></div>
+          </div>
+          <div><div class="strength red">强度:17468.0</div><div class="small-bar"><span style="width:68%"></span></div></div>
+        </article>
+        <article class="ladder-card main">
+          <div>
+            <div class="ladder-title">自动化设 <span class="badge red">主线</span> <span style="font-size:18px;color:#667384">发酵</span></div>
+            <div class="ladder-meta"><span>最高板：3</span><span>3板+：1</span><span>2板：0</span><span>首板：3</span><span>龙头：北自科技</span><span>中军：锐翔智能</span><span>资金：机构主导</span><span>占比：18%</span><span style="grid-column:span 2">策略：主线前排优先，后排仅在分歧转一致时跟随。</span><span style="grid-column:span 2">风险：关注次日竞价强弱与回封效率。</span></div>
+          </div>
+          <div><div class="strength red">强度:17064.1</div><div class="small-bar"><span style="width:62%"></span></div></div>
+        </article>
+        <article class="ladder-card support">
+          <div>
+            <div class="ladder-title">非白酒 <span class="badge yellow">支线</span> <span style="font-size:18px;color:#667384">高潮</span></div>
+            <div class="ladder-meta"><span>最高板：4</span><span>3板+：1</span><span>2板：0</span><span>首板：0</span><span>龙头：威龙股份</span><span>中军：威龙股份</span><span>资金：游资主导</span><span>占比：8%</span><span style="grid-column:span 2">策略：支线以观察为主，优先看是否出现2进3以上确认。</span><span style="grid-column:span 2">风险：梯队薄弱，延续性存疑。</span></div>
+          </div>
+          <div><div class="strength">强度:7930.7</div><div class="small-bar"><span></span></div></div>
+        </article>
+        <article class="ladder-card support">
+          <div>
+            <div class="ladder-title">电池 <span class="badge yellow">支线</span> <span style="font-size:18px;color:#667384">启动</span></div>
+            <div class="ladder-meta"><span>最高板：1</span><span>3板+：0</span><span>2板：0</span><span>首板：2</span><span>龙头：万里股份</span><span>中军：安孚科技</span><span>资金：混合博弈</span><span>占比：8%</span><span style="grid-column:span 2">策略：支线以观察为主，优先看是否出现2进3以上确认。</span><span style="grid-column:span 2">风险：关注次日竞价强弱与回封效率。</span></div>
+          </div>
+          <div><div class="strength">强度:7872.9</div><div class="small-bar"><span></span></div></div>
+        </article>
+        <article class="ladder-card support">
+          <div>
+            <div class="ladder-title">化学制品 <span class="badge yellow">支线</span> <span style="font-size:18px;color:#667384">启动</span></div>
+            <div class="ladder-meta"><span>最高板：1</span><span>3板+：0</span><span>2板：0</span><span>首板：1</span><span>龙头：中化国际</span><span>中军：中化国际</span><span>资金：混合博弈</span><span>占比：8%</span><span style="grid-column:span 2">策略：支线以观察为主，优先看是否出现2进3以上确认。</span><span style="grid-column:span 2">风险：关注次日竞价强弱与回封效率。</span></div>
+          </div>
+          <div><div class="strength">强度:7752.6</div><div class="small-bar"><span></span></div></div>
+        </article>
+        <article class="ladder-card support">
+          <div>
+            <div class="ladder-title">一般零售 <span class="badge yellow">支线</span> <span style="font-size:18px;color:#667384">启动</span></div>
+            <div class="ladder-meta"><span>最高板：1</span><span>3板+：0</span><span>2板：0</span><span>首板：1</span></div>
+          </div>
+          <div><div class="strength">强度:7695.8</div><div class="small-bar"><span></span></div></div>
+        </article>
+      </section>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-title">◎ 赚钱手法分析</div>
+      <div class="method-grid">
+        <article class="method"><h3>高位打板 <span style="color:var(--pink)">回避</span></h3><b>0.0%</b><p>高位一致后更易分歧，优先回避缩量加速板。</p></article>
+        <article class="method"><h3>低位首板 <span style="color:var(--orange)">观察</span></h3><b>52.6%</b><p>优先选择分时回封质量高、板块共振的首板。</p></article>
+        <article class="method"><h3>老龙反抽 <span style="color:var(--orange)">观察</span></h3><b>33.3%</b><p>仅在冰点修复或主线分歧时小仓试错。</p></article>
+        <article class="method"><h3>空仓观望 <span style="color:var(--orange)">观察</span></h3><b>92.0%</b><p>若竞价与开盘反馈不达标，优先执行防守策略。</p></article>
+      </div>
+    </section>
+
+    <section class="bottom-grid">
+      <article class="card risk-box">
+        <div class="panel-title"><span style="color:var(--pink)">☢</span> 明日风险 Checklist</div>
+        <div class="alert"><b>空间板高位一致风险</b><span class="level">中</span>空间高度达到6板及以上，容易出现天地板或高位兑现。<br>空间板高度：6板</div>
+        <div class="alert"><b>跌停家数扩散风险</b><span class="level">中</span>跌停家数达到10家及以上，市场负反馈可能持续扩散。<br>跌停家数：17家</div>
+      </article>
+      <article class="card watch-box">
+        <div class="panel-title"><span style="color:#13a874">▣</span> 明日机会 Watchlist</div>
+        <div class="opportunity"><b>等待明确情号 <span class="badge green" style="float:right">C</span></b>当前尚未形成高确定性机会，优先观察盘中结构变化。<br>触发条件：等待风险指标转弱或主线确认</div>
+      </article>
+    </section>
+
+    <section class="card pool">
+      <div class="pool-head">
+        <div class="panel-title">◎ 明日观察池</div>
+        <div class="class-tags"><span class="badge red">A类：必争之地</span><span class="badge yellow">B类：条件触发</span><span class="badge blue">C类：备选观察</span></div>
+      </div>
+      <table class="table">
+        <thead><tr><th>标的</th><th>题材</th><th>买点条件</th><th>优先级</th></tr></thead>
+        <tbody>
+          <tr><td><b>空仓观望</b><span class="code">CASH</span></td><td>防守</td><td><b>若竞价负反馈扩散（跌停继续增加）</b></td><td><span class="badge">默认</span></td></tr>
+          <tr><td><b style="color:var(--pink)">立新能源</b><span class="code">001258</span></td><td>电力</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge red">A类</span></td></tr>
+          <tr><td><b style="color:#ad6800">弘信电子</b><span class="code">300657</span></td><td>元件</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge yellow">B类</span></td></tr>
+          <tr><td><b style="color:#ad6800">朗迪集团</b><span class="code">603726</span></td><td>家电零部</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge yellow">B类</span></td></tr>
+          <tr><td><b style="color:var(--blue)">国检集团</b><span class="code">603060</span></td><td>专业服务</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge blue">C类</span></td></tr>
+          <tr><td><b style="color:var(--blue)">贵广网络</b><span class="code">600996</span></td><td>电视广播</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge blue">C类</span></td></tr>
+          <tr><td><b style="color:var(--blue)">园林股份</b><span class="code">605303</span></td><td>基础建设</td><td><b>首板放量回封</b><span class="code">观察板块共振</span></td><td><span class="badge blue">C类</span></td></tr>
+        </tbody>
+      </table>
+      <div class="tip"><b>提示</b><br>所有买点需配合大盘不暴跌（沪指跌幅&lt;1%）且跌停家数&lt;20家。不满足条件则放弃。<br><br>数据质量：ok</div>
+    </section>
+  </main>
+</body>
+</html>

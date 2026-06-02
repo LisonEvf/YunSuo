@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import SparkLine from './components/SparkLine.vue'
 import ThreeLineChart from './components/ThreeLineChart.vue'
-import { fetchDashboard } from './services/api'
+import ChatPanel from './components/ChatPanel.vue'
+import { fetchDashboard, fetchTrend } from './services/api'
 import type { DashboardData, PlateItem } from './types/dashboard'
 
 type ThemeMode = 'auto' | 'light' | 'dark'
@@ -12,6 +13,13 @@ const error = ref('')
 const dashboard = ref<DashboardData | null>(null)
 const activeView = ref<'sentiment' | 'strategy'>('sentiment')
 const themeMode = ref<ThemeMode>('auto')
+const lastRefresh = ref('')
+const trendRange = ref(15)
+const chatOpen = ref(false)
+const selectedBoard = ref<PlateItem | null>(null)
+const boardMembers = ref<Array<Record<string, unknown>>>([])
+const boardLoading = ref(false)
+const refreshInterval = ref<ReturnType<typeof setInterval> | null>(null)
 
 const cycleSteps = ['退潮', '冰点', '常态', '启动', '发酵', '高潮']
 const themeOptions: Array<{ value: ThemeMode; label: string }> = [
@@ -23,13 +31,32 @@ const themeOptions: Array<{ value: ThemeMode; label: string }> = [
 onMounted(() => {
   restoreTheme()
   loadDashboard()
+  startAutoRefresh()
 })
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
+
+function startAutoRefresh() {
+  refreshInterval.value = setInterval(() => {
+    refreshDashboard()
+  }, 10000)
+}
+
+function stopAutoRefresh() {
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value)
+    refreshInterval.value = null
+  }
+}
 
 async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
     dashboard.value = await fetchDashboard()
+    lastRefresh.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : '数据加载失败'
   } finally {
@@ -37,16 +64,30 @@ async function loadDashboard() {
   }
 }
 
-const sentimentValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.score))
-const limitUpValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.limit_up))
-const limitDownValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.limit_down))
-const amountValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.amount))
+async function refreshDashboard() {
+  try {
+    // 轻量刷新：只拉 trend 数据，不重新聚合全量 dashboard
+    const result = await fetchTrend(trendRange.value)
+    if (dashboard.value && result.trend.length) {
+      dashboard.value = { ...dashboard.value, trend: result.trend }
+    }
+    lastRefresh.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    // 静默失败，保留上一次数据
+  }
+}
 
-const trendLabels = computed(() => dashboard.value?.trend.map((item) => item.date.slice(5)) ?? [])
+const sentimentValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.score))
+const limitUpValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.limit_up))
+const limitDownValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.limit_down))
+const amountValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.amount))
+
+const visibleTrend = computed(() => (dashboard.value?.trend ?? []).slice(-trendRange.value))
+const trendLabels = computed(() => visibleTrend.value.map((item) => item.date.slice(5)))
 
 // 三线图数据（后端预计算，前端直接取值）
 const threeLines = computed(() => {
-  const trend = dashboard.value?.trend ?? []
+  const trend = visibleTrend.value
   const mkLine = (values: number[], color: string, fill: string) => ({ values, color, fill })
   return [
     mkLine(trend.map((t) => t.marketCoef), '#e6464e', 'rgba(230,70,78,.08)'),
@@ -56,7 +97,7 @@ const threeLines = computed(() => {
 })
 
 const icePointIndices = computed(() => {
-  const trend = dashboard.value?.trend ?? []
+  const trend = visibleTrend.value
   return trend.map((t, i) => (t.score < 20 ? i : -1)).filter((i) => i >= 0)
 })
 
@@ -108,9 +149,35 @@ function priorityClass(priority: string) {
   return ''
 }
 
+async function openBoardDetail(plate: PlateItem) {
+  if (!plate.code) return
+  selectedBoard.value = plate
+  boardLoading.value = true
+  boardMembers.value = []
+  try {
+    const res = await fetch(`/api/boards/${plate.code}?count=20`)
+    if (res.ok) {
+      const data = await res.json()
+      boardMembers.value = data.items ?? []
+    }
+  } catch { /* ignore */ }
+  boardLoading.value = false
+}
+
+function closeBoardDetail() {
+  selectedBoard.value = null
+  boardMembers.value = []
+}
+
+// 热力图排序
+const heatmapSort = ref<'hot' | 'cold'>('hot')
+function toggleHeatmapSort() {
+  heatmapSort.value = heatmapSort.value === 'hot' ? 'cold' : 'hot'
+}
+
 // 热力图矩阵数据
 const heatmapRows = computed(() => {
-  const trend = dashboard.value?.trend ?? []
+  const trend = visibleTrend.value
   const plateMap = new Map<string, number>() // name → max strength
   for (const t of trend) {
     for (const p of t.plates ?? []) {
@@ -118,16 +185,14 @@ const heatmapRows = computed(() => {
       if (p.strength > cur) plateMap.set(p.name, p.strength)
     }
   }
-  return [...plateMap.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name]) => name)
+  const sorted = [...plateMap.entries()].sort((a, b) => heatmapSort.value === 'hot' ? b[1] - a[1] : a[1] - b[1])
+  return sorted.slice(0, 10).map(([name]) => name)
 })
 
-const heatmapDates = computed(() => (dashboard.value?.trend ?? []).map((t) => t.date.slice(5)))
+const heatmapDates = computed(() => visibleTrend.value.map((t) => t.date.slice(5)))
 
 function heatmapValue(plateName: string, date: string): number | null {
-  const point = (dashboard.value?.trend ?? []).find((t) => t.date.endsWith(date) || t.date === date)
+  const point = visibleTrend.value.find((t) => t.date.endsWith(date) || t.date === date)
   if (!point) return null
   const found = (point.plates ?? []).find((p) => p.name === plateName)
   return found ? found.strength : null
@@ -144,7 +209,7 @@ function heatClass(val: number | null): string {
 
 // date-grid: 每日前3板块 + 周期状态
 const dateGridItems = computed(() => {
-  const trend = dashboard.value?.trend ?? []
+  const trend = visibleTrend.value
   return trend.map((t) => ({
     date: t.date.slice(5),
     plates: (t.plates ?? []).slice(0, 3).map((p) => p.name),
@@ -195,6 +260,8 @@ function applyTheme(mode: ThemeMode) {
             {{ option.label }}
           </button>
         </div>
+        <button class="refresh-btn" @click="loadDashboard" :disabled="loading" title="刷新数据">↻</button>
+        <button class="chat-btn" @click="chatOpen = !chatOpen" :class="{ active: chatOpen }" title="情绪助手">💬</button>
       </div>
     </header>
 
@@ -210,12 +277,12 @@ function applyTheme(mode: ThemeMode) {
       <section v-if="activeView === 'sentiment'" class="sentiment-view">
         <section class="topbar">
           <div>
-            <div class="version"><b>V3.0 PRO</b><span>数据更新于 <strong>{{ formatDate(dashboard.meta.day) }}</strong></span></div>
+            <div class="version"><b>V3.0 PRO</b><span>数据更新于 <strong>{{ formatDate(dashboard.meta.day) }}</strong>　<span v-if="lastRefresh" class="refresh-badge">↻ {{ lastRefresh }}</span></span></div>
             <h2>市场情绪仪表盘</h2>
           </div>
           <div class="filters">
             <div class="datebox"><label>交易日</label><strong>{{ formatDate(dashboard.meta.day) }}</strong></div>
-            <div class="range"><span>近5日</span><span>实时</span><span class="active">组合视图</span></div>
+            <div class="range"><span @click="trendRange = 5" :class="{ active: trendRange === 5 }">近5日</span><span @click="trendRange = 15" :class="{ active: trendRange === 15 }">近15日</span><span @click="trendRange = 30" :class="{ active: trendRange === 30 }">近30日</span></div>
           </div>
         </section>
 
@@ -309,10 +376,12 @@ function applyTheme(mode: ThemeMode) {
               <div><span>综合指数</span><b class="blue-dot">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</b></div>
               <div><span>冰点信号</span><b class="green-text">{{ icePointIndices.length }}</b></div>
               <div><span>封跌比</span><b>{{ formatNumber(dashboard.kpis.limitUp / Math.max(dashboard.kpis.limitDown, 1), 2) }}</b></div>
+              <div><span>连板晋级率</span><b class="blue-dot">{{ dashboard.kpis.promotionRate }}</b></div>
+              <div><span>首板/连板</span><b>{{ dashboard.kpis.firstBoardCount }}/{{ dashboard.kpis.linkBoardCount }}</b></div>
             </article>
             <article class="card rank-list">
               <div class="rank-title"><span>板块强度 TOP8</span><small>{{ formatDate(dashboard.meta.day) }}</small></div>
-              <div v-for="(item, index) in leadPlates" :key="item.name" class="rank-item">
+              <div v-for="(item, index) in leadPlates" :key="item.name" class="rank-item clickable" @click="openBoardDetail(item)" title="查看成分股">
                 <span>{{ index + 1 }}</span>
                 <div>{{ item.name }}<div class="bar" :class="{ orange: item.role !== '主线' }"><span :style="{ width: strengthWidth(item) }"></span></div></div>
                 <b :class="item.role === '主线' ? 'pink' : 'orange'">{{ item.stage }}</b>
@@ -327,7 +396,7 @@ function applyTheme(mode: ThemeMode) {
               <div class="panel-title"><span style="color:#ff7a00">●</span> 板块情绪热力分布图</div>
               <div class="note">概念板块强度 | 红色=强势 绿色=弱势</div>
             </div>
-            <div><span style="color:var(--color-pink)">■ 涨停潮</span>　<span style="color:var(--color-orange)">■ 活跃</span>　<span style="color:#23bd83">■ 调整</span> <span class="toggle"><b>热→冷</b><span>冷→热</span></span></div>
+            <div><span style="color:var(--color-pink)">■ 涨停潮</span>　<span style="color:var(--color-orange)">■ 活跃</span>　<span style="color:#23bd83">■ 调整</span> <span class="toggle" @click="toggleHeatmapSort" style="cursor:pointer"><b :style="{ opacity: heatmapSort === 'hot' ? 1 : 0.4 }">热→冷</b><span :style="{ opacity: heatmapSort === 'cold' ? 1 : 0.4 }">冷→热</span></span></div>
           </div>
           <div class="heatmap dynamic-heatmap">
             <div></div>
@@ -346,7 +415,7 @@ function applyTheme(mode: ThemeMode) {
               <p class="status" :style="cycleStyle(item.cycle)">{{ item.cycle }}</p>
             </div>
           </div>
-          <p class="note" style="margin-top:26px">区间：{{ dashboard.trend[0]?.date }} ~ {{ dashboard.trend.at(-1)?.date }} | 窗口 {{ dashboard.trend.length }} 天 | 口径：涨停潮(≥6000) · 活跃(≥3500) · 偏强(≥2000) · 一般(≥1000)</p>
+          <p class="note" style="margin-top:26px">区间：{{ visibleTrend[0]?.date }} ~ {{ visibleTrend.at(-1)?.date }} | 窗口 {{ visibleTrend.length }} 天 | 口径：涨停潮(≥6000) · 活跃(≥3500) · 偏强(≥2000) · 一般(≥1000)</p>
         </section>
       </section>
 
@@ -354,7 +423,7 @@ function applyTheme(mode: ThemeMode) {
         <section class="card overview">
           <div class="overview-top">
             <span>数据日期：{{ formatDate(dashboard.meta.day) }}</span>
-            <span>数据最后更新时间：{{ dashboard.meta.updatedAt || '--' }}</span>
+            <span>更新时间：{{ dashboard.meta.updatedAt || '--' }} <span v-if="lastRefresh" class="refresh-badge">↻ {{ lastRefresh }}</span></span>
           </div>
           <div class="overview-grid">
             <div>
@@ -400,7 +469,7 @@ function applyTheme(mode: ThemeMode) {
           <article class="card kpi"><h3>情绪综合指数</h3><b>{{ formatNumber(dashboard.kpis.sentiment, 1) }}</b><p>较昨日 {{ formatPct(dashboard.kpis.sentimentDelta) }}</p></article>
           <article class="card kpi"><h3>炸板率</h3><b>{{ formatPct(dashboard.kpis.bombRate) }}</b><p>5日均 <b>{{ formatPct(dashboard.kpis.bombRate5d) }}</b></p></article>
           <article class="card kpi"><h3>昨日涨停溢价</h3><b>{{ formatPct(dashboard.kpis.yesterdayPremium) }}</b><p>开盘 {{ dashboard.kpis.openPremium }} / 连板 {{ formatPct(dashboard.kpis.linkBoardPremium) }}</p></article>
-          <article class="card kpi"><h3>连板空间高度</h3><b>{{ Math.max(...leadPlates.map((item) => item.maxBoard), 0) }}</b><p class="orange">{{ leadPlates[0]?.leader || '等待确认' }} | 风险累积</p></article>
+          <article class="card kpi"><h3>连板空间高度</h3><b>{{ Math.max(...leadPlates.map((item) => item.maxBoard), 0) }}</b><p class="orange">{{ leadPlates[0]?.leader || '等待确认' }} | 晋级率 {{ dashboard.kpis.promotionRate }}</p></article>
         </section>
 
         <section class="body-grid">
@@ -434,7 +503,7 @@ function applyTheme(mode: ThemeMode) {
           <section class="card right-panel">
             <div class="panel-title">板块梯队复盘</div>
             <div class="tabs"><span class="badge red">主线</span><span class="badge yellow">支线</span><span class="badge blue">轮动</span></div>
-            <article v-for="item in visiblePlates" :key="item.name" class="ladder-card" :class="item.role === '主线' ? 'main' : 'support'">
+            <article v-for="item in visiblePlates" :key="item.name" class="ladder-card clickable" :class="item.role === '主线' ? 'main' : 'support'" @click="openBoardDetail(item)">
               <div>
                 <div class="ladder-title">{{ item.name }} <span class="badge" :class="item.role === '主线' ? 'red' : 'yellow'">{{ item.role }}</span> <span>{{ item.stage }}</span></div>
                 <div class="ladder-meta">
@@ -461,12 +530,12 @@ function applyTheme(mode: ThemeMode) {
 
         <section class="bottom-grid">
           <article class="card risk-box">
-            <div class="panel-title"><span class="pink">▲</span> 明日风险 Checklist</div>
+            <div class="panel-title"><span class="green-text">▣</span> 明日风险 Checklist</div>
             <div v-for="risk in dashboard.risks" :key="risk.title" class="alert"><b>{{ risk.title }}</b><span class="level">{{ risk.level }}</span>{{ risk.text }}</div>
           </article>
           <article class="card watch-box">
-            <div class="panel-title"><span class="green-text">▣</span> 明日机会 Watchlist</div>
-            <div v-for="item in dashboard.opportunities" :key="item.title" class="opportunity"><b>{{ item.title }} <span class="badge green">{{ item.grade }}</span></b>{{ item.text }}<br>触发条件：{{ item.trigger }}</div>
+            <div class="panel-title"><span class="pink">▲</span> 明日机会 Watchlist</div>
+            <div v-for="item in dashboard.opportunities" :key="item.title" class="opportunity"><b>{{ item.title }} <span class="badge red">{{ item.grade }}</span></b>{{ item.text }}<br>触发条件：{{ item.trigger }}</div>
           </article>
         </section>
 
@@ -492,5 +561,41 @@ function applyTheme(mode: ThemeMode) {
         <span v-for="item in dashboard.meta.warnings.slice(0, 4)" :key="item">{{ item }}</span>
       </section>
     </template>
+
+    <!-- 板块下钻弹窗 -->
+    <div v-if="selectedBoard" class="modal-overlay" @click.self="closeBoardDetail">
+      <div class="modal-card">
+        <header>
+          <b>{{ selectedBoard.name }}</b>
+          <span class="badge" :class="selectedBoard.role === '主线' ? 'red' : 'yellow'">{{ selectedBoard.role }}</span>
+          <span>{{ selectedBoard.stage }} | 强度 {{ formatNumber(selectedBoard.strength, 0) }}</span>
+          <button @click="closeBoardDetail">✕</button>
+        </header>
+        <div class="modal-meta">
+          <span>龙头：{{ selectedBoard.leader || '--' }}</span>
+          <span>中军：{{ selectedBoard.middleStock || '--' }}</span>
+          <span>涨幅：{{ formatPct(selectedBoard.pct) }}</span>
+          <span>涨停：{{ selectedBoard.limitUps }}家</span>
+          <span>连板高度：{{ selectedBoard.maxBoard }}板</span>
+          <span>资金：{{ selectedBoard.capital }}</span>
+        </div>
+        <div v-if="boardLoading" class="modal-loading">加载中...</div>
+        <table v-else-if="boardMembers.length" class="table modal-table">
+          <thead><tr><th>股票</th><th>代码</th><th>涨跌幅</th><th>现价</th></tr></thead>
+          <tbody>
+            <tr v-for="m in boardMembers" :key="String(m.code)">
+              <td>{{ m.name }}</td>
+              <td class="code">{{ m.code }}</td>
+              <td :class="Number(m.change_percent ?? m.pct) > 0 ? 'up' : 'down'">{{ formatPct(Number(m.change_percent ?? m.pct ?? 0)) }}</td>
+              <td>{{ formatNumber(Number(m.close ?? m.price ?? 0), 2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-else class="modal-empty">暂无成分股数据</div>
+      </div>
+    </div>
+
+    <!-- Agent 对话面板 -->
+    <ChatPanel :visible="chatOpen" @close="chatOpen = false" />
   </main>
 </template>

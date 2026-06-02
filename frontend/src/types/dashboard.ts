@@ -49,6 +49,7 @@ export interface DashboardKpis {
   openPremium: string
   marketCoef: number // 大盘系数（后端预计算）
   zhangfuDistribution: Array<{ range: string; count: number }> // 涨跌幅分档分布
+  promotionRate: string // 连板晋级率
 }
 
 export interface IndexItem {

@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass
 from typing import Any, Callable
 
 from . import sdk_bootstrap  # noqa: F401
+from .connections import get_kpl, get_tdx
+from .cache import get_cached_days, save_trend_point
 from .utils import format_ts, percent_change, pick_number, recent_weekdays, to_jsonable
 
 from kpl_sdk.client import KplClient
 from opentdx.const import ADJUST, BOARD_TYPE, MARKET, PERIOD, SORT_ORDER, SORT_TYPE
 from opentdx.tdxClient import TdxClient
+
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 INDEX_SYMBOLS = [
@@ -69,6 +74,12 @@ class DataService:
         cache_key = f"dashboard:{day or 'latest'}"
         return self.cache.get_or_set(cache_key, lambda: self._build_dashboard(day))
 
+    def dashboard_trend(self, days: int = 5, day: str | None = None) -> list[dict[str, Any]]:
+        """返回精简的 trend 数据，用于前端轻量请求。"""
+        full = self.dashboard(day=day)
+        trend = full.get("trend", [])
+        return trend[-days:]
+
     def _build_dashboard(self, day: str | None) -> dict[str, Any]:
         warnings: list[str] = []
         raw: dict[str, Any] = {}
@@ -81,42 +92,47 @@ class DataService:
                 warnings.append(f"{name}: {exc}")
                 return None
 
-        with KplClient(timeout=8) as kpl:
-            market_status = capture("openkpl.market.status", kpl.market.status)
-            emotion = capture("openkpl.emotion.today", kpl.emotion.today)
+        kpl = get_kpl()
 
-            active_day = day or getattr(market_status, "day", None) or getattr(emotion, "day", None)
-            disk_review = capture("openkpl.history.disk_review", lambda: kpl.history.disk_review(active_day))
-            zhangting = capture(
-                "openkpl.history.zhangting_expression",
-                lambda: kpl.history.zhangting_expression(active_day),
-            )
-            zhangfu = capture("openkpl.history.zhangfu_detail", lambda: kpl.history.zhangfu_detail(active_day))
-            volume = capture("openkpl.history.market_scln", lambda: kpl.history.market_scln(active_day))
-            daily_nums = capture("openkpl.history.get_num", lambda: kpl.history.get_num(active_day))
-            plates = capture(
-                "openkpl.history.weight_performance",
-                lambda: kpl.history.weight_performance(active_day),
-            )
-            plate_list = capture(
-                "openkpl.history.weight_performance_list",
-                lambda: kpl.history.weight_performance_list(active_day, st=20),
-            )
-            daban_list = capture(
-                "openkpl.history.daban_list",
-                lambda: kpl.history.daban_list(active_day, st=30),
-            )
-            sharp = capture("openkpl.history.sharp_withdrawal", lambda: kpl.history.sharp_withdrawal(active_day))
+        # 并行拉取：KPL 数据 + TDX 数据
+        market_status = capture("openkpl.market.status", kpl.market.status)
+        emotion = capture("openkpl.emotion.today", kpl.emotion.today)
 
-            trend_days = recent_weekdays(active_day, 15)
-            trend = self._build_history_trend(kpl, trend_days, warnings)
+        active_day = day or getattr(market_status, "day", None) or getattr(emotion, "day", None)
 
-            # 昨日打板股（用于计算 openPremium）
-            prev_day = trend_days[-2] if len(trend_days) >= 2 else None
-            prev_daban = capture("openkpl.history.prev_daban", lambda: kpl.history.daban_list(prev_day, st=30)) if prev_day else None
+        # 提交并行任务
+        f_disk = _executor.submit(lambda: capture("openkpl.history.disk_review", lambda: kpl.history.disk_review(active_day)))
+        f_zt = _executor.submit(lambda: capture("openkpl.history.zhangting_expression", lambda: kpl.history.zhangting_expression(active_day)))
+        f_zf = _executor.submit(lambda: capture("openkpl.history.zhangfu_detail", lambda: kpl.history.zhangfu_detail(active_day)))
+        f_vol = _executor.submit(lambda: capture("openkpl.history.market_scln", lambda: kpl.history.market_scln(active_day)))
+        f_nums = _executor.submit(lambda: capture("openkpl.history.get_num", lambda: kpl.history.get_num(active_day)))
+        f_plates = _executor.submit(lambda: capture("openkpl.history.weight_performance", lambda: kpl.history.weight_performance(active_day)))
+        f_plist = _executor.submit(lambda: capture("openkpl.history.weight_performance_list", lambda: kpl.history.weight_performance_list(active_day, st=20)))
+        f_daban = _executor.submit(lambda: capture("openkpl.history.daban_list", lambda: kpl.history.daban_list(active_day, st=30)))
+        f_sharp = _executor.submit(lambda: capture("openkpl.history.sharp_withdrawal", lambda: kpl.history.sharp_withdrawal(active_day)))
+        f_indexes = _executor.submit(lambda: capture("opentdx.index_info", self.core_indexes))
+        f_monitor = _executor.submit(lambda: capture("opentdx.market_monitor", self.market_monitor))
 
-        indexes = capture("opentdx.index_info", self.core_indexes) or []
-        monitor = capture("opentdx.market_monitor", self.market_monitor) or []
+        # 收集并行结果
+        disk_review = f_disk.result()
+        zhangting = f_zt.result()
+        zhangfu = f_zf.result()
+        volume = f_vol.result()
+        daily_nums = f_nums.result()
+        plates = f_plates.result()
+        plate_list = f_plist.result()
+        daban_list = f_daban.result()
+        sharp = f_sharp.result()
+
+        trend_days = recent_weekdays(active_day, 30)
+        trend = self._build_history_trend(kpl, trend_days, warnings)
+
+        # 昨日打板股（用于计算 openPremium）
+        prev_day = trend_days[-2] if len(trend_days) >= 2 else None
+        prev_daban = capture("openkpl.history.prev_daban", lambda: kpl.history.daban_list(prev_day, st=30)) if prev_day else None
+
+        indexes = f_indexes.result() or []
+        monitor = f_monitor.result() or []
 
         normalized = self._normalize_dashboard(
             day=day,
@@ -144,54 +160,80 @@ class DataService:
         return normalized
 
     def _build_history_trend(self, kpl: KplClient, days: list[str], warnings: list[str]) -> list[dict[str, Any]]:
+        """构建历史趋势，优先使用 SQLite 缓存，仅拉取未缓存的天。"""
         points: list[dict[str, Any]] = []
-        for day in days:
-            try:
-                zt = kpl.history.zhangting_expression(day)
-                zf = kpl.history.zhangfu_detail(day)
-                volume = kpl.history.market_scln(day)
-                zf_info = getattr(zf, "info", None)
-                day_zt = int(pick_number(getattr(zf_info, "sj_zt", None), getattr(zt, "zt_count", 0)))
-                day_dt = int(pick_number(getattr(zf_info, "sj_dt", None), getattr(zt, "dt_count", 0)))
-                score = self._sentiment_score(zt=zt, zhangfu=zf)
-                # 历史日 feng_ban_lv 不准确，用涨停/跌停比估算封板率
-                seal_rate_raw = pick_number(getattr(zt, "feng_ban_lv", 0), default=-1)
-                if seal_rate_raw > 30:
-                    seal_rate = seal_rate_raw
-                else:
-                    seal_rate = day_zt / max(day_zt + day_dt * 0.4, 1) * 100
-                bomb_rate = max(0, round(100 - seal_rate, 2))
-                # 每日板块强度（热力图用）
-                day_plates: list[dict[str, Any]] = []
-                try:
-                    pl = kpl.history.weight_performance_list(day, st=15)
-                    for item in list(getattr(pl, "info", []) or [])[:15]:
-                        name = getattr(item, "plate_name", "")
-                        pct = pick_number(getattr(item, "pct", 0))
-                        if name:
-                            day_plates.append({"name": name, "strength": round(abs(pct) * 1000, 0)})
-                except Exception:
-                    pass
-                points.append(
-                    {
-                        "date": day,
-                        "score": score,
-                        "limit_up": day_zt,
-                        "limit_down": day_dt,
-                        "amount": round(pick_number(getattr(volume, "last", 0)) / 10000, 2),
-                        "seal_rate": round(seal_rate, 2),
-                        "bomb_rate": bomb_rate,
-                        "plates": day_plates,
-                        "cycle": self._daily_status(score, day_dt, bomb_rate, day_zt),
-                    }
-                )
-            except Exception as exc:
-                warnings.append(f"openkpl.history.trend({day}): {exc}")
+
+        # 排除最后一天（当天数据不缓存，每次实时拉）
+        cache_days = days[:-1] if days else []
+        today = days[-1] if days else None
+
+        # 从 SQLite 读取缓存
+        cached = get_cached_days(cache_days) if cache_days else {}
+
+        # 需要实时拉取的天 = 未缓存的历史天 + 当天
+        uncached = [d for d in cache_days if d not in cached]
+
+        for day in cache_days:
+            if day in cached:
+                points.append(cached[day])
+
+        for day in uncached:
+            point = self._fetch_trend_point(kpl, day, warnings)
+            if point:
+                points.append(point)
+                save_trend_point(day, point)
+
+        if today:
+            point = self._fetch_trend_point(kpl, today, warnings)
+            if point:
+                points.append(point)
+
         return points
 
+    def _fetch_trend_point(self, kpl: KplClient, day: str, warnings: list[str]) -> dict[str, Any] | None:
+        """拉取单日趋势数据。"""
+        try:
+            zt = kpl.history.zhangting_expression(day)
+            zf = kpl.history.zhangfu_detail(day)
+            volume = kpl.history.market_scln(day)
+            zf_info = getattr(zf, "info", None)
+            day_zt = int(pick_number(getattr(zf_info, "sj_zt", None), getattr(zt, "zt_count", 0)))
+            day_dt = int(pick_number(getattr(zf_info, "sj_dt", None), getattr(zt, "dt_count", 0)))
+            score = self._sentiment_score(zt=zt, zhangfu=zf)
+            seal_rate_raw = pick_number(getattr(zt, "feng_ban_lv", 0), default=-1)
+            if seal_rate_raw > 30:
+                seal_rate = seal_rate_raw
+            else:
+                seal_rate = day_zt / max(day_zt + day_dt * 0.4, 1) * 100
+            bomb_rate = max(0, round(100 - seal_rate, 2))
+            day_plates: list[dict[str, Any]] = []
+            try:
+                pl = kpl.history.weight_performance_list(day, st=15)
+                for item in list(getattr(pl, "info", []) or [])[:15]:
+                    name = getattr(item, "plate_name", "")
+                    pct = pick_number(getattr(item, "pct", 0))
+                    if name:
+                        day_plates.append({"name": name, "strength": round(abs(pct) * 1000, 0)})
+            except Exception:
+                pass
+            return {
+                "date": day,
+                "score": score,
+                "limit_up": day_zt,
+                "limit_down": day_dt,
+                "amount": round(pick_number(getattr(volume, "last", 0)) / 10000, 2),
+                "seal_rate": round(seal_rate, 2),
+                "bomb_rate": bomb_rate,
+                "plates": day_plates,
+                "cycle": self._daily_status(score, day_dt, bomb_rate, day_zt),
+            }
+        except Exception as exc:
+            warnings.append(f"openkpl.history.trend({day}): {exc}")
+            return None
+
     def core_indexes(self) -> list[dict[str, Any]]:
-        with TdxClient() as client:
-            rows = client.index_info([(item["market"], item["code"]) for item in INDEX_SYMBOLS])
+        client = get_tdx()
+        rows = client.index_info([(item["market"], item["code"]) for item in INDEX_SYMBOLS])
         result: list[dict[str, Any]] = []
         for meta, row in zip(INDEX_SYMBOLS, rows, strict=False):
             close = pick_number(row.get("close"))
@@ -212,10 +254,10 @@ class DataService:
         return result
 
     def market_monitor(self) -> list[dict[str, Any]]:
-        with TdxClient() as client:
-            rows = []
-            for market in (MARKET.SH, MARKET.SZ):
-                rows.extend(client.stock_market_monitor(market, count=12))
+        client = get_tdx()
+        rows = []
+        for market in (MARKET.SH, MARKET.SZ):
+            rows.extend(client.stock_market_monitor(market, count=12))
         return to_jsonable(rows[:20])
 
     def quotes(self, symbols: list[str]) -> dict[str, Any]:
@@ -224,8 +266,8 @@ class DataService:
             return MARKET_ALIASES[market_name.upper()], code
 
         parsed = [parse_symbol(symbol) for symbol in symbols]
-        with TdxClient() as client:
-            rows = client.stock_quotes(parsed)
+        client = get_tdx()
+        rows = client.stock_quotes(parsed)
         return {"items": to_jsonable(rows)}
 
     def kline(
@@ -240,25 +282,25 @@ class DataService:
         period = PERIOD_ALIASES[period_name.upper()]
         adjust = ADJUST_ALIASES[adjust_name.upper()]
         safe_count = max(1, min(count, 800))
-        with TdxClient() as client:
-            rows = client.stock_kline(market, code, period, count=safe_count, adjust=adjust)
+        client = get_tdx()
+        rows = client.stock_kline(market, code, period, count=safe_count, adjust=adjust)
         return {"items": to_jsonable(rows)}
 
     def board_members(self, board: str, count: int = 30) -> dict[str, Any]:
         safe_count = max(1, min(count, 120))
-        with TdxClient() as client:
-            rows = client.stock_board_members(
-                board,
-                count=safe_count,
-                sort_type=SORT_TYPE.CHANGE_PCT,
-                sort_order=SORT_ORDER.DESC,
-            )
+        client = get_tdx()
+        rows = client.stock_board_members(
+            board,
+            count=safe_count,
+            sort_type=SORT_TYPE.CHANGE_PCT,
+            sort_order=SORT_ORDER.DESC,
+        )
         return {"items": to_jsonable(rows)}
 
     def boards(self, count: int = 80) -> dict[str, Any]:
         safe_count = max(1, min(count, 300))
-        with TdxClient() as client:
-            rows = client.stock_board_list(BOARD_TYPE.ALL, count=safe_count)
+        client = get_tdx()
+        rows = client.stock_board_list(BOARD_TYPE.ALL, count=safe_count)
         return {"items": to_jsonable(rows)}
 
     def _normalize_dashboard(
@@ -318,7 +360,8 @@ class DataService:
         plate_rows = self._fill_middle_stocks(plate_rows)
         watchlist = self._watchlist(daban_list, plate_rows)
         risks = self._risks(limit_down, bomb_rate, sentiment, zhangting, sharp)
-        methods = self._methods(sentiment, limit_up, broken, limit_down, bomb_rate, yesterday_premium)
+        risks.extend(self._extra_risks(trend, plate_rows))
+        methods = self._methods(sentiment, limit_up, broken, limit_down, bomb_rate, yesterday_premium, indexes=indexes)
 
         index_pcts = [pick_number(row.get("pct")) for row in indexes]
         avg_index_pct = round(sum(index_pcts) / len(index_pcts), 2) if index_pcts else 0
@@ -384,6 +427,7 @@ class DataService:
                 "marketAmountDelta": market_amount_delta,
                 "nonBoardTemp": non_board_temp,
                 "openPremium": self._calc_open_premium(prev_daban),
+                "promotionRate": self._calc_promotion_rate(prev_daban, daban_list),
                 "marketCoef": round(50 + avg_index_pct * 10, 1),
                 "zhangfuDistribution": zhangfu_distribution,
             },
@@ -459,7 +503,8 @@ class DataService:
             return {"aggressive": "1-3成试错", "steady": "1-2成", "min": 10, "max": 30}
         if sentiment < 80:
             return {"aggressive": "3-5成跟随", "steady": "2-4成", "min": 20, "max": 50}
-        return {"aggressive": "降速择强", "steady": "不追加速", "min": 10, "max": 35}
+        # 高潮期：主动收缩
+        return {"aggressive": "1-2成仅核心", "steady": "不追加速，逢高减仓", "min": 5, "max": 20}
 
     def _style_match(self, cycle: str, bomb_rate: float, limit_down: int) -> list[dict[str, Any]]:
         avoid = "高位缩量加速" if cycle in {"高潮", "发酵"} else "无逻辑跟风"
@@ -643,27 +688,26 @@ class DataService:
     def _fill_middle_stocks(self, plate_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """用 TDX 板块成分股按市值排选取中军股。"""
         try:
-            with TdxClient() as client:
-                for row in plate_rows:
-                    code = row.get("code", "")
-                    leader_code = row.get("leaderCode", "")
-                    if not code:
-                        continue
-                    try:
-                        members = client.stock_board_members(
-                            code, count=15, sort_type=SORT_TYPE.MARKET_CAP, sort_order=SORT_ORDER.DESC
-                        )
-                        for m in members or []:
-                            m_code = str(m.get("code", ""))
-                            m_close = pick_number(m.get("close", 0))
-                            m_pre_close = pick_number(m.get("pre_close", 0))
-                            # 中军：市值最大、涨幅正向、非龙头
-                            if m_code and m_code != leader_code and m_close > 0 and m_close >= m_pre_close:
-                                row["middleStock"] = m.get("name", "")
-                                row["middleCode"] = m_code
-                                break
-                    except Exception:
-                        pass
+            client = get_tdx()
+            for row in plate_rows:
+                code = row.get("code", "")
+                leader_code = row.get("leaderCode", "")
+                if not code:
+                    continue
+                try:
+                    members = client.stock_board_members(
+                        code, count=15, sort_type=SORT_TYPE.MARKET_CAP, sort_order=SORT_ORDER.DESC
+                    )
+                    for m in members or []:
+                        m_code = str(m.get("code", ""))
+                        m_close = pick_number(m.get("close", 0))
+                        m_pre_close = pick_number(m.get("pre_close", 0))
+                        if m_code and m_code != leader_code and m_close > 0 and m_close >= m_pre_close:
+                            row["middleStock"] = m.get("name", "")
+                            row["middleCode"] = m_code
+                            break
+                except Exception:
+                    pass
         except Exception:
             pass
         return plate_rows
@@ -696,30 +740,44 @@ class DataService:
         if not stocks:
             return "--"
         try:
-            with TdxClient() as client:
-                pairs = []
-                for stock in stocks:
-                    code = getattr(stock, "code", "")
-                    if not code:
-                        continue
-                    market = MARKET.SH if code.startswith(("6", "9")) else MARKET.SZ
-                    if code.startswith("3") and len(code) == 6:
-                        market = MARKET.SZ
-                    if code.startswith("8") or code.startswith("4"):
-                        market = MARKET.BJ
-                    pairs.append((market, code))
-                quotes = client.stock_quotes(pairs) if pairs else []
-                premiums = []
-                for q in quotes:
-                    open_p = pick_number(q.get("open", 0))
-                    pre_close = pick_number(q.get("pre_close", 0))
-                    if open_p > 0 and pre_close > 0:
-                        premiums.append(round((open_p - pre_close) / pre_close * 100, 2))
-                if premiums:
-                    return f"{round(sum(premiums) / len(premiums), 2)}%"
+            client = get_tdx()
+            pairs = []
+            for stock in stocks:
+                code = getattr(stock, "code", "")
+                if not code:
+                    continue
+                market = MARKET.SH if code.startswith(("6", "9")) else MARKET.SZ
+                if code.startswith("3") and len(code) == 6:
+                    market = MARKET.SZ
+                if code.startswith("8") or code.startswith("4"):
+                    market = MARKET.BJ
+                pairs.append((market, code))
+            quotes = client.stock_quotes(pairs) if pairs else []
+            premiums = []
+            for q in quotes:
+                open_p = pick_number(q.get("open", 0))
+                pre_close = pick_number(q.get("pre_close", 0))
+                if open_p > 0 and pre_close > 0:
+                    premiums.append(round((open_p - pre_close) / pre_close * 100, 2))
+            if premiums:
+                return f"{round(sum(premiums) / len(premiums), 2)}%"
         except Exception:
             pass
         return "--"
+
+    def _calc_promotion_rate(self, prev_daban: Any, today_daban: Any) -> str:
+        """计算连板晋级率：昨日涨停股中今日仍涨停的比例。"""
+        prev_stocks = list(getattr(prev_daban, "stocks", []) or [])
+        today_codes: set[str] = set()
+        for s in list(getattr(today_daban, "stocks", []) or []):
+            c = getattr(s, "code", "")
+            if c:
+                today_codes.add(c)
+        if not prev_stocks:
+            return "--"
+        promoted = sum(1 for s in prev_stocks if getattr(s, "code", "") in today_codes)
+        rate = round(promoted / len(prev_stocks) * 100, 1)
+        return f"{rate}%"
 
     def _plate_stage(self, pct: float, limit_ups: int, max_board: int) -> str:
         if max_board >= 5 or limit_ups >= 8:
@@ -742,17 +800,50 @@ class DataService:
             }
         ]
         priority = ["A类", "B类", "B类", "C类", "C类", "C类", "C类", "C类"]
+        # 建立板块→龙头映射，用于生成差异化条件
+        plate_leaders = {p["name"]: p for p in plates[:5]}
         for idx, stock in enumerate(stocks):
+            concept = getattr(stock, "concept", "") or (plates[0]["name"] if plates else "主线")
+            theme = concept.split(";")[0].split("、")[0]
+            # 根据个股所属板块信息生成差异化买点条件
+            condition = self._generate_condition(stock, plate_leaders, concept)
             result.append(
                 {
                     "name": getattr(stock, "name", ""),
                     "code": getattr(stock, "code", ""),
-                    "theme": (getattr(stock, "concept", "") or (plates[0]["name"] if plates else "主线")).split(";")[0],
-                    "condition": "放量回封且板块共振",
+                    "theme": theme,
+                    "condition": condition,
                     "priority": priority[idx] if idx < len(priority) else "C类",
                 }
             )
         return result[:8]
+
+    def _generate_condition(self, stock: Any, plate_leaders: dict[str, dict[str, Any]], concept: str) -> str:
+        """根据个股特征生成差异化买点条件。"""
+        is_link = self._is_link_board_stock(stock)
+        lianban = getattr(stock, "lianban", "")
+        board_height = 1
+        if lianban:
+            m = re.search(r"(\d+)板", lianban)
+            if m:
+                board_height = int(m.group(1))
+
+        conditions: list[str] = []
+        if is_link and board_height >= 3:
+            conditions.append("竞价不低开，放量换手后接力")
+        elif is_link:
+            conditions.append("板块共振且竞价正向")
+        else:
+            conditions.append("首板放量回封确认")
+
+        # 匹配所属板块，加板块条件
+        for plate_name, plate_info in plate_leaders.items():
+            if self._concept_match(plate_name, concept):
+                if plate_info.get("role") == "主线":
+                    conditions.append(f"{plate_name}维持强势")
+                break
+
+        return "，".join(conditions) if conditions else "板块共振且放量确认"
 
     def _risks(self, limit_down: int, bomb_rate: float, sentiment: float, zhangting: Any, sharp: Any = None) -> list[dict[str, Any]]:
         risks: list[dict[str, Any]] = []
@@ -802,6 +893,37 @@ class DataService:
             )
         return risks
 
+    def _extra_risks(self, trend: list[dict[str, Any]], plates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """补充趋势级风险：跌停连续增加、连板高度骤降、主线退潮。"""
+        extra: list[dict[str, Any]] = []
+        if len(trend) >= 3:
+            lds = [t.get("limit_down", 0) for t in trend[-3:]]
+            if lds[0] < lds[1] < lds[2] and lds[2] >= 10:
+                extra.append({
+                    "title": "跌停连续增加",
+                    "level": "高" if lds[2] >= 30 else "中",
+                    "text": f"近3日跌停家数 {lds[0]}→{lds[1]}→{lds[2]}，亏钱效应持续扩散。",
+                })
+        # 连板高度骤降
+        if len(trend) >= 2 and plates:
+            today_max = plates[0].get("maxBoard", 0)
+            if today_max <= 2 and trend[-1].get("limit_up", 0) < trend[-2].get("limit_up", 0) * 0.5:
+                extra.append({
+                    "title": "连板空间骤降",
+                    "level": "中",
+                    "text": f"连板高度降至 {today_max} 板，接力亏钱效应加剧。",
+                })
+        # 主线退潮
+        if plates:
+            lead = plates[0]
+            if lead.get("pct", 0) < -1 and lead.get("limitUps", 0) <= 1:
+                extra.append({
+                    "title": "主线退潮信号",
+                    "level": "中",
+                    "text": f"主线板块 {lead['name']} 转跌（{lead['pct']:.1f}%），警惕情绪拐头。",
+                })
+        return extra
+
     def _methods(
         self,
         sentiment: float,
@@ -810,19 +932,26 @@ class DataService:
         limit_down: int,
         bomb_rate: float,
         yesterday_premium: float,
+        indexes: list[dict[str, Any]] | None = None,
     ) -> list[dict[str, Any]]:
+        # 大盘趋势惩罚：主要指数跌幅越大，追高手法惩罚越重
+        index_pcts = [pick_number(row.get("pct", 0)) for row in (indexes or [])]
+        avg_index_pct = sum(index_pcts) / len(index_pcts) if index_pcts else 0
+        # 趋势惩罚：大盘跌超过1%时，追高类手法大幅降分
+        market_penalty = max(0, -avg_index_pct) * 12  # -1% → 惩罚12分
+
         # 空仓观望：信号不足或亏钱效应偏强时推荐
-        cash = min(100, max(0, bomb_rate * 0.5 + limit_down * 1.0 + (100 - sentiment) * 0.4))
+        cash = min(100, max(0, bomb_rate * 0.5 + limit_down * 1.0 + (100 - sentiment) * 0.4 + market_penalty * 0.3))
         # 超跌反弹：冰点修复初期、分歧末端
         bounce = min(100, max(0, 60 - sentiment * 0.6 - limit_down * 0.5 + max(0, 25 - bomb_rate) * 0.8))
-        # 低吸半路：主线明确、回流确认
+        # 低吸半路：主线明确、回流确认（大盘下跌时低吸反而有价值）
         dip = min(100, max(0, sentiment * 0.5 + max(0, 50 - bomb_rate) * 0.6 + max(0, yesterday_premium) * 3))
         # 首板打板：封板质量、板块带动、承接
-        first_board = min(100, max(0, limit_up * 0.7 - broken * 0.3 + max(0, 50 - bomb_rate) * 0.5))
+        first_board = min(100, max(0, limit_up * 0.7 - broken * 0.3 + max(0, 50 - bomb_rate) * 0.5 - market_penalty * 0.5))
         # 龙头接力：情绪强、赚钱效应好
-        relay = min(100, max(0, sentiment * 0.6 + max(0, 100 - bomb_rate * 2) * 0.3 + yesterday_premium * 5 - limit_down * 0.5))
-        # 高位打板：强趋势延续、炸板率可控
-        high_board = min(100, max(0, sentiment * 0.5 - bomb_rate * 0.8 - limit_down * 0.7 + 20))
+        relay = min(100, max(0, sentiment * 0.6 + max(0, 100 - bomb_rate * 2) * 0.3 + yesterday_premium * 5 - limit_down * 0.5 - market_penalty * 0.8))
+        # 高位打板：强趋势延续、炸板率可控（大盘下跌时惩罚最重）
+        high_board = min(100, max(0, sentiment * 0.5 - bomb_rate * 0.8 - limit_down * 0.7 + 20 - market_penalty))
         return [
             {"name": "空仓观望", "score": round(cash, 1), "status": "推荐" if cash >= 60 else "备选", "note": "当信号不足或亏钱效应偏强时，休息本身就是策略。"},
             {"name": "超跌反弹", "score": round(bounce, 1), "status": "可做" if bounce >= 50 else "观察", "note": "只适合在分歧末端、情绪修复初期轻仓试错。"},
@@ -848,15 +977,16 @@ class DataService:
                     "trigger": "风险指标转弱或主线确认",
                 }
             ]
-        lead = plates[0]
-        return [
-            {
-                "title": f"{lead['name']} 前排确认",
-                "grade": "A" if cycle in {"启动", "发酵"} else "B",
-                "text": f"{lead['name']} 当前强度靠前，重点观察核心股竞价和回封效率。",
-                "trigger": "板块涨幅维持前列，龙头不弱转强",
-            }
-        ]
+        result: list[dict[str, Any]] = []
+        for i, plate in enumerate(plates[:3]):
+            grade = "A" if i == 0 and cycle in {"启动", "发酵"} else ("B" if i < 2 else "C")
+            result.append({
+                "title": f"{plate['name']} 前排确认",
+                "grade": grade,
+                "text": f"{plate['name']} 强度 {plate['strength']:.0f}，龙头 {plate['leader'] or '待确认'}，阶段 {plate['stage']}。重点观察竞价和回封效率。",
+                "trigger": f"板块涨幅维持前列，{plate['leader']} 不弱转强" if plate["leader"] else "板块涨幅维持前列",
+            })
+        return result
 
 
 data_service = DataService()

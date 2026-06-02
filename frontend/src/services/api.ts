@@ -1,4 +1,4 @@
-import type { DashboardData } from '../types/dashboard'
+import type { DashboardData, TrendPoint } from '../types/dashboard'
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -14,4 +14,10 @@ async function request<T>(path: string): Promise<T> {
 export function fetchDashboard(day?: string) {
   const query = day ? `?day=${encodeURIComponent(day)}` : ''
   return request<DashboardData>(`/api/dashboard${query}`)
+}
+
+export function fetchTrend(days = 15, day?: string) {
+  const params = new URLSearchParams({ days: String(days) })
+  if (day) params.set('day', day)
+  return request<{ trend: TrendPoint[] }>(`/api/dashboard/trend?${params}`)
 }

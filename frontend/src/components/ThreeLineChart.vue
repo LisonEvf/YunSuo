@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue'
+
 const props = withDefaults(
   defineProps<{
     lines: Array<{ values: number[]; color: string; fill: string }>
@@ -13,6 +15,8 @@ const width = 900
 const pad = { top: 40, right: 30, bottom: 60, left: 60 }
 const innerW = width - pad.left - pad.right
 const innerH = props.height - pad.top - pad.bottom
+
+const hoverIndex = ref(-1)
 
 function yOf(value: number) {
   return pad.top + (1 - value / 100) * innerH
@@ -35,10 +39,38 @@ function areaPath(values: number[]) {
 }
 
 const gridLines = [0, 20, 40, 60, 80, 100]
+
+const tooltipData = computed(() => {
+  if (hoverIndex.value < 0) return null
+  const idx = hoverIndex.value
+  return {
+    x: xOf(idx),
+    label: props.labels[idx] ?? '',
+    values: props.lines.map(l => ({
+      color: l.color,
+      value: l.values[idx],
+    })),
+  }
+})
+
+function onMouseMove(e: MouseEvent) {
+  const svg = e.currentTarget as SVGSVGElement
+  const rect = svg.getBoundingClientRect()
+  const scaleX = width / rect.width
+  const mouseX = (e.clientX - rect.left) * scaleX
+  const count = Math.max(props.labels.length - 1, 1)
+  const stepW = innerW / count
+  const idx = Math.round((mouseX - pad.left) / stepW)
+  hoverIndex.value = idx >= 0 && idx < props.labels.length ? idx : -1
+}
+
+function onMouseLeave() {
+  hoverIndex.value = -1
+}
 </script>
 
 <template>
-  <svg :viewBox="`0 0 ${width} ${height}`" width="100%" :height="height" role="img" aria-label="三线趋势图">
+  <svg :viewBox="`0 0 ${width} ${height}`" width="100%" :height="height" role="img" aria-label="三线趋势图" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
     <!-- 高潮区 80-100 背景 -->
     <rect :x="pad.left" :y="yOf(100)" :width="innerW" :height="yOf(80) - yOf(100)" fill="rgba(239,44,103,.06)" />
     <!-- 冰点区 0-20 背景 -->
@@ -96,6 +128,21 @@ const gridLines = [0, 20, 40, 60, 80, 100]
     <!-- X轴日期标签 -->
     <g fill="#778392" font-size="13">
       <text v-for="(label, i) in labels" :key="i" :x="xOf(i)" :y="pad.top + innerH + 20" text-anchor="middle">{{ label }}</text>
+    </g>
+
+    <!-- Hover 竖线 -->
+    <line v-if="tooltipData" :x1="tooltipData.x" :x2="tooltipData.x" :y1="pad.top" :y2="pad.top + innerH" stroke="rgba(136,136,170,.4)" stroke-width="1" stroke-dasharray="4 2" />
+
+    <!-- Hover 数据点高亮 -->
+    <template v-if="tooltipData">
+      <circle v-for="item in tooltipData.values" :key="item.color" :cx="tooltipData.x" :cy="yOf(item.value ?? 0)" r="5" :fill="item.color" stroke="#fff" stroke-width="2" />
+    </template>
+
+    <!-- Tooltip 框 -->
+    <g v-if="tooltipData">
+      <rect :x="Math.min(tooltipData.x + 12, width - 180)" :y="pad.top" width="160" :height="16 + tooltipData.values.length * 20 + 4" rx="6" fill="var(--bg-card)" stroke="var(--border-color)" stroke-width="1" opacity=".95" />
+      <text :x="Math.min(tooltipData.x + 20, width - 172)" :y="pad.top + 14" fill="var(--text-secondary)" font-size="12">{{ tooltipData.label }}</text>
+      <text v-for="(item, i) in tooltipData.values" :key="item.color" :x="Math.min(tooltipData.x + 20, width - 172)" :y="pad.top + 30 + i * 20" :fill="item.color" font-size="13" font-weight="700">{{ typeof item.value === 'number' ? item.value.toFixed(1) : '--' }}</text>
     </g>
   </svg>
 </template>

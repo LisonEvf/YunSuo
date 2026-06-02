@@ -35,6 +35,14 @@ def dashboard(day: str | None = Query(default=None, description="交易日，格
     return data_service.dashboard(day=day)
 
 
+@app.get("/api/dashboard/trend")
+def dashboard_trend(
+    days: int = Query(default=15, ge=1, le=60),
+    day: str | None = Query(default=None, description="截止交易日 YYYY-MM-DD"),
+):
+    return {"trend": data_service.dashboard_trend(days=days, day=day)}
+
+
 @app.get("/api/quotes")
 def quotes(symbols: str = Query(default="SZ:000001,SH:600000")):
     try:

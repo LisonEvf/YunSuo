@@ -14,6 +14,7 @@ import logging
 from typing import Any
 
 from ..utils import to_jsonable, pick_number, recent_weekdays
+from ..connections import get_kpl
 
 logger = logging.getLogger(__name__)
 
@@ -368,58 +369,51 @@ def _trade_methods(day: str | None = None) -> list[dict[str, Any]]:
 # ── KPL SDK 直接调用 ─────────────────────────────────────────────
 
 def _kpl_emotion() -> dict[str, Any]:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        data = kpl.emotion.today()
-        return {
-            "daban": to_jsonable(data.daban) if data.daban else None,
-            "plates": to_jsonable(data.plates) if data.plates else None,
-            "phb": to_jsonable(data.phb) if data.phb else None,
-            "day": data.day,
-            "ts": data.ts,
-        }
+    kpl = get_kpl()
+    data = kpl.emotion.today()
+    return {
+        "daban": to_jsonable(data.daban) if data.daban else None,
+        "plates": to_jsonable(data.plates) if data.plates else None,
+        "phb": to_jsonable(data.phb) if data.phb else None,
+        "day": data.day,
+        "ts": data.ts,
+    }
 
 
 def _kpl_news(*, keyword: str | None = None, limit: int = 20) -> Any:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        if keyword:
-            result = kpl.news_flash.search(keyword, st=limit)
-        else:
-            result = kpl.news_flash.list(st=limit)
-        return to_jsonable(result)
+    kpl = get_kpl()
+    if keyword:
+        result = kpl.news_flash.search(keyword, st=limit)
+    else:
+        result = kpl.news_flash.list(st=limit)
+    return to_jsonable(result)
 
 
 def _kpl_plate_ranking(*, order: int = 1, count: int = 30, date: str | None = None) -> Any:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        return kpl.plate.ranking_raw(order=order, st=count, date=date)
+    kpl = get_kpl()
+    return kpl.plate.ranking_raw(order=order, st=count, date=date)
 
 
 def _kpl_lhb() -> dict[str, Any]:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        overview = kpl.lhb.today()
-        detail = kpl.lhb.stock_list()
-        return {"overview": to_jsonable(overview), "detail": to_jsonable(detail)}
+    kpl = get_kpl()
+    overview = kpl.lhb.today()
+    detail = kpl.lhb.stock_list()
+    return {"overview": to_jsonable(overview), "detail": to_jsonable(detail)}
 
 
 def _kpl_zhangting_gene(code: str) -> Any:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        return to_jsonable(kpl.stock.zhangting_gene(code))
+    kpl = get_kpl()
+    return to_jsonable(kpl.stock.zhangting_gene(code))
 
 
 def _kpl_stock_plates(code: str) -> Any:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        return to_jsonable(kpl.stock.stock_plates(code))
+    kpl = get_kpl()
+    return to_jsonable(kpl.stock.stock_plates(code))
 
 
 def _kpl_theme_detail(theme_id: str) -> Any:
-    from kpl_sdk.client import KplClient
-    with KplClient(timeout=8) as kpl:
-        return to_jsonable(kpl.theme.info(theme_id))
+    kpl = get_kpl()
+    return to_jsonable(kpl.theme.info(theme_id))
 
 
 # ── 异步入口 ─────────────────────────────────────────────────────

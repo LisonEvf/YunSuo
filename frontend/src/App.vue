@@ -44,17 +44,14 @@ const amountValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map
 
 const trendLabels = computed(() => dashboard.value?.trend.map((item) => item.date.slice(5)) ?? [])
 
-// 三线图数据
+// 三线图数据（后端预计算，前端直接取值）
 const threeLines = computed(() => {
   const trend = dashboard.value?.trend ?? []
   const mkLine = (values: number[], color: string, fill: string) => ({ values, color, fill })
-  const marketCoef = trend.map((t) => Math.round(t.score * 0.7 + (t.limit_up / Math.max(t.limit_up + t.limit_down, 1)) * 30))
-  const shortSentiment = trend.map((t) => Math.round(t.score * 1.05))
-  const moneyLoss = trend.map((t) => Math.round(Math.max(0, Math.min(100, (1 - t.limit_down / Math.max(t.limit_up, 1)) * 100))))
   return [
-    mkLine(marketCoef, '#e6464e', 'rgba(230,70,78,.08)'),
-    mkLine(shortSentiment, '#7442dd', 'rgba(116,66,221,.08)'),
-    mkLine(moneyLoss, '#18a86d', 'rgba(24,168,109,.08)'),
+    mkLine(trend.map((t) => t.marketCoef), '#e6464e', 'rgba(230,70,78,.08)'),
+    mkLine(trend.map((t) => t.shortSentiment), '#7442dd', 'rgba(116,66,221,.08)'),
+    mkLine(trend.map((t) => t.moneyLoss), '#18a86d', 'rgba(24,168,109,.08)'),
   ]
 })
 
@@ -69,11 +66,10 @@ const statDeltas = computed(() => {
   if (trend.length < 2) return { market: 0, short: 0, loss: 0 }
   const prev = trend[trend.length - 2]
   const cur = trend[trend.length - 1]
-  const mktDelta = prev.score ? +(((cur.score - prev.score) / prev.score) * 10).toFixed(1) : 0
   return {
-    market: mktDelta,
-    short: +(cur.score - prev.score).toFixed(1),
-    loss: +((prev.limit_down - cur.limit_down) * 1.5).toFixed(1),
+    market: +((cur.marketCoef ?? cur.score) - (prev.marketCoef ?? prev.score)).toFixed(1),
+    short: +((cur.shortSentiment ?? cur.score) - (prev.shortSentiment ?? prev.score)).toFixed(1),
+    loss: +((cur.moneyLoss ?? 0) - (prev.moneyLoss ?? 0)).toFixed(1),
   }
 })
 
@@ -271,9 +267,9 @@ function applyTheme(mode: ThemeMode) {
         </section>
 
         <section class="stat-row">
-          <article class="card stat"><div class="label">大盘系数 <span class="info">i</span></div><div class="num pink">{{ formatNumber(50 + dashboard.indexes.reduce((sum, item) => sum + item.pct, 0), 1) }}</div><div class="sub">指数环境 <span class="pill" style="float:right">{{ statDeltas.market > 0 ? '+' : '' }}{{ statDeltas.market }}</span></div></article>
+          <article class="card stat"><div class="label">大盘系数 <span class="info">i</span></div><div class="num pink">{{ formatNumber(dashboard.kpis.marketCoef, 1) }}</div><div class="sub">指数环境 <span class="pill" style="float:right">{{ statDeltas.market > 0 ? '+' : '' }}{{ statDeltas.market }}</span></div></article>
           <article class="card stat"><div class="label">超短情绪 <span class="info">i</span></div><div class="num purple">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</div><div class="sub">短线接力温度 <span class="pill" style="float:right">{{ statDeltas.short > 0 ? '+' : '' }}{{ statDeltas.short }}</span></div></article>
-          <article class="card stat"><div class="label">亏钱效应 <span class="info">i</span></div><div class="num green-text">{{ formatNumber(100 - dashboard.kpis.bombRate, 1) }}</div><div class="sub">风险压力指标 <span class="pill" style="float:right">{{ statDeltas.loss > 0 ? '+' : '' }}{{ statDeltas.loss }}</span></div></article>
+          <article class="card stat"><div class="label">赚钱效应 <span class="info">i</span></div><div class="num green-text">{{ formatNumber(100 - dashboard.kpis.bombRate, 1) }}</div><div class="sub">封板率指标 <span class="pill" style="float:right">{{ statDeltas.loss > 0 ? '+' : '' }}{{ statDeltas.loss }}</span></div></article>
           <article class="card stat"><div class="label">三线分歧度</div><div class="num">{{ formatNumber(Math.abs(dashboard.kpis.marketVsShort), 1) }}</div><div class="sub">分化强度</div></article>
           <article class="card stat"><div class="label">大盘VS超短</div><div class="num">{{ formatNumber(dashboard.kpis.marketVsShort, 1) }}</div><div class="sub">差值正常</div></article>
           <article class="card stat"><div class="label pink">交易建议</div><div class="num text-num">{{ dashboard.overview.advice.steady }}</div><div class="sub pink">系统执行建议</div></article>
@@ -283,7 +279,7 @@ function applyTheme(mode: ThemeMode) {
           <section>
             <article class="card panel">
               <div class="panel-title"><span class="blue-dot">✦</span> 情绪周期三线监控 <span class="info">i</span></div>
-              <div class="note">大盘系数 · 超短情绪 · 亏钱效应 · 综合指数</div>
+              <div class="note">大盘系数 · 超短情绪 · 赚钱效应 · 综合指数</div>
               <div class="legend"><span class="hot-dot">● 高潮区 80-100</span><span class="blue-dot">● 冰点区 0-20</span><span class="tag quiet">冰点信号 {{ icePointIndices.length }} 次</span></div>
               <div class="chart-wrap">
                 <ThreeLineChart :lines="threeLines" :labels="trendLabels" :ice-points="icePointIndices" :height="400" />
@@ -350,7 +346,7 @@ function applyTheme(mode: ThemeMode) {
               <p class="status" :style="cycleStyle(item.cycle)">{{ item.cycle }}</p>
             </div>
           </div>
-          <p class="note" style="margin-top:26px">区间：{{ dashboard.trend[0]?.date }} ~ {{ dashboard.trend.at(-1)?.date }} | 窗口 {{ dashboard.trend.length }} 天 | 口径：爆发板块(≥8000) + 活跃板块(≥2000)</p>
+          <p class="note" style="margin-top:26px">区间：{{ dashboard.trend[0]?.date }} ~ {{ dashboard.trend.at(-1)?.date }} | 窗口 {{ dashboard.trend.length }} 天 | 口径：涨停潮(≥6000) · 活跃(≥3500) · 偏强(≥2000) · 一般(≥1000)</p>
         </section>
       </section>
 
@@ -455,7 +451,11 @@ function applyTheme(mode: ThemeMode) {
         <section class="card panel">
           <div class="panel-title">赚钱手法分析</div>
           <div class="method-grid">
-            <article v-for="item in dashboard.methods" :key="item.name" class="method"><h3>{{ item.name }} <span>{{ item.status }}</span></h3><b>{{ formatPct(item.score) }}</b><p>{{ item.note }}</p></article>
+            <article v-for="item in dashboard.methods" :key="item.name" class="method">
+              <div class="method-head"><h3>{{ item.name }}</h3><span class="method-badge" :class="item.status">{{ item.status }}</span></div>
+              <b>{{ formatPct(item.score) }}</b>
+              <p>{{ item.note }}</p>
+            </article>
           </div>
         </section>
 

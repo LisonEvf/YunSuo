@@ -46,7 +46,9 @@ export interface DashboardKpis {
   linkBoardCount: number
   marketAmountDelta: number
   nonBoardTemp: number
-  openPremium: string // "AI依赖" placeholder
+  openPremium: string
+  marketCoef: number // 大盘系数（后端预计算）
+  zhangfuDistribution: Array<{ range: string; count: number }> // 涨跌幅分档分布
 }
 
 export interface IndexItem {
@@ -74,6 +76,9 @@ export interface TrendPoint {
   bomb_rate: number
   plates: TrendPlate[]
   cycle: string
+  marketCoef: number // 大盘系数线（后端预计算）
+  shortSentiment: number // 超短情绪线
+  moneyLoss: number // 亏钱效应线
 }
 
 export interface PlateItem {
@@ -91,8 +96,9 @@ export interface PlateItem {
   stage: string
   capital: string
   sharePct: number
-  middleStock: string // "AI依赖" placeholder
+  middleStock: string
   middleCode: string
+  linkBoardCount: number // 板块内连板股数
 }
 
 export interface MethodItem {

@@ -318,7 +318,7 @@ class DataService:
         plate_rows = self._fill_middle_stocks(plate_rows)
         watchlist = self._watchlist(daban_list, plate_rows)
         risks = self._risks(limit_down, bomb_rate, sentiment, zhangting, sharp)
-        methods = self._methods(limit_up, broken, limit_down, bomb_rate, yesterday_premium)
+        methods = self._methods(sentiment, limit_up, broken, limit_down, bomb_rate, yesterday_premium)
 
         index_pcts = [pick_number(row.get("pct")) for row in indexes]
         avg_index_pct = round(sum(index_pcts) / len(index_pcts), 2) if index_pcts else 0
@@ -529,9 +529,9 @@ class DataService:
                 leader = next((s for s in related if self._is_link_board_stock(s)), related[0])
                 row["leader"] = getattr(leader, "name", "")
                 row["leaderCode"] = getattr(leader, "code", "")
-            # 强度公式：涨幅权重 + 涨停家数 + 连板高度 + 龙头涨幅
+            # 强度公式：基础(pct*1000 与 heatmap 一致) + 涨停家数 + 连板高度 + 龙头涨幅
             row["strength"] = round(
-                abs(row["pct"]) * 800 + row["limitUps"] * 600 + row["maxBoard"] * 1200 + max(row["leaderPct"], 0) * 100,
+                abs(row["pct"]) * 1000 + row["limitUps"] * 600 + row["maxBoard"] * 1200 + max(row["leaderPct"], 0) * 100,
                 1,
             )
             row["role"] = "主线" if row["strength"] >= 3000 or row["limitUps"] >= 3 else "支线"
@@ -804,21 +804,32 @@ class DataService:
 
     def _methods(
         self,
+        sentiment: float,
         limit_up: int,
         broken: int,
         limit_down: int,
         bomb_rate: float,
         yesterday_premium: float,
     ) -> list[dict[str, Any]]:
-        high_board = max(0, 100 - bomb_rate - limit_down * 0.7)
-        first_board = min(100, max(0, limit_up * 0.7 - broken * 0.3 + 30))
-        old_leader = min(100, max(0, 50 + yesterday_premium * 8 - limit_down * 0.5))
-        cash = min(100, max(0, bomb_rate + limit_down * 1.5))
+        # 空仓观望：信号不足或亏钱效应偏强时推荐
+        cash = min(100, max(0, bomb_rate * 0.5 + limit_down * 1.0 + (100 - sentiment) * 0.4))
+        # 超跌反弹：冰点修复初期、分歧末端
+        bounce = min(100, max(0, 60 - sentiment * 0.6 - limit_down * 0.5 + max(0, 25 - bomb_rate) * 0.8))
+        # 低吸半路：主线明确、回流确认
+        dip = min(100, max(0, sentiment * 0.5 + max(0, 50 - bomb_rate) * 0.6 + max(0, yesterday_premium) * 3))
+        # 首板打板：封板质量、板块带动、承接
+        first_board = min(100, max(0, limit_up * 0.7 - broken * 0.3 + max(0, 50 - bomb_rate) * 0.5))
+        # 龙头接力：情绪强、赚钱效应好
+        relay = min(100, max(0, sentiment * 0.6 + max(0, 100 - bomb_rate * 2) * 0.3 + yesterday_premium * 5 - limit_down * 0.5))
+        # 高位打板：强趋势延续、炸板率可控
+        high_board = min(100, max(0, sentiment * 0.5 - bomb_rate * 0.8 - limit_down * 0.7 + 20))
         return [
-            {"name": "高位打板", "score": round(high_board, 1), "status": "观察" if high_board >= 55 else "回避", "note": "只看充分换手后的核心前排。"},
-            {"name": "低位首板", "score": round(first_board, 1), "status": "可做" if first_board >= 60 else "观察", "note": "优先选择板块共振和回封质量。"},
-            {"name": "老龙反抽", "score": round(old_leader, 1), "status": "观察", "note": "只在冰点修复或主线分歧时小仓试错。"},
-            {"name": "空仓观望", "score": round(cash, 1), "status": "防守" if cash >= 55 else "备选", "note": "竞价和开盘反馈不达标时优先防守。"},
+            {"name": "空仓观望", "score": round(cash, 1), "status": "推荐" if cash >= 60 else "备选", "note": "当信号不足或亏钱效应偏强时，休息本身就是策略。"},
+            {"name": "超跌反弹", "score": round(bounce, 1), "status": "可做" if bounce >= 50 else "观察", "note": "只适合在分歧末端、情绪修复初期轻仓试错。"},
+            {"name": "低吸半路", "score": round(dip, 1), "status": "可做" if dip >= 55 else "观察", "note": "更依赖主线明确和回流确认，不适合盲目埋伏。"},
+            {"name": "首板打板", "score": round(first_board, 1), "status": "可做" if first_board >= 55 else "观察", "note": "需要封板质量、板块带动和承接都在线。"},
+            {"name": "龙头接力", "score": round(relay, 1), "status": "可做" if relay >= 55 else "回避", "note": "更吃情绪强弱与赚钱效应，高潮和退潮期都容易失真。"},
+            {"name": "高位打板", "score": round(high_board, 1), "status": "观察" if high_board >= 50 else "回避", "note": "仅在强趋势延续、炸板率可控时才有价值。"},
         ]
 
     def _opportunities(

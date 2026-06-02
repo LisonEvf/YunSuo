@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import json
+import logging
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from .services import data_service
 
+logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Sentiment Data API", version="0.1.0")
+app = FastAPI(title="Sentiment Data API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +22,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ── 数据接口 ─────────────────────────────────────────────────────
 
 @app.get("/health")
 def health():
@@ -64,3 +72,59 @@ def board_members(board: str, count: int = Query(default=30, ge=1, le=120)):
         return data_service.board_members(board=board, count=count)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ── Agent 接口 ───────────────────────────────────────────────────
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    stream: bool = False
+    skills: list[str] | None = None
+
+
+@app.post("/api/chat")
+async def chat(req: ChatRequest):
+    """Agent 对话接口，支持流式和非流式，可激活 skill。"""
+    from .agent import get_agent
+
+    try:
+        agent = get_agent()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    messages = [{"role": m.role, "content": m.content} for m in req.messages]
+
+    if req.stream:
+        return StreamingResponse(
+            _sse_stream(agent, messages, skills=req.skills),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    result = await agent.chat(messages, skills=req.skills)
+    return result
+
+
+async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):
+    """SSE 流式输出，复刻 hermes-agent 的 stream dispatch 模式。"""
+    async for event in agent.chat_stream(messages, skills=skills):
+        yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+
+# ── Skill 接口 ───────────────────────────────────────────────────
+
+
+@app.get("/api/skills")
+def list_skills():
+    """列出所有可用的 skill。"""
+    from .agent.skills import list_skills as _list
+    return {"skills": _list()}

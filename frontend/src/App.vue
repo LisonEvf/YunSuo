@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import SparkLine from './components/SparkLine.vue'
+import ThreeLineChart from './components/ThreeLineChart.vue'
 import { fetchDashboard } from './services/api'
 import type { DashboardData, PlateItem } from './types/dashboard'
 
@@ -36,10 +37,45 @@ async function loadDashboard() {
   }
 }
 
-const sentimentValues = computed(() => dashboard.value?.trend.map((item) => item.score) ?? [])
-const limitUpValues = computed(() => dashboard.value?.trend.map((item) => item.limit_up) ?? [])
-const limitDownValues = computed(() => dashboard.value?.trend.map((item) => item.limit_down) ?? [])
-const amountValues = computed(() => dashboard.value?.trend.map((item) => item.amount) ?? [])
+const sentimentValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.score))
+const limitUpValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.limit_up))
+const limitDownValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.limit_down))
+const amountValues = computed(() => (dashboard.value?.trend ?? []).slice(-5).map((item) => item.amount))
+
+const trendLabels = computed(() => dashboard.value?.trend.map((item) => item.date.slice(5)) ?? [])
+
+// 三线图数据
+const threeLines = computed(() => {
+  const trend = dashboard.value?.trend ?? []
+  const mkLine = (values: number[], color: string, fill: string) => ({ values, color, fill })
+  const marketCoef = trend.map((t) => Math.round(t.score * 0.7 + (t.limit_up / Math.max(t.limit_up + t.limit_down, 1)) * 30))
+  const shortSentiment = trend.map((t) => Math.round(t.score * 1.05))
+  const moneyLoss = trend.map((t) => Math.round(Math.max(0, Math.min(100, (1 - t.limit_down / Math.max(t.limit_up, 1)) * 100))))
+  return [
+    mkLine(marketCoef, '#e6464e', 'rgba(230,70,78,.08)'),
+    mkLine(shortSentiment, '#7442dd', 'rgba(116,66,221,.08)'),
+    mkLine(moneyLoss, '#18a86d', 'rgba(24,168,109,.08)'),
+  ]
+})
+
+const icePointIndices = computed(() => {
+  const trend = dashboard.value?.trend ?? []
+  return trend.map((t, i) => (t.score < 20 ? i : -1)).filter((i) => i >= 0)
+})
+
+// stat-row 变化值
+const statDeltas = computed(() => {
+  const trend = dashboard.value?.trend ?? []
+  if (trend.length < 2) return { market: 0, short: 0, loss: 0 }
+  const prev = trend[trend.length - 2]
+  const cur = trend[trend.length - 1]
+  const mktDelta = prev.score ? +(((cur.score - prev.score) / prev.score) * 10).toFixed(1) : 0
+  return {
+    market: mktDelta,
+    short: +(cur.score - prev.score).toFixed(1),
+    loss: +((prev.limit_down - cur.limit_down) * 1.5).toFixed(1),
+  }
+})
 
 const leadPlates = computed(() => dashboard.value?.plates.slice(0, 8) ?? [])
 const primaryPlates = computed(() => leadPlates.value.filter((item) => item.role === '主线').slice(0, 4))
@@ -62,7 +98,7 @@ function formatPct(value: number) {
 
 function formatDate(value?: string) {
   if (!value) return '--'
-  return value.replaceAll('-', '/')
+  return value.replace(/-/g, '/')
 }
 
 function strengthWidth(item: PlateItem) {
@@ -73,6 +109,57 @@ function priorityClass(priority: string) {
   if (priority.startsWith('A')) return 'red'
   if (priority.startsWith('B')) return 'yellow'
   if (priority.startsWith('C')) return 'blue'
+  return ''
+}
+
+// 热力图矩阵数据
+const heatmapRows = computed(() => {
+  const trend = dashboard.value?.trend ?? []
+  const plateMap = new Map<string, number>() // name → max strength
+  for (const t of trend) {
+    for (const p of t.plates ?? []) {
+      const cur = plateMap.get(p.name) ?? 0
+      if (p.strength > cur) plateMap.set(p.name, p.strength)
+    }
+  }
+  return [...plateMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name]) => name)
+})
+
+const heatmapDates = computed(() => (dashboard.value?.trend ?? []).map((t) => t.date.slice(5)))
+
+function heatmapValue(plateName: string, date: string): number | null {
+  const point = (dashboard.value?.trend ?? []).find((t) => t.date.endsWith(date) || t.date === date)
+  if (!point) return null
+  const found = (point.plates ?? []).find((p) => p.name === plateName)
+  return found ? found.strength : null
+}
+
+function heatClass(val: number | null): string {
+  if (val === null) return 'empty'
+  if (val >= 6000) return 'h5'
+  if (val >= 3500) return 'h4'
+  if (val >= 2000) return 'h3'
+  if (val >= 1000) return 'h2'
+  return 'h1'
+}
+
+// date-grid: 每日前3板块 + 周期状态
+const dateGridItems = computed(() => {
+  const trend = dashboard.value?.trend ?? []
+  return trend.map((t) => ({
+    date: t.date.slice(5),
+    plates: (t.plates ?? []).slice(0, 3).map((p) => p.name),
+    cycle: t.cycle || '--',
+  }))
+})
+
+function cycleStyle(cycle: string): string {
+  if (cycle === '背离') return 'color:#bd5a19;background:#fff3e2'
+  if (cycle === '耦合') return 'color:#7d3ee4'
+  if (cycle.includes('冰')) return ''
   return ''
 }
 
@@ -94,7 +181,6 @@ function applyTheme(mode: ThemeMode) {
   <main class="page">
     <header class="app-nav">
       <div>
-        <span class="source-pill">openkpl + opentdx</span>
         <h1>市场情绪策略看板</h1>
       </div>
       <div class="app-actions">
@@ -124,45 +210,12 @@ function applyTheme(mode: ThemeMode) {
     </section>
 
     <template v-else-if="dashboard">
-      <section class="card overview">
-        <div class="overview-top">
-          <span>数据日期：{{ formatDate(dashboard.meta.day) }}</span>
-          <span>数据最后更新时间：{{ dashboard.meta.updatedAt || '--' }}</span>
-        </div>
-        <div class="overview-grid">
-          <div>
-            <div class="section-label">情绪周期节点 <span class="info">i</span></div>
-            <div class="state">{{ dashboard.overview.cycle }} <span class="badge">{{ dashboard.overview.cycle }}</span></div>
-            <div class="emotion-line">情绪综合指数 <b>{{ formatNumber(dashboard.overview.sentiment, 1) }}</b> <span class="info">i</span></div>
-          </div>
-          <div>
-            <div class="section-label">明日仓位建议</div>
-            <div class="advice-row"><span>激进型</span><b>{{ dashboard.overview.advice.aggressive }}</b></div>
-            <div class="advice-row"><span>稳健型</span><strong>{{ dashboard.overview.advice.steady }}</strong></div>
-            <div class="thin-progress"><span :style="{ width: `${dashboard.overview.advice.max}%` }"></span></div>
-            <div class="hint">建议仓位：{{ dashboard.overview.advice.min }}% - {{ dashboard.overview.advice.max }}%</div>
-          </div>
-          <div>
-            <div class="section-label">技术风格匹配</div>
-            <div class="risk-list">
-              <div v-for="item in dashboard.overview.style" :key="item.text" :class="{ ok: item.ok }">- {{ item.text }}</div>
-            </div>
-          </div>
-          <div>
-            <div class="section-label">关键时点预案</div>
-            <div class="time-list">
-              <div v-for="item in dashboard.overview.timePlan" :key="item.time"><span>{{ item.time }}</span><b>{{ item.text }}</b></div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <section v-if="activeView === 'sentiment'" class="sentiment-view">
         <section class="topbar">
           <div>
             <div class="version"><b>V3.0 PRO</b><span>数据更新于 <strong>{{ formatDate(dashboard.meta.day) }}</strong></span></div>
             <h2>市场情绪仪表盘</h2>
-            <p class="subtitle">基于 openkpl 情绪复盘与 opentdx 行情数据的综合分析</p>
           </div>
           <div class="filters">
             <div class="datebox"><label>交易日</label><strong>{{ formatDate(dashboard.meta.day) }}</strong></div>
@@ -217,11 +270,11 @@ function applyTheme(mode: ThemeMode) {
         </section>
 
         <section class="stat-row">
-          <article class="card stat"><div class="label">大盘系数 <span class="info">i</span></div><div class="num pink">{{ formatNumber(50 + dashboard.indexes.reduce((sum, item) => sum + item.pct, 0), 1) }}</div><div class="sub">指数环境</div></article>
-          <article class="card stat"><div class="label">超短情绪 <span class="info">i</span></div><div class="num purple">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</div><div class="sub">短线接力温度</div></article>
-          <article class="card stat"><div class="label">亏钱效应 <span class="info">i</span></div><div class="num green-text">{{ formatNumber(100 - dashboard.kpis.bombRate, 1) }}</div><div class="sub">风险压力指标</div></article>
+          <article class="card stat"><div class="label">大盘系数 <span class="info">i</span></div><div class="num pink">{{ formatNumber(50 + dashboard.indexes.reduce((sum, item) => sum + item.pct, 0), 1) }}</div><div class="sub">指数环境 <span class="pill" style="float:right">{{ statDeltas.market > 0 ? '+' : '' }}{{ statDeltas.market }}</span></div></article>
+          <article class="card stat"><div class="label">超短情绪 <span class="info">i</span></div><div class="num purple">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</div><div class="sub">短线接力温度 <span class="pill" style="float:right">{{ statDeltas.short > 0 ? '+' : '' }}{{ statDeltas.short }}</span></div></article>
+          <article class="card stat"><div class="label">亏钱效应 <span class="info">i</span></div><div class="num green-text">{{ formatNumber(100 - dashboard.kpis.bombRate, 1) }}</div><div class="sub">风险压力指标 <span class="pill" style="float:right">{{ statDeltas.loss > 0 ? '+' : '' }}{{ statDeltas.loss }}</span></div></article>
           <article class="card stat"><div class="label">三线分歧度</div><div class="num">{{ formatNumber(Math.abs(dashboard.kpis.marketVsShort), 1) }}</div><div class="sub">分化强度</div></article>
-          <article class="card stat"><div class="label">大盘VS超短</div><div class="num">{{ formatNumber(dashboard.kpis.marketVsShort, 1) }}</div><div class="sub">差值状态</div></article>
+          <article class="card stat"><div class="label">大盘VS超短</div><div class="num">{{ formatNumber(dashboard.kpis.marketVsShort, 1) }}</div><div class="sub">差值正常</div></article>
           <article class="card stat"><div class="label pink">交易建议</div><div class="num text-num">{{ dashboard.overview.advice.steady }}</div><div class="sub pink">系统执行建议</div></article>
         </section>
 
@@ -230,9 +283,9 @@ function applyTheme(mode: ThemeMode) {
             <article class="card panel">
               <div class="panel-title"><span class="blue-dot">✦</span> 情绪周期三线监控 <span class="info">i</span></div>
               <div class="note">大盘系数 · 超短情绪 · 亏钱效应 · 综合指数</div>
-              <div class="legend"><span class="hot-dot">● 高潮区 80-100</span><span class="blue-dot">● 冰点区 0-20</span><span class="tag quiet">历史样本 {{ dashboard.trend.length }} 日</span></div>
+              <div class="legend"><span class="hot-dot">● 高潮区 80-100</span><span class="blue-dot">● 冰点区 0-20</span><span class="tag quiet">冰点信号 {{ icePointIndices.length }} 次</span></div>
               <div class="chart-wrap">
-                <SparkLine :values="sentimentValues" color="#ef2c67" fill="rgba(239,44,103,.13)" :height="360" />
+                <ThreeLineChart :lines="threeLines" :labels="trendLabels" :ice-points="icePointIndices" :height="400" />
               </div>
               <div class="summary-cells">
                 <div>最新节点 <span class="info">i</span><b>{{ dashboard.overview.cycle }}</b>情绪标签</div>
@@ -257,7 +310,7 @@ function applyTheme(mode: ThemeMode) {
               <div><span>炸板家数</span><b class="orange">{{ dashboard.kpis.broken }}</b></div>
               <div><span>跌停家数</span><b class="green-text">{{ dashboard.kpis.limitDown }}</b></div>
               <div><span>综合指数</span><b class="blue-dot">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</b></div>
-              <div><span>上涨家数</span><b class="green-text">{{ dashboard.kpis.upCount }}</b></div>
+              <div><span>冰点信号</span><b class="green-text">{{ icePointIndices.length }}</b></div>
               <div><span>封跌比</span><b>{{ formatNumber(dashboard.kpis.limitUp / Math.max(dashboard.kpis.limitDown, 1), 2) }}</b></div>
             </article>
             <article class="card rank-list">
@@ -274,23 +327,66 @@ function applyTheme(mode: ThemeMode) {
         <section class="card heat-panel">
           <div class="heat-head">
             <div>
-              <div class="panel-title"><span class="orange">●</span> 板块情绪热力分布图</div>
-              <div class="note">概念板块强度 | 强度越高颜色越热</div>
+              <div class="panel-title"><span style="color:#ff7a00">●</span> 板块情绪热力分布图</div>
+              <div class="note">概念板块强度 | 红色=强势 绿色=弱势</div>
             </div>
-            <div><span class="pink">■ 涨停潮</span>　<span class="orange">■ 活跃</span>　<span class="green-text">■ 调整</span> <span class="toggle"><b>热→冷</b><span>冷→热</span></span></div>
+            <div><span style="color:var(--color-pink)">■ 涨停潮</span>　<span style="color:var(--color-orange)">■ 活跃</span>　<span style="color:#23bd83">■ 调整</span> <span class="toggle"><b>热→冷</b><span>冷→热</span></span></div>
           </div>
           <div class="heatmap dynamic-heatmap">
-            <template v-for="item in leadPlates" :key="item.name">
-              <div class="rowlabel">{{ item.name }}</div>
-              <div v-for="point in dashboard.trend" :key="`${item.name}-${point.date}`" :class="['heat-cell', item.strength > topStrength * 0.7 ? 'h4' : item.strength > topStrength * 0.45 ? 'h3' : item.strength > topStrength * 0.25 ? 'h2' : 'h1']">
-                {{ Math.round(item.strength * (0.72 + point.score / 350)) }}
+            <div></div>
+            <div v-for="d in heatmapDates" :key="d">{{ d }}</div>
+            <template v-for="name in heatmapRows" :key="name">
+              <div class="rowlabel">{{ name }}</div>
+              <div v-for="d in heatmapDates" :key="`${name}-${d}`" :class="heatClass(heatmapValue(name, d))">
+                {{ heatmapValue(name, d) ?? '' }}
               </div>
             </template>
           </div>
+          <div class="date-grid">
+            <div v-for="item in dateGridItems" :key="item.date">
+              <h4>{{ item.date }}</h4>
+              <p v-for="p in item.plates" :key="p">{{ p }}</p>
+              <p class="status" :style="cycleStyle(item.cycle)">{{ item.cycle }}</p>
+            </div>
+          </div>
+          <p class="note" style="margin-top:26px">区间：{{ dashboard.trend[0]?.date }} ~ {{ dashboard.trend.at(-1)?.date }} | 窗口 {{ dashboard.trend.length }} 天 | 口径：爆发板块(≥8000) + 活跃板块(≥2000)</p>
         </section>
       </section>
 
       <section v-else class="strategy-view">
+        <section class="card overview">
+          <div class="overview-top">
+            <span>数据日期：{{ formatDate(dashboard.meta.day) }}</span>
+            <span>数据最后更新时间：{{ dashboard.meta.updatedAt || '--' }}</span>
+          </div>
+          <div class="overview-grid">
+            <div>
+              <div class="section-label">情绪周期节点 <span class="info">i</span></div>
+              <div class="state">{{ dashboard.overview.cycle }} <span class="badge">{{ dashboard.overview.cycle }}</span></div>
+              <div class="emotion-line">情绪综合指数 <b>{{ formatNumber(dashboard.overview.sentiment, 1) }}</b> <span class="info">i</span></div>
+            </div>
+            <div>
+              <div class="section-label">明日仓位建议</div>
+              <div class="advice-row"><span>激进型</span><b>{{ dashboard.overview.advice.aggressive }}</b></div>
+              <div class="advice-row"><span>稳健型</span><strong>{{ dashboard.overview.advice.steady }}</strong></div>
+              <div class="thin-progress"><span :style="{ width: `${dashboard.overview.advice.max}%` }"></span></div>
+              <div class="hint">建议仓位：{{ dashboard.overview.advice.min }}% - {{ dashboard.overview.advice.max }}%</div>
+            </div>
+            <div>
+              <div class="section-label">技术风格匹配</div>
+              <div class="risk-list">
+                <div v-for="item in dashboard.overview.style" :key="item.text" :class="{ ok: item.ok }">- {{ item.text }}</div>
+              </div>
+            </div>
+            <div>
+              <div class="section-label">关键时点预案</div>
+              <div class="time-list">
+                <div v-for="item in dashboard.overview.timePlan" :key="item.time"><span>{{ item.time }}</span><b>{{ item.text }}</b></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section class="card panel">
           <div class="panel-title">核心指数监控</div>
           <div class="index-grid">
@@ -346,7 +442,7 @@ function applyTheme(mode: ThemeMode) {
                 <div class="ladder-title">{{ item.name }} <span class="badge" :class="item.role === '主线' ? 'red' : 'yellow'">{{ item.role }}</span> <span>{{ item.stage }}</span></div>
                 <div class="ladder-meta">
                   <span>最高板：{{ item.maxBoard }}</span><span>3板+：{{ item.maxBoard >= 3 ? 1 : 0 }}</span><span>2板：{{ item.maxBoard === 2 ? 1 : 0 }}</span><span>首板：{{ item.firstBoards }}</span>
-                  <span>龙头：{{ item.leader || '待确认' }}</span><span>中军：{{ item.leader || '待确认' }}</span><span>资金：{{ item.capital }}</span><span>涨幅：{{ formatPct(item.pct) }}</span>
+                  <span>龙头：{{ item.leader || '待确认' }}</span><span>中军：{{ item.leader || '待确认' }}</span><span>资金：{{ item.capital }}</span><span>占比：{{ formatNumber(item.strength / Math.max(topStrength, 1) * 100, 0) }}%</span>
                   <span class="wide">策略：主线前排优先，后排仅在分歧转一致时跟随。</span><span class="wide">风险：关注次日竞价强弱与回封效率。</span>
                 </div>
               </div>

@@ -107,7 +107,7 @@ class DataService:
             )
             sharp = capture("openkpl.history.sharp_withdrawal", lambda: kpl.history.sharp_withdrawal(active_day))
 
-            trend_days = recent_weekdays(active_day, 5)
+            trend_days = recent_weekdays(active_day, 15)
             trend = self._build_history_trend(kpl, trend_days, warnings)
 
         indexes = capture("opentdx.index_info", self.core_indexes) or []
@@ -145,6 +145,17 @@ class DataService:
                 zf = kpl.history.zhangfu_detail(day)
                 volume = kpl.history.market_scln(day)
                 score = self._sentiment_score(zt=zt, zhangfu=zf)
+                # 每日板块强度（热力图用）
+                day_plates: list[dict[str, Any]] = []
+                try:
+                    pl = kpl.history.weight_performance_list(day, st=15)
+                    for item in list(getattr(pl, "info", []) or [])[:15]:
+                        name = getattr(item, "plate_name", "")
+                        pct = pick_number(getattr(item, "pct", 0))
+                        if name:
+                            day_plates.append({"name": name, "strength": round(abs(pct) * 1000, 0)})
+                except Exception:
+                    pass
                 points.append(
                     {
                         "date": day,
@@ -152,6 +163,8 @@ class DataService:
                         "limit_up": getattr(zt, "zt_count", 0),
                         "limit_down": getattr(zt, "dt_count", 0),
                         "amount": round(pick_number(getattr(volume, "last", 0)) / 10000, 2),
+                        "plates": day_plates,
+                        "cycle": self._cycle_label(score, getattr(zt, "dt_count", 0), max(0, round(100 - pick_number(getattr(zt, "feng_ban_lv", 0), 50), 2))),
                     }
                 )
             except Exception as exc:

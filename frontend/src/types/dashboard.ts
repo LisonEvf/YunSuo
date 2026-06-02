@@ -53,12 +53,19 @@ export interface IndexItem {
   down_count?: number
 }
 
+export interface TrendPlate {
+  name: string
+  strength: number
+}
+
 export interface TrendPoint {
   date: string
   score: number
   limit_up: number
   limit_down: number
   amount: number
+  plates: TrendPlate[]
+  cycle: string
 }
 
 export interface PlateItem {

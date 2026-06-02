@@ -31,11 +31,32 @@ function linePoints(values: number[]) {
   return values.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' ')
 }
 
+function smoothPath(values: number[]) {
+  if (values.length < 2) return ''
+  const pts = values.map((v, i) => ({ x: xOf(i), y: yOf(v) }))
+  let d = `M ${pts[0].x},${pts[0].y}`
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1]
+    const cur = pts[i]
+    const cpx = (prev.x + cur.x) / 2
+    d += ` C ${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`
+  }
+  return d
+}
+
 function areaPath(values: number[]) {
-  if (!values.length) return ''
-  const top = values.map((v, i) => `${xOf(i)},${yOf(v)}`).join(' L ')
+  if (values.length < 2) return ''
+  const pts = values.map((v, i) => ({ x: xOf(i), y: yOf(v) }))
+  let d = `M ${pts[0].x},${pts[0].y}`
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1]
+    const cur = pts[i]
+    const cpx = (prev.x + cur.x) / 2
+    d += ` C ${cpx},${prev.y} ${cpx},${cur.y} ${cur.x},${cur.y}`
+  }
   const baseY = pad.top + innerH
-  return `M ${xOf(0)},${baseY} L ${top} L ${xOf(values.length - 1)},${baseY} Z`
+  d += ` L ${pts[pts.length - 1].x},${baseY} L ${pts[0].x},${baseY} Z`
+  return d
 }
 
 const gridLines = [0, 20, 40, 60, 80, 100]
@@ -72,9 +93,9 @@ function onMouseLeave() {
 <template>
   <svg :viewBox="`0 0 ${width} ${height}`" width="100%" :height="height" role="img" aria-label="三线趋势图" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
     <!-- 高潮区 80-100 背景 -->
-    <rect :x="pad.left" :y="yOf(100)" :width="innerW" :height="yOf(80) - yOf(100)" fill="rgba(239,44,103,.06)" />
+    <rect :x="pad.left" :y="yOf(100)" :width="innerW" :height="yOf(80) - yOf(100)" fill="rgba(239,44,103,.15)" />
     <!-- 冰点区 0-20 背景 -->
-    <rect :x="pad.left" :y="yOf(20)" :width="innerW" :height="yOf(0) - yOf(20)" fill="rgba(61,126,255,.06)" />
+    <rect :x="pad.left" :y="yOf(20)" :width="innerW" :height="yOf(0) - yOf(20)" fill="rgba(61,126,255,.15)" />
 
     <!-- 网格线 -->
     <g stroke="rgba(136,136,170,.15)" stroke-width="1">
@@ -97,7 +118,7 @@ function onMouseLeave() {
       <path :d="areaPath(line.values)" :fill="line.fill" />
     </template>
     <template v-for="(line, li) in lines" :key="'l' + li">
-      <polyline :points="linePoints(line.values)" fill="none" :stroke="line.color" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <path :d="smoothPath(line.values)" fill="none" :stroke="line.color" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
     </template>
 
     <!-- 数据点 (中间的) -->

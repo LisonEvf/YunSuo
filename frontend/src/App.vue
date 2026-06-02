@@ -14,7 +14,7 @@ const dashboard = ref<DashboardData | null>(null)
 const activeView = ref<'sentiment' | 'strategy'>('sentiment')
 const themeMode = ref<ThemeMode>('auto')
 const lastRefresh = ref('')
-const trendRange = ref(15)
+const trendRange = 15
 const chatOpen = ref(false)
 const selectedBoard = ref<PlateItem | null>(null)
 const boardMembers = ref<Array<Record<string, unknown>>>([])
@@ -67,7 +67,7 @@ async function loadDashboard() {
 async function refreshDashboard() {
   try {
     // 轻量刷新：只拉 trend 数据，不重新聚合全量 dashboard
-    const result = await fetchTrend(trendRange.value)
+    const result = await fetchTrend(trendRange)
     if (dashboard.value && result.trend.length) {
       dashboard.value = { ...dashboard.value, trend: result.trend }
     }
@@ -82,7 +82,7 @@ const limitUpValues = computed(() => visibleTrend.value.slice(-5).map((item) => 
 const limitDownValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.limit_down))
 const amountValues = computed(() => visibleTrend.value.slice(-5).map((item) => item.amount))
 
-const visibleTrend = computed(() => (dashboard.value?.trend ?? []).slice(-trendRange.value))
+const visibleTrend = computed(() => (dashboard.value?.trend ?? []).slice(-trendRange))
 const trendLabels = computed(() => visibleTrend.value.map((item) => item.date.slice(5)))
 
 // 三线图数据（后端预计算，前端直接取值）
@@ -242,7 +242,7 @@ function applyTheme(mode: ThemeMode) {
   <main class="page">
     <header class="app-nav">
       <div>
-        <h1>市场情绪策略看板</h1>
+        <h1>SENTIMENT</h1>
       </div>
       <div class="app-actions">
         <div class="view-switch" aria-label="视图切换">
@@ -261,7 +261,6 @@ function applyTheme(mode: ThemeMode) {
           </button>
         </div>
         <button class="refresh-btn" @click="loadDashboard" :disabled="loading" title="刷新数据">↻</button>
-        <button class="chat-btn" @click="chatOpen = !chatOpen" :class="{ active: chatOpen }" title="情绪助手">💬</button>
       </div>
     </header>
 
@@ -277,12 +276,11 @@ function applyTheme(mode: ThemeMode) {
       <section v-if="activeView === 'sentiment'" class="sentiment-view">
         <section class="topbar">
           <div>
-            <div class="version"><b>V3.0 PRO</b><span>数据更新于 <strong>{{ formatDate(dashboard.meta.day) }}</strong>　<span v-if="lastRefresh" class="refresh-badge">↻ {{ lastRefresh }}</span></span></div>
-            <h2>市场情绪仪表盘</h2>
+            <div class="version"><span>数据更新于 <strong>{{ formatDate(dashboard.meta.day) }}</strong>　<span v-if="lastRefresh" class="refresh-badge">↻ {{ lastRefresh }}</span></span></div>
+            <h2>市场情绪仪表盘</h2>          
           </div>
           <div class="filters">
             <div class="datebox"><label>交易日</label><strong>{{ formatDate(dashboard.meta.day) }}</strong></div>
-            <div class="range"><span @click="trendRange = 5" :class="{ active: trendRange === 5 }">近5日</span><span @click="trendRange = 15" :class="{ active: trendRange === 15 }">近15日</span><span @click="trendRange = 30" :class="{ active: trendRange === 30 }">近30日</span></div>
           </div>
         </section>
 
@@ -346,7 +344,11 @@ function applyTheme(mode: ThemeMode) {
           <section>
             <article class="card panel">
               <div class="panel-title"><span class="blue-dot">✦</span> 情绪周期三线监控 <span class="info">i</span></div>
-              <div class="note">大盘系数 · 超短情绪 · 赚钱效应 · 综合指数</div>
+              <div class="note">
+                <span><i style="display:inline-block;width:12px;height:3px;border-radius:2px;background:#e6464e;vertical-align:middle;margin-right:4px"></i>大盘系数</span>
+                <span><i style="display:inline-block;width:12px;height:3px;border-radius:2px;background:#7442dd;vertical-align:middle;margin-right:4px"></i>超短情绪</span>
+                <span><i style="display:inline-block;width:12px;height:3px;border-radius:2px;background:#18a86d;vertical-align:middle;margin-right:4px"></i>亏钱效应</span>
+              </div>
               <div class="legend"><span class="hot-dot">● 高潮区 80-100</span><span class="blue-dot">● 冰点区 0-20</span><span class="tag quiet">冰点信号 {{ icePointIndices.length }} 次</span></div>
               <div class="chart-wrap">
                 <ThreeLineChart :lines="threeLines" :labels="trendLabels" :ice-points="icePointIndices" :height="400" />

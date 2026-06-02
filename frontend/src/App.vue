@@ -264,8 +264,9 @@ function applyTheme(mode: ThemeMode) {
             <div class="card-title"><span class="orange-dot">●</span> 炸板率 <span class="tag red-tag">{{ formatPct(-dashboard.kpis.bombRate / 3) }}</span></div>
             <div class="rate">{{ formatPct(dashboard.kpis.bombRate) }}</div>
             <div class="progress"><span :style="{ width: `${Math.min(dashboard.kpis.bombRate, 100)}%` }"></span></div>
-            <div class="scale-labels metric-foot"><span>封板率</span><strong>{{ formatPct(dashboard.kpis.sealRate) }}</strong></div>
-            <div class="note warning-note">风险参考：{{ dashboard.methods.at(-1)?.status }}（昨日溢价 {{ formatPct(dashboard.kpis.yesterdayPremium) }}）</div>
+            <div class="scale-labels metric-foot"><span>5日均炸板率</span><strong>{{ formatPct(dashboard.kpis.bombRate5d) }}</strong></div>
+            <div class="scale-labels metric-foot"><span>开盘溢价</span><strong>{{ dashboard.kpis.openPremium }}</strong></div>
+            <div class="note warning-note">风险参考：{{ dashboard.methods.at(-1)?.status }}（收盘溢价 {{ formatPct(dashboard.kpis.yesterdayPremium) }}）</div>
           </article>
         </section>
 
@@ -294,7 +295,7 @@ function applyTheme(mode: ThemeMode) {
                 <div>综合指数<b class="blue-dot">{{ formatNumber(dashboard.kpis.sentiment, 1) }}</b>情绪读数</div>
               </div>
               <div class="two-box">
-                <div class="plain-box"><h3>短线执行看板</h3><p>5日情绪变化 <b>{{ formatPct(dashboard.kpis.sentimentDelta) }}</b>　炸板率 <b>{{ formatPct(dashboard.kpis.bombRate) }}</b></p><p>背离状态 <b>{{ dashboard.kpis.marketVsShort > 15 ? '轻度背离' : '同步正常' }}</b>　跌停家数 <b>{{ dashboard.kpis.limitDown }}</b></p></div>
+                <div class="plain-box"><h3>短线执行看板</h3><p>5日情绪变化 <b>{{ formatPct(dashboard.kpis.sentimentDelta) }}</b>　5日均炸板率 <b>{{ formatPct(dashboard.kpis.bombRate5d) }}</b></p><p>背离状态 <b>{{ dashboard.kpis.marketVsShort > 15 ? '轻度背离' : '同步正常' }}</b>　冰点密度(10日) <b>{{ icePointIndices.length }}/10</b></p></div>
                 <div class="plain-box"><h3>今日操作框架</h3><p>{{ dashboard.kpis.review || '控制仓位，优先主线分歧后的转强。' }}</p><p><span class="tag quiet">风险中</span> <span class="tag">{{ dashboard.overview.advice.aggressive }}</span> <span class="pill">收盘溢价 {{ formatPct(dashboard.kpis.yesterdayPremium) }}</span></p></div>
               </div>
             </article>
@@ -401,8 +402,8 @@ function applyTheme(mode: ThemeMode) {
 
         <section class="kpi-grid">
           <article class="card kpi"><h3>情绪综合指数</h3><b>{{ formatNumber(dashboard.kpis.sentiment, 1) }}</b><p>较昨日 {{ formatPct(dashboard.kpis.sentimentDelta) }}</p></article>
-          <article class="card kpi"><h3>炸板率</h3><b>{{ formatPct(dashboard.kpis.bombRate) }}</b><p class="pink">炸板家数：{{ dashboard.kpis.broken }}</p></article>
-          <article class="card kpi"><h3>昨日涨停溢价</h3><b>{{ formatPct(dashboard.kpis.yesterdayPremium) }}</b><p>连板溢价 {{ formatPct(dashboard.kpis.linkBoardPremium) }}</p></article>
+          <article class="card kpi"><h3>炸板率</h3><b>{{ formatPct(dashboard.kpis.bombRate) }}</b><p>5日均 <b>{{ formatPct(dashboard.kpis.bombRate5d) }}</b></p></article>
+          <article class="card kpi"><h3>昨日涨停溢价</h3><b>{{ formatPct(dashboard.kpis.yesterdayPremium) }}</b><p>开盘 {{ dashboard.kpis.openPremium }} / 连板 {{ formatPct(dashboard.kpis.linkBoardPremium) }}</p></article>
           <article class="card kpi"><h3>连板空间高度</h3><b>{{ Math.max(...leadPlates.map((item) => item.maxBoard), 0) }}</b><p class="orange">{{ leadPlates[0]?.leader || '等待确认' }} | 风险累积</p></article>
         </section>
 
@@ -413,9 +414,9 @@ function applyTheme(mode: ThemeMode) {
               <div v-for="step in cycleSteps" :key="step" class="step" :class="{ active: step === dashboard.overview.cycle }">{{ step }}</div>
             </div>
             <div class="data-row"><span>大盘VS超短</span><b>{{ formatNumber(dashboard.kpis.marketVsShort, 1) }} <span>{{ dashboard.kpis.marketVsShort > 15 ? '轻度背离' : '同步正常' }}</span></b></div>
-            <div class="data-row"><span>市场温度</span><b>{{ Math.round(dashboard.kpis.sentiment) }}/100 <span>{{ dashboard.overview.cycle }}</span></b></div>
-            <div class="data-row"><span>涨跌停家数</span><b>涨停{{ dashboard.kpis.limitUp }} / 跌停{{ dashboard.kpis.limitDown }}</b></div>
-            <div class="data-row"><span>两市成交额</span><b>{{ formatNumber(dashboard.kpis.marketAmount, 1) }}亿</b></div>
+            <div class="data-row"><span>市场温度</span><b>{{ Math.round(dashboard.kpis.nonBoardTemp) }}/100 <span style="color:#566273;font-weight:500">非连板股</span></b></div>
+            <div class="data-row"><span>涨跌停家数</span><b>涨停{{ dashboard.kpis.limitUp }} / 跌停{{ dashboard.kpis.limitDown }} <span style="color:#566273;font-weight:500">（首板{{ dashboard.kpis.firstBoardCount }}/连板{{ dashboard.kpis.linkBoardCount }}）</span></b></div>
+            <div class="data-row"><span>两市成交额</span><b>{{ formatNumber(dashboard.kpis.marketAmount, 1) }}亿 <span style="color:var(--color-pink)">{{ dashboard.kpis.marketAmountDelta > 0 ? '↑' : '↓' }}{{ formatNumber(Math.abs(dashboard.kpis.marketAmountDelta), 1) }}%</span></b></div>
 
             <div class="mini-chart">
               <div class="mini-chart-head"><b>近5日情绪评分走势</b><span>区间：0-100</span></div>
@@ -442,7 +443,7 @@ function applyTheme(mode: ThemeMode) {
                 <div class="ladder-title">{{ item.name }} <span class="badge" :class="item.role === '主线' ? 'red' : 'yellow'">{{ item.role }}</span> <span>{{ item.stage }}</span></div>
                 <div class="ladder-meta">
                   <span>最高板：{{ item.maxBoard }}</span><span>3板+：{{ item.maxBoard >= 3 ? 1 : 0 }}</span><span>2板：{{ item.maxBoard === 2 ? 1 : 0 }}</span><span>首板：{{ item.firstBoards }}</span>
-                  <span>龙头：{{ item.leader || '待确认' }}</span><span>中军：{{ item.leader || '待确认' }}</span><span>资金：{{ item.capital }}</span><span>占比：{{ formatNumber(item.strength / Math.max(topStrength, 1) * 100, 0) }}%</span>
+                  <span>龙头：{{ item.leader || '待确认' }}</span><span>中军：{{ item.middleStock }}</span><span>资金：{{ item.capital }}</span><span>占比：{{ formatNumber(item.sharePct, 0) }}%</span>
                   <span class="wide">策略：主线前排优先，后排仅在分歧转一致时跟随。</span><span class="wide">风险：关注次日竞价强弱与回封效率。</span>
                 </div>
               </div>

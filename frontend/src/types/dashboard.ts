@@ -41,6 +41,12 @@ export interface DashboardKpis {
   marketAmountText: string
   marketVsShort: number
   review: string
+  bombRate5d: number
+  firstBoardCount: number
+  linkBoardCount: number
+  marketAmountDelta: number
+  nonBoardTemp: number
+  openPremium: string // "AI依赖" placeholder
 }
 
 export interface IndexItem {
@@ -64,6 +70,8 @@ export interface TrendPoint {
   limit_up: number
   limit_down: number
   amount: number
+  seal_rate: number
+  bomb_rate: number
   plates: TrendPlate[]
   cycle: string
 }
@@ -82,6 +90,9 @@ export interface PlateItem {
   role: string
   stage: string
   capital: string
+  sharePct: number
+  middleStock: string // "AI依赖" placeholder
+  middleCode: string
 }
 
 export interface MethodItem {

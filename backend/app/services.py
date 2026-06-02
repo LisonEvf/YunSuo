@@ -144,7 +144,12 @@ class DataService:
                 zt = kpl.history.zhangting_expression(day)
                 zf = kpl.history.zhangfu_detail(day)
                 volume = kpl.history.market_scln(day)
+                zf_info = getattr(zf, "info", None)
+                day_zt = int(pick_number(getattr(zf_info, "sj_zt", None), getattr(zt, "zt_count", 0)))
+                day_dt = int(pick_number(getattr(zf_info, "sj_dt", None), getattr(zt, "dt_count", 0)))
                 score = self._sentiment_score(zt=zt, zhangfu=zf)
+                seal_rate = pick_number(getattr(zt, "feng_ban_lv", 0), default=50)
+                bomb_rate = max(0, round(100 - seal_rate, 2))
                 # 每日板块强度（热力图用）
                 day_plates: list[dict[str, Any]] = []
                 try:
@@ -160,11 +165,13 @@ class DataService:
                     {
                         "date": day,
                         "score": score,
-                        "limit_up": getattr(zt, "zt_count", 0),
-                        "limit_down": getattr(zt, "dt_count", 0),
+                        "limit_up": day_zt,
+                        "limit_down": day_dt,
                         "amount": round(pick_number(getattr(volume, "last", 0)) / 10000, 2),
+                        "seal_rate": round(seal_rate, 2),
+                        "bomb_rate": bomb_rate,
                         "plates": day_plates,
-                        "cycle": self._cycle_label(score, getattr(zt, "dt_count", 0), max(0, round(100 - pick_number(getattr(zt, "feng_ban_lv", 0), 50), 2))),
+                        "cycle": self._daily_status(score, day_dt, bomb_rate, day_zt),
                     }
                 )
             except Exception as exc:
@@ -267,17 +274,26 @@ class DataService:
         daban = getattr(emotion, "daban", None)
         zhangfu_info = getattr(zhangfu, "info", None)
 
-        limit_up = int(pick_number(getattr(zhangting, "zt_count", None), getattr(daban, "t_zhangting", None), getattr(daily_nums, "zt", None)))
-        limit_down = int(pick_number(getattr(zhangting, "dt_count", None), getattr(daban, "t_dieting", None), getattr(daily_nums, "dt", None)))
-        broken = int(pick_number(getattr(sharp, "num", None), getattr(daily_nums, "pb", None)))
+        limit_up = int(pick_number(getattr(daban, "t_zhangting", None), getattr(daily_nums, "zt", None), getattr(zhangting, "zt_count", None)))
+        limit_down = int(pick_number(getattr(daban, "t_dieting", None), getattr(daily_nums, "dt", None), getattr(zhangting, "dt_count", None)))
         seal_rate = pick_number(getattr(daban, "t_fengban", None), getattr(zhangting, "feng_ban_lv", None), default=0)
         bomb_rate = max(0, round(100 - seal_rate, 2)) if seal_rate else 0
+        broken = int(pick_number(getattr(daily_nums, "pb", None)))
+        if broken <= 0 and seal_rate > 0 and limit_up > 0:
+            broken = round(limit_up * (100 - seal_rate) / seal_rate)
         yesterday_premium = pick_number(getattr(daban, "zr_ztj", None), getattr(zhangting, "zt_avg_pct", None))
         link_board_premium = pick_number(getattr(daban, "zr_lbj", None))
         up_count = int(pick_number(getattr(daban, "sz_js", None), getattr(zhangfu_info, "sz_js", None)))
         down_count = int(pick_number(getattr(daban, "xd_js", None), getattr(zhangfu_info, "xd_js", None)))
         market_amount = round(pick_number(getattr(volume, "last", None), getattr(daban, "qscln", None)) / 10000, 2)
         sentiment = self._sentiment_score(daban=daban, zt=zhangting, zhangfu=zhangfu)
+        # trend 最后一天用实际值覆盖，保证仪表盘与趋势图一致
+        if trend:
+            t = trend[-1]
+            t["score"] = sentiment
+            t["seal_rate"] = round(seal_rate, 2)
+            t["bomb_rate"] = bomb_rate
+            t["cycle"] = self._daily_status(sentiment, t["limit_down"], bomb_rate, t["limit_up"])
         cycle = self._cycle_label(sentiment, limit_down, bomb_rate)
         advice = self._position_advice(sentiment, limit_down, bomb_rate)
         plate_rows = self._plate_rows(emotion, plates, plate_list, daban_list)
@@ -287,6 +303,21 @@ class DataService:
 
         index_pcts = [pick_number(row.get("pct")) for row in indexes]
         avg_index_pct = round(sum(index_pcts) / len(index_pcts), 2) if index_pcts else 0
+
+        # 衍生指标
+        zhangfu_info = getattr(zhangfu, "info", None)
+        first_board_count = int(pick_number(getattr(zhangfu_info, "sj_zt", None), default=0))
+        link_board_count = max(0, limit_up - first_board_count)
+        recent_bomb_rates = [t.get("bomb_rate", 0) for t in trend[-5:] if t.get("bomb_rate") is not None]
+        bomb_rate_5d = round(sum(recent_bomb_rates) / max(len(recent_bomb_rates), 1), 2) if recent_bomb_rates else bomb_rate
+        market_amount_delta = 0.0
+        if len(trend) >= 2:
+            prev_amount = trend[-2].get("amount", 0)
+            if prev_amount > 0:
+                market_amount_delta = round((market_amount - prev_amount) / prev_amount * 100, 2)
+        non_board_up = max(0, up_count - limit_up)
+        non_board_total = max(1, up_count + down_count - limit_up - limit_down)
+        non_board_temp = round(non_board_up / non_board_total * 100, 1)
 
         return {
             "meta": {
@@ -322,6 +353,12 @@ class DataService:
                 "marketAmountText": getattr(volume, "yclnstr", ""),
                 "marketVsShort": round(abs(avg_index_pct * 10 - sentiment / 10), 2),
                 "review": getattr(disk_review, "sign", "") or getattr(zhangting, "sign", ""),
+                "bombRate5d": bomb_rate_5d,
+                "firstBoardCount": first_board_count,
+                "linkBoardCount": link_board_count,
+                "marketAmountDelta": market_amount_delta,
+                "nonBoardTemp": non_board_temp,
+                "openPremium": "AI依赖",
             },
             "indexes": indexes,
             "trend": trend,
@@ -337,19 +374,43 @@ class DataService:
         score = pick_number(getattr(daban, "zhqd", None), default=-1)
         if score >= 0:
             return round(max(0, min(score, 100)), 1)
-        seal_rate = pick_number(getattr(zt, "feng_ban_lv", None), default=50)
-        limit_up = pick_number(getattr(zt, "zt_count", None), default=30)
-        limit_down = pick_number(getattr(zt, "dt_count", None), default=20)
         info = getattr(zhangfu, "info", None)
+        limit_up = int(pick_number(getattr(info, "sj_zt", None), getattr(zt, "zt_count", None), default=30))
+        limit_down = int(pick_number(getattr(info, "sj_dt", None), getattr(zt, "dt_count", None), default=20))
         up_count = pick_number(getattr(info, "sz_js", None), default=2500)
         down_count = pick_number(getattr(info, "xd_js", None), default=2500)
         breadth = up_count / max(up_count + down_count, 1) * 100
+        # zhangting_expression.feng_ban_lv 对历史日不准确，改用涨停占比估算封板率
+        seal_rate_raw = pick_number(getattr(zt, "feng_ban_lv", None), default=-1)
+        if seal_rate_raw > 30:
+            seal_rate = seal_rate_raw
+        else:
+            seal_rate = min(limit_up, 120) / max(min(limit_up, 120) + limit_down * 0.4, 1) * 100
         score = seal_rate * 0.35 + min(limit_up, 120) / 120 * 35 + breadth * 0.2 - min(limit_down, 80) / 80 * 20
         return round(max(0, min(score, 100)), 1)
 
     def _cycle_label(self, sentiment: float, limit_down: int, bomb_rate: float) -> str:
         if limit_down >= 50 or sentiment < 20:
             return "冰点"
+        if sentiment < 35 or bomb_rate >= 45:
+            return "退潮"
+        if sentiment < 55:
+            return "常态"
+        if sentiment < 70:
+            return "启动"
+        if sentiment < 85:
+            return "发酵"
+        return "高潮"
+
+    def _daily_status(self, sentiment: float, limit_down: int, bomb_rate: float, limit_up: int) -> str:
+        if sentiment < 10 or limit_down >= 40:
+            return "冰冰点"
+        if limit_down >= 50 or sentiment < 20:
+            return "冰点"
+        if (limit_up >= 60 and sentiment < 40) or (limit_up <= 20 and sentiment >= 60):
+            return "背离"
+        if bomb_rate < 25 and 40 <= sentiment <= 60:
+            return "耦合"
         if sentiment < 35 or bomb_rate >= 45:
             return "退潮"
         if sentiment < 55:
@@ -434,6 +495,11 @@ class DataService:
             row["stage"] = self._plate_stage(row["pct"], row["limitUps"], row["maxBoard"])
             row["capital"] = "机构主导" if row["pct"] >= 2 else "混合博弈"
         rows.sort(key=lambda item: item["strength"], reverse=True)
+        total_limit_ups = max(sum(r["limitUps"] for r in rows[:10]), 1)
+        for row in rows[:10]:
+            row["sharePct"] = round(row["limitUps"] / total_limit_ups * 100, 1)
+            row["middleStock"] = "AI依赖"
+            row["middleCode"] = ""
         return rows[:10]
 
     def _infer_max_board(self, stocks: list[Any]) -> int:

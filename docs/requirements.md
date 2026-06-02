@@ -532,7 +532,7 @@ kpis
 ├── linkBoardCount   int     连板家数
 ├── marketAmountDelta float  成交额较前日变化率%
 ├── nonBoardTemp     float   非连板股市场温度 0-100
-└── openPremium      str     开盘溢价（"AI依赖"占位）
+└── openPremium      str     开盘溢价（详见 8.2.1，可算法化）
 
 indexes[]  (7项)
 ├── name             str     指数名称
@@ -571,8 +571,8 @@ plates[]  (TOP10)
 ├── stage            str     高潮/发酵/启动/轮动
 ├── capital          str     资金类型
 ├── sharePct         float   板块涨停占比%
-├── middleStock      str     中军股名（"AI依赖"占位）
-└── middleCode       str     中军股代码（""占位）
+├── middleStock      str     中军股名（详见 8.2.2，可算法化）
+└── middleCode       str     中军股代码
 
 methods[]  (4项)
 ├── name             str     手法名
@@ -615,25 +615,106 @@ monitor[]  (20项)
 | 缺失项 | 模板位置 | 状态 | 说明 |
 |--------|----------|------|------|
 | 5日均炸板率 | sentiment.html 三线面板 | ✅ 已实现 | `kpis.bombRate5d`，从 trend 近5天 seal_rate 推算 |
-| 开盘溢价 | sentiment.html 炸板率卡片 | 🤖 AI依赖 | 需追踪昨日涨停股今日开盘表现，SDK 无直接数据 |
+| 开盘溢价 | sentiment.html 炸板率卡片 | 🔧 可算法化 | 详见 8.2.1，用昨日打板股+TDX报价计算 |
 | 非连板股市场温度 | AAR.html 周期定位 | ✅ 已实现 | `kpis.nonBoardTemp`，非涨跌停股中上涨占比 |
 | 首板/连板拆分 | AAR.html 涨跌停家数 | ✅ 已实现 | `kpis.firstBoardCount` / `linkBoardCount`，从 zhangfu.info.sj_zt 获取 |
 | 成交额变化率 | AAR.html 两市成交额 | ✅ 已实现 | `kpis.marketAmountDelta`，trend 相邻两天对比 |
 | 板块占比 | AAR.html 梯队卡片 | ✅ 已实现 | `plates[].sharePct`，板块涨停数占总涨停数比例 |
-| 中军股 | AAR.html 梯队卡片 | 🤖 AI依赖 | 需 AI 判断板块中的中军代表股 |
+| 中军股 | AAR.html 梯队卡片 | 🔧 可算法化 | 详见 8.2.2，用 TDX 板块成分股按市值排序选取 |
 | date-grid 状态 | sentiment.html | ✅ 已实现 | `_daily_status()` 输出 冰冰点/背离/耦合/常态 等细分标签 |
 | 热力图排序切换 | sentiment.html | ⏳ 前端待做 | 按钮存在但无交互逻辑，纯前端功能 |
 | 逐日封板率/炸板率 | 三线图 & 各面板 | ✅ 已实现 | `trend[].seal_rate` / `trend[].bomb_rate` |
 
 ### 8.2 AI 依赖字段清单
 
-以下字段需要 AI 能力才能提供有价值的输出，当前用 `"AI依赖"` 占位：
+以下字段原标记为 `"AI依赖"` 占位，经审核分析后均可通过现有数据源算法化实现：
 
-| 字段 | 位置 | AI 需求说明 |
-|------|------|-------------|
-| `kpis.openPremium` | 明日策略 / 情绪仪表盘 | 需追踪昨日涨停股今日集合竞价表现，可用 opentdx 逐股查询 + 算法计算 |
-| `plates[].middleStock` | 板块梯队卡片 | 需 AI 判断板块内的"中军"代表股（非龙头、非跟风的中坚力量） |
-| `plates[].middleCode` | 板块梯队卡片 | middleStock 对应的股票代码 |
+#### 8.2.1 `kpis.openPremium` — 开盘溢价
+
+**位置**：情绪仪表盘炸板率卡片、明日策略KPI
+
+**需求含义**：昨日涨停股今日开盘的平均涨幅（反映竞价情绪延续性）
+
+**可用数据源**：
+- `kpl.history.daban_list(yesterday)` → 昨日打板股列表（code/name/concept）
+- `opentdx.stock_quotes(codes)` → 批量获取 open / pre_close
+
+**实现方案**：
+```python
+# 1. 获取昨日打板股
+prev_day = recent_weekdays(active_day, 2)[0]
+yesterday_board = kpl.history.daban_list(prev_day)
+codes = [(market_from_code(s.code), s.code) for s in yesterday_board.stocks[:30]]
+
+# 2. 批量查报价
+with TdxClient() as client:
+    quotes = client.stock_quotes(codes)
+
+# 3. 计算平均开盘溢价
+premiums = [(q['open'] - q['pre_close']) / q['pre_close'] * 100 for q in quotes if q['pre_close'] > 0]
+open_premium = round(sum(premiums) / max(len(premiums), 1), 2)
+```
+
+**额外 API 开销**：1 次 `daban_list` + 1 次 `stock_quotes`，可接受。
+
+**替代方案**：若需更精确的集合竞价数据，可用 `opentdx.stock_auction`（仅盘中可用），或在 `_build_history_trend` 中缓存前一日 daban_list 避免重复请求。
+
+---
+
+#### 8.2.2 `plates[].middleStock` / `middleCode` — 中军股
+
+**位置**：明日策略板块梯队卡片
+
+**需求含义**：板块内非龙头的"中坚力量"——市值较大、换手活跃、对板块走势有锚定作用的个股
+
+**可用数据源**：
+- `opentdx.board_members_quotes(board_code, count=20)` → 板块成分股行情（含 total_market_cap_ab / turnover / close / pre_close）
+
+**实现方案**：
+```python
+def _pick_middle_stock(self, plate_code: str, leader_code: str) -> tuple[str, str]:
+    """选板块中军：按市值降序，跳过龙头取次席。"""
+    with TdxClient() as client:
+        members = client.stock_board_members(
+            plate_code, count=20,
+            sort_type=SORT_TYPE.MARKET_CAP,  # 按市值排
+            sort_order=SORT_ORDER.DESC,
+        )
+    for m in members:
+        code = m.get('code', '')
+        if code and code != leader_code:
+            return m.get('name', ''), code
+    return '', ''
+```
+
+**中军选取策略**（可组合）：
+1. **市值优先**：取市值最大且非龙头的个股（核心方案）
+2. **换手率优先**：取换手率最高且涨幅>0的非龙头个股（流动性代表）
+3. **涨幅筛选**：过滤涨幅 > 0 的成分股再排市值（确保是正向贡献者）
+
+**额外 API 开销**：每个板块 1 次 `board_members_quotes`，TOP10 板块 = 10 次调用。可用并发或缓存优化。
+
+**MCP 验证结果**（板块 881270 元件，按市值排序前5）：
+
+| 股票 | 市值(亿) | 换手率% | 涨幅% |
+|------|---------|---------|-------|
+| 四方股份 | 63.87 | 4.10 | +1.33 |
+| 科大智能 | 12.78 | 10.77 | +0.92 |
+| 中元股份 | 6.34 | 4.66 | +0.62 |
+| 申昊科技 | 5.67 | 9.52 | +1.34 |
+| 派诺科技 | 1.50 | 7.42 | +4.24 |
+
+龙头为胜业电气(920128)，中军按市值应取四方股份(601126)——市值最大、涨幅正向，符合"中军"定位。
+
+---
+
+#### 8.2.3 实现优先级
+
+| 字段 | 实现难度 | API 开销 | 建议 |
+|------|---------|---------|------|
+| `middleStock` | ⭐ 低 | 10次/请求 | 可直接实现，按市值排即得 |
+| `openPremium` | ⭐⭐ 中 | 2次/请求 | 需查昨日打板股+今日报价，非交易时段可能无竞价数据 |
+| `firstBoards` 区分 | ⭐⭐ 中 | 0（利用已有数据） | 当前 firstBoards=limitUps 是同一个值，可从 daban_list ext 字段或 kline 判断首板 vs 连板 |
 
 ### 8.3 已实现的新增字段（后端 + 前端类型）
 
@@ -645,14 +726,14 @@ monitor[]  (20项)
     "linkBoardCount": int,        # 连板家数
     "marketAmountDelta": float,   # 成交额较前日变化率%
     "nonBoardTemp": float,        # 非连板股市场温度 0-100
-    "openPremium": str,           # "AI依赖" 占位
+    "openPremium": str,           # 可算法化（详见 8.2.1）
 }
 
 # plates[] 新增（均已实现）
 {
     "sharePct": float,            # 板块涨停占比%
-    "middleStock": str,           # "AI依赖" 占位
-    "middleCode": str,            # "" 占位
+    "middleStock": str,           # 可算法化（详见 8.2.2）
+    "middleCode": str,            # 同上
 }
 
 # trend[] 新增（均已实现）

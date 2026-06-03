@@ -2,21 +2,28 @@
 
 复刻 hermes-agent 的 tool dispatch 模式：
 - TOOL_DEFINITIONS: OpenAI function calling 格式的工具 schema
-- execute_tool(name, args): 统一工具调度入口
+- execute_tool(name, args, snapshot): 统一工具调度入口
 
 dashboard 按功能拆分为 5 个精简工具，避免单次返回数据过大撑爆 context。
+支持 snapshot 参数：同轮次多个工具共享同一份 dashboard 快照，保证数据一致性。
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from ..utils import to_jsonable, pick_number, recent_weekdays
 from ..connections import get_kpl
 
 logger = logging.getLogger(__name__)
+
+
+def _data_svc():
+    from ..services import data_service
+    return data_service
+
 
 # ── OpenAI function-calling 工具 schema ──────────────────────────
 
@@ -245,74 +252,13 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 ]
 
 
-# ── 工具执行器 ───────────────────────────────────────────────────
-
-def _sync_execute(name: str, args: dict[str, Any]) -> str:
-    from .. import sdk_bootstrap  # noqa: F401
-    try:
-        result = _dispatch(name, args)
-        return json.dumps(to_jsonable(result), ensure_ascii=False, default=str)
-    except Exception as exc:
-        logger.warning("Tool %s(%s) failed: %s", name, args, exc)
-        return json.dumps({"error": str(exc)}, ensure_ascii=False)
+# ── 工具实现 ──────────────────────────────────────────────────────
 
 
-def _dispatch(name: str, args: dict[str, Any]) -> Any:
-    match name:
-        case "get_sentiment_overview":
-            return _sentiment_overview(args.get("day"))
-        case "get_plate_top":
-            return _plate_top(args.get("day"))
-        case "get_trend_history":
-            return _trend_history(days=args.get("days", 5), day=args.get("day"))
-        case "get_risks_and_opportunities":
-            return _risks_and_opps(args.get("day"))
-        case "get_trade_methods":
-            return _trade_methods(args.get("day"))
-        case "get_stock_quotes":
-            symbols = [s.strip() for s in args["symbols"].split(",") if s.strip()]
-            return _data_svc().quotes(symbols)
-        case "get_stock_kline":
-            return _data_svc().kline(
-                market=args["market"], code=args["code"],
-                period_name=args.get("period", "DAILY"),
-                count=args.get("count", 80),
-                adjust_name=args.get("adjust", "NONE"),
-            )
-        case "get_board_list":
-            return _data_svc().boards(count=args.get("count", 80))
-        case "get_board_members":
-            return _data_svc().board_members(board=args["board"], count=args.get("count", 30))
-        case "get_market_emotion":
-            return _kpl_emotion()
-        case "get_news_flash":
-            return _kpl_news(keyword=args.get("keyword"), limit=args.get("limit", 20))
-        case "get_plate_ranking":
-            return _kpl_plate_ranking(
-                order=args.get("order", 1), count=args.get("count", 30), date=args.get("date"),
-            )
-        case "get_lhb":
-            return _kpl_lhb()
-        case "get_stock_zhangting_gene":
-            return _kpl_zhangting_gene(args["code"])
-        case "get_stock_plates":
-            return _kpl_stock_plates(args["code"])
-        case "get_theme_detail":
-            return _kpl_theme_detail(args["theme_id"])
-        case _:
-            return {"error": f"Unknown tool: {name}"}
-
-
-def _data_svc():
-    from ..services import data_service
-    return data_service
-
-
-# ── 分拆的 dashboard 工具实现 ─────────────────────────────────────
-
-def _sentiment_overview(day: str | None = None) -> dict[str, Any]:
-    """情绪概览：只返回 overview + kpis + indexes 部分。"""
-    full = _data_svc().dashboard(day=day)
+def _sentiment_overview(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    """情绪概览：overview + kpis + indexes。"""
+    day = args.get("day")
+    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     return {
         "overview": full["overview"],
         "kpis": full["kpis"],
@@ -320,17 +266,19 @@ def _sentiment_overview(day: str | None = None) -> dict[str, Any]:
     }
 
 
-def _plate_top(day: str | None = None) -> list[dict[str, Any]]:
+def _plate_top(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
     """板块 TOP10。"""
-    full = _data_svc().dashboard(day=day)
+    day = args.get("day")
+    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     return full["plates"]
 
 
-def _trend_history(*, days: int = 5, day: str | None = None) -> list[dict[str, Any]]:
+def _trend_history(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
     """趋势历史，精简版：不含每日板块热力数据。"""
-    full = _data_svc().dashboard(day=day)
+    days = args.get("days", 5)
+    day = args.get("day")
+    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     trend = full.get("trend", [])
-    # 只保留核心字段，去掉 plates 热力数据
     slim = []
     for t in trend[-days:]:
         slim.append({
@@ -349,9 +297,10 @@ def _trend_history(*, days: int = 5, day: str | None = None) -> list[dict[str, A
     return slim
 
 
-def _risks_and_opps(day: str | None = None) -> dict[str, Any]:
+def _risks_and_opps(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
     """风险提示 + 机会研判。"""
-    full = _data_svc().dashboard(day=day)
+    day = args.get("day")
+    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     return {
         "cycle": full["overview"]["cycle"],
         "sentiment": full["overview"]["sentiment"],
@@ -360,15 +309,51 @@ def _risks_and_opps(day: str | None = None) -> dict[str, Any]:
     }
 
 
-def _trade_methods(day: str | None = None) -> list[dict[str, Any]]:
+def _trade_methods(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
     """赚钱手法评分。"""
-    full = _data_svc().dashboard(day=day)
+    day = args.get("day")
+    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     return full["methods"]
 
 
-# ── KPL SDK 直接调用 ─────────────────────────────────────────────
+# ── 行情数据类 ──
 
-def _kpl_emotion() -> dict[str, Any]:
+
+def _stock_quotes(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    symbols = [s.strip() for s in args.get("symbols", "").split(",") if s.strip()]
+    if not symbols:
+        return {"error": "symbols 参数不能为空"}
+    return _data_svc().quotes(symbols)
+
+
+def _stock_kline(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    market = args.get("market")
+    code = args.get("code")
+    if not market or not code:
+        return {"error": "market 和 code 参数必填"}
+    return _data_svc().kline(
+        market=market, code=code,
+        period_name=args.get("period", "DAILY"),
+        count=args.get("count", 80),
+        adjust_name=args.get("adjust", "NONE"),
+    )
+
+
+def _board_list(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    return _data_svc().boards(count=args.get("count", 80))
+
+
+def _board_members(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    board = args.get("board")
+    if not board:
+        return {"error": "board 参数必填"}
+    return _data_svc().board_members(board=board, count=args.get("count", 30))
+
+
+# ── KPL SDK 直接调用 ──
+
+
+def _kpl_emotion(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
     kpl = get_kpl()
     data = kpl.emotion.today()
     return {
@@ -380,8 +365,10 @@ def _kpl_emotion() -> dict[str, Any]:
     }
 
 
-def _kpl_news(*, keyword: str | None = None, limit: int = 20) -> Any:
+def _kpl_news(args: dict, snapshot: dict | None = None) -> Any:
     kpl = get_kpl()
+    keyword = args.get("keyword")
+    limit = args.get("limit", 20)
     if keyword:
         result = kpl.news_flash.search(keyword, st=limit)
     else:
@@ -389,35 +376,86 @@ def _kpl_news(*, keyword: str | None = None, limit: int = 20) -> Any:
     return to_jsonable(result)
 
 
-def _kpl_plate_ranking(*, order: int = 1, count: int = 30, date: str | None = None) -> Any:
+def _kpl_plate_ranking(args: dict, snapshot: dict | None = None) -> Any:
     kpl = get_kpl()
-    return kpl.plate.ranking_raw(order=order, st=count, date=date)
+    return kpl.plate.ranking_raw(
+        order=args.get("order", 1),
+        st=args.get("count", 30),
+        date=args.get("date"),
+    )
 
 
-def _kpl_lhb() -> dict[str, Any]:
+def _kpl_lhb(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
     kpl = get_kpl()
     overview = kpl.lhb.today()
     detail = kpl.lhb.stock_list()
     return {"overview": to_jsonable(overview), "detail": to_jsonable(detail)}
 
 
-def _kpl_zhangting_gene(code: str) -> Any:
+def _kpl_zhangting_gene(args: dict, snapshot: dict | None = None) -> Any:
+    code = args.get("code")
+    if not code:
+        return {"error": "code 参数必填"}
     kpl = get_kpl()
     return to_jsonable(kpl.stock.zhangting_gene(code))
 
 
-def _kpl_stock_plates(code: str) -> Any:
+def _kpl_stock_plates(args: dict, snapshot: dict | None = None) -> Any:
+    code = args.get("code")
+    if not code:
+        return {"error": "code 参数必填"}
     kpl = get_kpl()
     return to_jsonable(kpl.stock.stock_plates(code))
 
 
-def _kpl_theme_detail(theme_id: str) -> Any:
+def _kpl_theme_detail(args: dict, snapshot: dict | None = None) -> Any:
+    theme_id = args.get("theme_id")
+    if not theme_id:
+        return {"error": "theme_id 参数必填"}
     kpl = get_kpl()
     return to_jsonable(kpl.theme.info(theme_id))
 
 
-# ── 异步入口 ─────────────────────────────────────────────────────
+# ── Handler 注册表（替代 match/case，便于扩展）────────────────────
 
-async def execute_tool(name: str, args: dict[str, Any]) -> str:
+_HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
+    "get_sentiment_overview": _sentiment_overview,
+    "get_plate_top": _plate_top,
+    "get_trend_history": _trend_history,
+    "get_risks_and_opportunities": _risks_and_opps,
+    "get_trade_methods": _trade_methods,
+    "get_stock_quotes": _stock_quotes,
+    "get_stock_kline": _stock_kline,
+    "get_board_list": _board_list,
+    "get_board_members": _board_members,
+    "get_market_emotion": _kpl_emotion,
+    "get_news_flash": _kpl_news,
+    "get_plate_ranking": _kpl_plate_ranking,
+    "get_lhb": _kpl_lhb,
+    "get_stock_zhangting_gene": _kpl_zhangting_gene,
+    "get_stock_plates": _kpl_stock_plates,
+    "get_theme_detail": _kpl_theme_detail,
+}
+
+
+# ── 工具执行器 ───────────────────────────────────────────────────
+
+
+def _sync_execute(name: str, args: dict[str, Any], snapshot: dict | None = None) -> str:
+    from .. import sdk_bootstrap  # noqa: F401
+    try:
+        handler = _HANDLERS.get(name)
+        if not handler:
+            return json.dumps({"error": f"Unknown tool: {name}"}, ensure_ascii=False)
+        result = handler(args, snapshot)
+        return json.dumps(to_jsonable(result), ensure_ascii=False, default=str)
+    except Exception as exc:
+        logger.warning("Tool %s(%s) failed: %s", name, args, exc)
+        return json.dumps({"error": str(exc)}, ensure_ascii=False)
+
+
+async def execute_tool(
+    name: str, args: dict[str, Any], *, snapshot: dict | None = None,
+) -> str:
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, _sync_execute, name, args)
+    return await loop.run_in_executor(None, _sync_execute, name, args, snapshot)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,10 @@ logger = logging.getLogger(__name__)
 SKILLS_DIR = Path(__file__).resolve().parents[3] / "skills"
 
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+
+# TTL 缓存，避免每次调用 scan_skills 都遍历磁盘
+_SCAN_CACHE: tuple[float, dict[str, dict[str, Any]]] = (0.0, {})
+_SCAN_CACHE_TTL = 60.0
 
 
 def _parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
@@ -41,10 +46,17 @@ def _parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
 
 
 def scan_skills() -> dict[str, dict[str, Any]]:
-    """扫描 skills 目录，返回 {"/slug": info} 映射。"""
+    """扫描 skills 目录，返回 {"/slug": info} 映射。带 TTL 缓存。"""
+    global _SCAN_CACHE
+    now = time.time()
+    if now - _SCAN_CACHE[0] < _SCAN_CACHE_TTL:
+        return _SCAN_CACHE[1]
+
     skills: dict[str, dict[str, Any]] = {}
     if not SKILLS_DIR.exists():
+        _SCAN_CACHE = (now, skills)
         return skills
+
     for skill_md in sorted(SKILLS_DIR.rglob("SKILL.md")):
         try:
             content = skill_md.read_text(encoding="utf-8")
@@ -70,13 +82,14 @@ def scan_skills() -> dict[str, dict[str, Any]]:
             }
         except Exception as exc:
             logger.warning("Failed to load skill %s: %s", skill_md, exc)
+
+    _SCAN_CACHE = (now, skills)
     return skills
 
 
 def load_skill(slug: str) -> str | None:
     """加载 skill 内容，返回完整 markdown 正文。不包含 frontmatter。"""
-    skills = scan_skills()
-    info = skills.get(f"/{slug}")
+    info = scan_skills().get(f"/{slug}")
     if not info:
         return None
     try:
@@ -92,8 +105,7 @@ def build_skill_prompt(slug: str) -> str | None:
     body = load_skill(slug)
     if not body:
         return None
-    skills = scan_skills()
-    info = skills.get(f"/{slug}", {})
+    info = scan_skills().get(f"/{slug}", {})
     name = info.get("name", slug)
     return (
         f'[IMPORTANT: 用户激活了 "{name}" 技能，请严格遵循以下指令框架进行分析。]\n\n'
@@ -103,8 +115,7 @@ def build_skill_prompt(slug: str) -> str | None:
 
 def list_skills() -> list[dict[str, str]]:
     """返回可用的 skill 列表。"""
-    skills = scan_skills()
     return [
         {"slug": info["slug"], "name": info["name"], "description": info["description"]}
-        for _, info in sorted(skills.items())
+        for _, info in sorted(scan_skills().items())
     ]

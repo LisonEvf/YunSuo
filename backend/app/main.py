@@ -12,7 +12,7 @@ from .services import data_service
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Sentiment Data API", version="0.2.0")
+app = FastAPI(title="Sentiment Data API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -123,7 +123,7 @@ async def chat(req: ChatRequest):
 
 
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):
-    """SSE 流式输出，复刻 hermes-agent 的 stream dispatch 模式。"""
+    """SSE 流式输出。"""
     async for event in agent.chat_stream(messages, skills=skills):
         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
@@ -136,3 +136,45 @@ def list_skills():
     """列出所有可用的 skill。"""
     from .agent.skills import list_skills as _list
     return {"skills": _list()}
+
+
+# ── 记忆接口 ─────────────────────────────────────────────────────
+
+
+@app.get("/api/memory")
+def list_memory(
+    keyword: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    """搜索或列出记忆条目。"""
+    from .agent.memory import memory_manager
+    if keyword:
+        return {"memories": memory_manager.search(keyword, limit=limit)}
+    return {"memories": memory_manager._recent(limit)}
+
+
+@app.get("/api/memory/stats")
+def memory_stats():
+    from .agent.memory import memory_manager
+    return memory_manager.stats()
+
+
+@app.delete("/api/memory/{memory_id}")
+def delete_memory(memory_id: int):
+    from .agent.memory import memory_manager
+    if not memory_manager.delete(memory_id):
+        raise HTTPException(status_code=404, detail="记忆不存在")
+    return {"ok": True}
+
+
+# ── Token 用量接口 ───────────────────────────────────────────────
+
+
+@app.get("/api/usage")
+def get_usage():
+    """获取当前 Agent 的 token 用量统计。"""
+    from .agent import get_agent
+    try:
+        return get_agent().get_usage()
+    except ValueError:
+        return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}

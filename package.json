@@ -1,0 +1,9 @@
+{
+  "name": "sentiment",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "AIRUI/packages/core",
+    "AIRUI/packages/renderer-react"
+  ]
+}

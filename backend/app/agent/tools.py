@@ -249,6 +249,48 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    # ── AIRUI 看板渲染类 ──
+    {
+        "type": "function",
+        "function": {
+            "name": "render_airui_panel",
+            "description": "在看板上渲染一个新面板（Widget），用于展示板块/个股的深入分析结果。调用后看板会立即更新。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ref": {"type": "string", "description": "面板引用 ID，如 'drilldown-plate-半导体'"},
+                    "title": {"type": "string", "description": "面板标题，如 '半导体板块深度分析'"},
+                    "col_span": {"type": "integer", "description": "列宽 1-12，默认 12"},
+                    "row_span": {"type": "integer", "description": "行高，默认 1"},
+                    "content": {
+                        "type": "object",
+                        "description": "AIRUI 组件树，如 {\"type\": \"Table\", \"props\": {\"columns\": [...], \"rows\": [...]}}"
+                    },
+                    "session_id": {"type": "string", "description": "看板 session ID，默认 'default'"},
+                },
+                "required": ["ref", "title", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "patch_airui_panel",
+            "description": "更新看板上已有面板的内容，用于增量更新分析结论。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ref": {"type": "string", "description": "面板引用 ID"},
+                    "patches": {
+                        "type": "array",
+                        "description": "JSON Patch 操作列表，如 [{\"op\": \"replace\", \"path\": \"/props/rows/0/pct\", \"value\": 5.2}]"
+                    },
+                    "session_id": {"type": "string", "description": "看板 session ID，默认 'default'"},
+                },
+                "required": ["ref", "patches"],
+            },
+        },
+    },
 ]
 
 
@@ -416,6 +458,70 @@ def _kpl_theme_detail(args: dict, snapshot: dict | None = None) -> Any:
     return to_jsonable(kpl.theme.info(theme_id))
 
 
+# ── AIRUI 看板渲染类 ──
+
+
+def _render_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    """渲染 AIRUI 面板。"""
+    import asyncio
+    from ..airui.ws_bridge import push_document
+    from ..airui.session import session_manager
+
+    ref = args.get("ref", "")
+    title = args.get("title", "")
+    col_span = args.get("col_span", 12)
+    row_span = args.get("row_span", 1)
+    content = args.get("content", {})
+    session_id = args.get("session_id", "default")
+
+    sess = session_manager.get(session_id)
+    if not sess or not sess.doc:
+        return {"status": "error", "message": "看板 session 不存在或未初始化"}
+
+    doc = sess.doc
+    widget = {
+        "type": "Widget",
+        "ref": ref,
+        "props": {"title": title, "colSpan": col_span, "rowSpan": row_span},
+        "children": [content],
+    }
+    root = doc.get("root", doc)
+    root["children"].append({"type": "Row", "children": [widget]})
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(push_document(session_id, doc))
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(push_document(session_id, doc))
+
+    return {"status": "rendered", "ref": ref}
+
+
+def _patch_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    """Patch AIRUI 面板。"""
+    import asyncio
+    from ..airui.ws_bridge import push_patch
+    from ..airui.session import session_manager
+
+    ref = args.get("ref", "")
+    patches = args.get("patches", [])
+    session_id = args.get("session_id", "default")
+
+    sess = session_manager.get(session_id)
+    if not sess:
+        return {"status": "error", "message": "看板 session 不存在"}
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(push_patch(session_id, patches))
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(push_patch(session_id, patches))
+
+    return {"status": "patched", "ref": ref, "patchCount": len(patches)}
+
+
 # ── Handler 注册表（替代 match/case，便于扩展）────────────────────
 
 _HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
@@ -435,6 +541,8 @@ _HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
     "get_stock_zhangting_gene": _kpl_zhangting_gene,
     "get_stock_plates": _kpl_stock_plates,
     "get_theme_detail": _kpl_theme_detail,
+    "render_airui_panel": _render_airui_panel,
+    "patch_airui_panel": _patch_airui_panel,
 }
 
 

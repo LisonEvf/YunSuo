@@ -4,3 +4,6 @@
 [submodule "openkpl"]
 	path = openkpl
 	url = https://github.com/LisonEvf/openkpl.git
+[submodule "AIRUI"]
+	path = AIRUI
+	url = .\\AIRUI\\

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .services import data_service
@@ -178,3 +181,34 @@ def get_usage():
         return get_agent().get_usage()
     except ValueError:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+
+# ── AIRUI 看板 ──────────────────────────────────────────────────
+
+from .airui.ws_bridge import register_ws_routes, push_document
+from .airui.session import session_manager
+from .airui.renderer import render_dashboard
+
+register_ws_routes(app)
+
+_static_dir = Path(__file__).resolve().parent.parent / "static" / "airui"
+if _static_dir.exists():
+    app.mount("/dashboard", StaticFiles(directory=str(_static_dir), html=True), name="airui-static")
+
+
+@app.on_event("startup")
+async def _airui_auto_refresh():
+    """后台任务：定时刷新看板数据并推送到 WS 客户端。"""
+    async def _loop():
+        while True:
+            await asyncio.sleep(45)
+            try:
+                for sid in session_manager.list():
+                    sess = session_manager.get(sid)
+                    if sess and sess.ws_clients:
+                        data = data_service.dashboard()
+                        doc = render_dashboard(data)
+                        await push_document(sid, doc, title="市场情绪看板")
+            except Exception as exc:
+                logging.warning("AIRUI auto-refresh error: %s", exc)
+    asyncio.create_task(_loop())

@@ -22,6 +22,7 @@ IDEMPOTENT_TOOLS = frozenset({
     "get_board_members", "get_market_emotion", "get_news_flash",
     "get_plate_ranking", "get_stock_zhangting_gene", "get_stock_plates",
     "get_theme_detail",
+    "render_airui_panel", "patch_airui_panel",
 })
 
 

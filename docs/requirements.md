@@ -3,6 +3,10 @@
 > 基于 `template/sentiment.html`（情绪仪表盘）和 `template/AAR.html`（明日策略看板）两个页面的逐组件分析。
 >
 > 生成日期：2026/06/03
+>
+> 当前说明：本文是数据字段和旧模板需求资料。AIRUI 分支的实际前端已经改为
+> React + AIRUI SPA，不再直接使用 `sentiment-view` / `strategy-view` 两个旧视图。
+> 数据源和 `/api/dashboard` 字段需求仍可作为后端聚合口径参考。
 
 ---
 

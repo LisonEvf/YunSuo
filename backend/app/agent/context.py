@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from .config import LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, CONTEXT_WINDOW_TOKENS
+from . import config
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,8 @@ PROTECT_RECENT_TURNS = 4  # 保护最近 N 轮（user+assistant = 2 条/轮）
 
 class ContextManager:
     def __init__(self):
-        self.max_tokens = CONTEXT_WINDOW_TOKENS
+        config.reload_config()
+        self.max_tokens = config.CONTEXT_WINDOW_TOKENS
         self.total_prompt_tokens = 0
         self.total_completion_tokens = 0
         self.compression_count = 0
@@ -93,9 +94,10 @@ class ContextManager:
             text = text[:6000] + "\n...[截断]"
 
         try:
-            client = AsyncOpenAI(api_key=LLM_API_KEY, base_url=LLM_BASE_URL)
+            config.reload_config()
+            client = AsyncOpenAI(api_key=config.LLM_API_KEY, base_url=config.LLM_BASE_URL)
             response = await client.chat.completions.create(
-                model=LLM_MODEL,
+                model=config.LLM_MODEL,
                 messages=[
                     {
                         "role": "system",

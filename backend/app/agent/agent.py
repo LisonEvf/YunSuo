@@ -24,10 +24,7 @@ from typing import Any, AsyncIterator
 
 from openai import AsyncOpenAI, APIStatusError
 
-from .config import (
-    AGENT_MAX_ITERATIONS, LLM_API_KEY, LLM_BASE_URL, LLM_MAX_TOKENS,
-    LLM_MODEL, RETRY_MAX_ATTEMPTS,
-)
+from . import config
 from .context import ContextManager
 from .guardrails import ToolGuardrails
 from .memory import memory_manager
@@ -49,9 +46,10 @@ class SentimentAgent:
         base_url: str | None = None,
         model: str | None = None,
     ):
-        self.api_key = api_key or LLM_API_KEY
-        self.base_url = base_url or LLM_BASE_URL
-        self.model = model or LLM_MODEL
+        config.reload_config()
+        self.api_key = api_key or config.LLM_API_KEY
+        self.base_url = base_url or config.LLM_BASE_URL
+        self.model = model or config.LLM_MODEL
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         self.tools = TOOL_DEFINITIONS
         self._system_prompt = build_system_prompt()
@@ -108,36 +106,36 @@ class SentimentAgent:
             "model": self.model,
             "messages": api_messages,
             "tools": self.tools,
-            "max_tokens": LLM_MAX_TOKENS,
+            "max_tokens": config.LLM_MAX_TOKENS,
         }
         if stream:
             common_kwargs["stream"] = True
             common_kwargs["stream_options"] = {"include_usage": True}
 
         last_err: Exception | None = None
-        for attempt in range(1, RETRY_MAX_ATTEMPTS + 1):
+        for attempt in range(1, config.RETRY_MAX_ATTEMPTS + 1):
             try:
                 return await self.client.chat.completions.create(**common_kwargs)
             except APIStatusError as exc:
                 classified = classify_error(exc)
-                if not classified.retryable or attempt >= RETRY_MAX_ATTEMPTS:
+                if not classified.retryable or attempt >= config.RETRY_MAX_ATTEMPTS:
                     raise
                 delay = jittered_backoff(attempt)
                 logger.warning(
                     "LLM API error (%s), retry %.1fs (%d/%d): %s",
-                    classified.reason.value, delay, attempt, RETRY_MAX_ATTEMPTS,
+                    classified.reason.value, delay, attempt, config.RETRY_MAX_ATTEMPTS,
                     exc.message[:200],
                 )
                 last_err = exc
                 await asyncio.sleep(delay)
             except Exception as exc:
                 classified = classify_error(exc)
-                if not classified.retryable or attempt >= RETRY_MAX_ATTEMPTS:
+                if not classified.retryable or attempt >= config.RETRY_MAX_ATTEMPTS:
                     raise
                 delay = jittered_backoff(attempt)
                 logger.warning(
                     "LLM error, retry %.1fs (%d/%d): %s",
-                    delay, attempt, RETRY_MAX_ATTEMPTS, str(exc)[:200],
+                    delay, attempt, config.RETRY_MAX_ATTEMPTS, str(exc)[:200],
                 )
                 last_err = exc
                 await asyncio.sleep(delay)
@@ -162,7 +160,7 @@ class SentimentAgent:
         tool_calls_log: list[dict[str, Any]] = []
         self._guardrails.reset_turn()
 
-        for _ in range(AGENT_MAX_ITERATIONS):
+        for _ in range(config.AGENT_MAX_ITERATIONS):
             # 上下文压缩
             if self._context.should_compress(api_messages):
                 api_messages = await self._context.compress(api_messages)
@@ -252,7 +250,7 @@ class SentimentAgent:
         api_messages = self._build_messages(messages, skills=skills)
         self._guardrails.reset_turn()
 
-        for _ in range(AGENT_MAX_ITERATIONS):
+        for _ in range(config.AGENT_MAX_ITERATIONS):
             # 上下文压缩
             if self._context.should_compress(api_messages):
                 api_messages = await self._context.compress(api_messages)
@@ -401,10 +399,18 @@ def get_agent() -> SentimentAgent:
     if _agent is None:
         with _agent_lock:
             if _agent is None:
-                if not LLM_API_KEY:
+                config.reload_config()
+                if not config.LLM_API_KEY:
                     raise ValueError("LLM_API_KEY 未配置，请在环境变量中设置")
                 _agent = SentimentAgent()
     return _agent
+
+
+def reset_agent() -> None:
+    """Drop the singleton so the next request uses the latest saved config."""
+    global _agent
+    with _agent_lock:
+        _agent = None
 
 
 def _truncate_tool_result(result: str, max_chars: int = _MAX_TOOL_RESULT_CHARS) -> str:

@@ -99,6 +99,10 @@ class ChatRequest(BaseModel):
     skills: list[str] | None = None
 
 
+class ConfigRequest(BaseModel):
+    config: dict
+
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     """Agent 对话接口，支持流式和非流式，可激活 skill。"""
@@ -123,6 +127,25 @@ async def chat(req: ChatRequest):
 
     result = await agent.chat(messages, skills=req.skills)
     return result
+
+
+@app.get("/api/config")
+def get_config():
+    """读取 Agent/LLM/Skill/MCP 配置。"""
+    from .agent.config import load_agent_config
+
+    return {"config": load_agent_config()}
+
+
+@app.put("/api/config")
+def update_config(req: ConfigRequest):
+    """保存 Agent/LLM/Skill/MCP 配置，并重建 Agent 单例。"""
+    from .agent import reset_agent
+    from .agent.config import save_agent_config
+
+    config = save_agent_config(req.config)
+    reset_agent()
+    return {"ok": True, "config": config}
 
 
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):

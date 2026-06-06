@@ -10,7 +10,11 @@ export function connectWebSocket() {
 
   if (reconnectTimer) clearTimeout(reconnectTimer);
 
-  ws = new WebSocket(`${protocol}//${host}/ws/airui?session=${sessionId}`);
+  const isDev = import.meta.env.DEV;
+  const wsUrl = isDev
+    ? `ws://127.0.0.1:8000/ws/airui?session=${sessionId}`
+    : `${protocol}//${host}/ws/airui?session=${sessionId}`;
+  ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
     useStore.getState().setConnected(true);

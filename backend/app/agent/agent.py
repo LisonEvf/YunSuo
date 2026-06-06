@@ -357,6 +357,11 @@ class SentimentAgent:
                     except json.JSONDecodeError:
                         pass
                     yield event
+                    # 当 render_airui_panel 成功时，推送内联 AIRUI 事件给聊天
+                    if fn_name == "render_airui_panel" and "error" not in event:
+                        content = fn_args.get("content", {})
+                        if content:
+                            yield {"type": "airui", "data": content}
                     api_messages.append({
                         "role": "tool",
                         "tool_call_id": tc_id,

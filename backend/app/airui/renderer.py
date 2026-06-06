@@ -109,7 +109,7 @@ def _build_kpi_row(kpis: dict, overview: dict) -> dict:
         neg_color = kpi_args[6] if len(kpi_args) > 6 else "#22c55e"
         children.append(_widget(ref, label, 2, child=_kpi(ref, label, value, suffix, delta, pos_color, neg_color)))
 
-    return {"type": "Row", "children": children}
+    return {"type": "Row", "props": {"colSpan": 12}, "children": children}
 
 
 def _build_trend_and_plates(trend: list, plates: list) -> dict:
@@ -128,7 +128,7 @@ def _build_trend_and_plates(trend: list, plates: list) -> dict:
     plate_table = _build_plate_table(plates)
     plate_widget = _widget("table-plates", "板块梯队 TOP10", 4, child=plate_table)
 
-    return {"type": "Row", "children": [trend_widget, plate_widget]}
+    return {"type": "Row", "props": {"colSpan": 12}, "children": [trend_widget, plate_widget]}
 
 
 def _build_trend_chart_data(trend: list) -> dict:
@@ -204,7 +204,7 @@ def _build_methods_and_risks(methods: list, risks: list, opportunities: list) ->
     risk_table = _build_risk_table(risks, opportunities)
     risk_widget = _widget("table-risks", "风险提示与机会", 6, child=risk_table)
 
-    return {"type": "Row", "children": [method_widget, risk_widget]}
+    return {"type": "Row", "props": {"colSpan": 12}, "children": [method_widget, risk_widget]}
 
 
 def _build_risk_table(risks: list, opportunities: list) -> dict:
@@ -238,7 +238,7 @@ def _build_watchlist_and_monitor(watchlist: list, monitor: list, indexes: list) 
     idx_table = _build_index_table(indexes)
     idx_widget = _widget("table-indexes", "核心指数", 4, child=idx_table)
 
-    return {"type": "Row", "children": [wl_widget, idx_widget]}
+    return {"type": "Row", "props": {"colSpan": 12}, "children": [wl_widget, idx_widget]}
 
 
 def _build_watchlist_table(watchlist: list) -> dict:

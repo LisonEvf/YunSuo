@@ -5,5 +5,17 @@
     "frontend",
     "AIRUI/packages/core",
     "AIRUI/packages/renderer-react"
-  ]
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"bun run dev:backend\" \"bun run dev:frontend\"",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "cd frontend && bun run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  },
+  "dependencies": {
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  }
 }

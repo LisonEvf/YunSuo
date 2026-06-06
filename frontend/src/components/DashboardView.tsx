@@ -1,6 +1,7 @@
-import { InteractionProvider, AirUIComponent } from "@air-ui/renderer-react";
+import { InteractionProvider, AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { useStore } from "../store";
 import { sendInteraction } from "../ws-client";
+import { useEffect } from "react";
 
 function interactionHandler(
   widgetRef: string,
@@ -12,6 +13,12 @@ function interactionHandler(
 
 export default function DashboardView() {
   const doc = useStore((s) => s.doc);
+  const setAiruiDoc = useAirUIStore((s) => s.setDoc);
+
+  // 同步 doc 到 AIRUI 内部 store，让 AirUIComponent 的 resolveProps 能读取 state
+  useEffect(() => {
+    if (doc) setAiruiDoc(doc);
+  }, [doc, setAiruiDoc]);
 
   if (!doc || !doc.root) {
     return (

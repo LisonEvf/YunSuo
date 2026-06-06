@@ -196,9 +196,24 @@ if _static_dir.exists():
     app.mount("/dashboard", StaticFiles(directory=str(_static_dir), html=True), name="airui-static")
 
 
+async def _init_dashboard():
+    """启动时立即构建初始看板数据，确保第一个 WS 客户端连接时就有内容。"""
+    try:
+        loop = asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, data_service.dashboard)
+        doc = render_dashboard(data)
+        sess = session_manager.get_or_create("default")
+        sess.doc = doc
+        logging.info("AIRUI initial dashboard loaded")
+    except Exception as exc:
+        logging.warning("AIRUI initial dashboard failed: %s", exc)
+
+
 @app.on_event("startup")
 async def _airui_auto_refresh():
-    """后台任务：定时刷新看板数据并推送到 WS 客户端。"""
+    """启动时构建初始数据 + 后台定时刷新。"""
+    await _init_dashboard()
+
     async def _loop():
         while True:
             await asyncio.sleep(45)
@@ -206,7 +221,8 @@ async def _airui_auto_refresh():
                 for sid in session_manager.list():
                     sess = session_manager.get(sid)
                     if sess and sess.ws_clients:
-                        data = data_service.dashboard()
+                        loop = asyncio.get_event_loop()
+                        data = await loop.run_in_executor(None, data_service.dashboard)
                         doc = render_dashboard(data)
                         await push_document(sid, doc, title="市场情绪看板")
             except Exception as exc:

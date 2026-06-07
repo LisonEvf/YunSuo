@@ -5,7 +5,7 @@ description: 风险控制检查清单，系统性排查当前市场风险点
 
 ## 风险控制检查清单
 
-调用 `get_dashboard` 和 `get_market_emotion` 获取实时数据后，逐项排查。
+调用 `get_sentiment_overview`、`get_trend_history` 和 `get_market_emotion` 获取实时数据后，逐项排查。
 
 ### 一、系统性风险
 

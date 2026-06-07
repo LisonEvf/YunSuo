@@ -180,18 +180,22 @@
       }
       .bubble p { margin: 0 0 8px; }
       .bubble p:last-child { margin-bottom: 0; }
-      .bubble h1, .bubble h2, .bubble h3 { margin: 10px 0 6px; line-height: 1.25; letter-spacing: 0; }
+      .bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: 10px 0 6px; line-height: 1.25; letter-spacing: 0; }
       .bubble h1 { font-size: 18px; }
       .bubble h2 { font-size: 16px; }
       .bubble h3 { font-size: 14px; }
+      .bubble h4, .bubble h5, .bubble h6 { font-size: 13px; }
       .bubble ul, .bubble ol { margin: 6px 0 8px; padding-left: 20px; }
       .bubble li { margin: 2px 0; }
       .bubble code { padding: 1px 5px; border-radius: 5px; background: var(--surface-2); color: var(--accent); font-size: 12px; }
       .bubble pre { margin: 8px 0; padding: 10px; overflow: auto; border-radius: 8px; background: var(--surface-2); }
       .bubble blockquote { margin: 8px 0; padding: 4px 0 4px 10px; border-left: 3px solid var(--accent); color: var(--muted); }
+      .bubble a, .markdown-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent), transparent 60%); }
+      .bubble hr, .markdown-body hr { height: 1px; border: 0; background: var(--border); margin: 12px 0; }
       .md-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
       .md-table th, .md-table td { padding: 6px 7px; border: 1px solid var(--border); text-align: left; }
       .md-table th { color: var(--muted); background: var(--surface-2); }
+      .task-box { display: inline-grid; place-items: center; width: 13px; height: 13px; margin-right: 6px; border: 1px solid var(--border); border-radius: 3px; vertical-align: -1px; color: var(--accent); font-size: 10px; }
 
       .chat-compose {
         padding: 12px;
@@ -513,15 +517,43 @@
       .alert b, .opportunity b { display: block; color: var(--text); margin-bottom: 3px; }
 
       .ai-panel {
-        max-width: 1100px;
+        max-width: 1240px;
         margin: 0 auto;
       }
       .answer-card { padding: 22px; }
       .answer-card h3 { margin: 0 0 10px; font-size: 20px; }
+      .ai-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 280px;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .ai-summary { display: grid; gap: 10px; }
+      .ai-summary h2 { margin: 0; font-size: 28px; letter-spacing: 0; }
+      .ai-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+      .ai-kpi { padding: 14px; min-height: 116px; }
+      .ai-kpi b { display: block; margin-top: 8px; font-size: 24px; }
+      .ai-section-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 12px; }
+      .ai-list { display: grid; gap: 9px; }
+      .ai-list-item { padding: 11px 0; border-bottom: 1px solid var(--border); }
+      .ai-list-item:last-child { border-bottom: 0; }
+      .ai-list-item b { display: block; margin-bottom: 3px; }
+      .ai-supplement {
+        max-height: 440px;
+        overflow: auto;
+        padding: 16px;
+        border-radius: 8px;
+        background: var(--surface-2);
+      }
       .markdown-body { color: var(--text); }
       .markdown-body p { margin: 0 0 10px; }
-      .markdown-body h1, .markdown-body h2, .markdown-body h3 { margin: 18px 0 8px; letter-spacing: 0; }
+      .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 { margin: 18px 0 8px; letter-spacing: 0; }
       .markdown-body ul, .markdown-body ol { padding-left: 22px; }
+      .markdown-body code { padding: 1px 5px; border-radius: 5px; background: var(--surface); color: var(--accent); font-size: 12px; }
+      .markdown-body pre { margin: 10px 0; padding: 12px; overflow: auto; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+      .markdown-body pre code { padding: 0; background: transparent; color: inherit; }
+      .markdown-body blockquote { margin: 10px 0; padding: 6px 0 6px 12px; border-left: 3px solid var(--accent); color: var(--muted); }
+      .markdown-body img { display: block; max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border); }
 
       .settings-grid { grid-template-columns: 360px minmax(0, 1fr); align-items: start; }
       .settings-nav { display: grid; gap: 10px; }
@@ -586,6 +618,7 @@
         .page-head, .grid-2, .grid-4, .grid-6, .risk-grid, .form-grid { grid-template-columns: 1fr; }
         .page-head h2 { font-size: 26px; }
         .metric { min-height: auto; }
+        .ai-hero, .ai-section-grid, .ai-kpi-grid { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -648,6 +681,7 @@
         loadingChat: false,
         focus: null,
         assistantPanel: null,
+        aiDoc: null,
         config: null,
         skills: [],
         enabledSkills: loadJson("sentiment-enabled-skills", []),
@@ -824,7 +858,7 @@
       function renderMessages() {
         byId("messageList").innerHTML = state.messages.map((msg) => {
           const role = msg.role === "user" ? "你" : "AI";
-          const body = msg.role === "assistant" ? markdownToHtml(msg.content) : escapeHtml(msg.content);
+          const body = msg.role === "assistant" ? markdownToHtml(msg.content, { compact: true }) : escapeHtml(msg.content);
           return `
             <article class="message ${msg.role}">
               <div class="message-role">${role}</div>
@@ -1360,6 +1394,7 @@
 
       function renderAiView() {
         const panel = state.assistantPanel;
+        const aiDoc = state.aiDoc || (panel ? buildAiDashboardDoc(panel.question, panel.answer) : null);
         const extra = renderAirDocExtra();
         if (!panel && !extra) {
           return `
@@ -1372,17 +1407,126 @@
         return `
           ${renderFocusPanel()}
           <section class="ai-panel grid">
-            ${panel ? `
-              <article class="card answer-card">
-                <div class="panel-head">
-                  <div><h3>${escapeHtml(panel.question)}</h3><div class="note">${escapeHtml(panel.time)}　Skills: ${activePromptSkills().map(escapeHtml).join(", ") || "默认"}</div></div>
-                  <button class="ghost-btn" type="button" data-prompt="${escapeHtml(`基于刚才的回答继续细化执行清单：${panel.question}`)}">细化清单</button>
-                </div>
-                <div class="markdown-body">${markdownToHtml(panel.answer)}</div>
-              </article>
-            ` : ""}
+            ${panel && aiDoc ? renderAiDashboard(panel, aiDoc) : ""}
             ${extra}
           </section>
+        `;
+      }
+
+      function renderAiDashboard(panel, aiDoc) {
+        const kpis = aiDoc.kpis || [];
+        const sections = aiDoc.sections || [];
+        const tables = aiDoc.tables || [];
+        const risks = aiDoc.risks || [];
+        const actions = aiDoc.actions || [];
+        const layout = String(aiDoc.layout || "briefing").replace(/[^a-z-]/g, "");
+        const layoutName = ({
+          "table-led": "表格驱动",
+          "risk-led": "风控驱动",
+          "action-led": "执行驱动",
+          briefing: "研判简报",
+        })[layout] || "研判简报";
+        const tablePanels = renderAiTablePanels(tables);
+        const analysisPanels = renderAiAnalysisPanels(sections, actions, risks);
+        const orderedPanels = layout === "table-led"
+          ? `${tablePanels}${analysisPanels}`
+          : `${analysisPanels}${tablePanels}`;
+        return `
+          <section class="grid ai-layout-${layout}">
+            <article class="card answer-card">
+              <div class="ai-hero">
+                <div class="ai-summary">
+                  <div class="note">${escapeHtml(panel.time)}　${escapeHtml(layoutName)}　Skills: ${activePromptSkills().map(escapeHtml).join(", ") || "默认"}</div>
+                  <h2>${escapeHtml(aiDoc.title || panel.question)}</h2>
+                  <p class="note">${escapeHtml(aiDoc.summary || "AI 已完成研判，右侧以看板形式组织主结论；左侧仅保留补充说明。")}</p>
+                  <div class="focus-actions">
+                    <button class="primary-btn" type="button" data-prompt="${escapeHtml(`基于刚才的回答继续细化执行清单：${panel.question}`)}">细化清单</button>
+                    <button class="ghost-btn" type="button" data-prompt="${escapeHtml(`把刚才的研判转成明日竞价检查表：${panel.question}`)}">竞价检查表</button>
+                  </div>
+                </div>
+                <div class="meta-card">
+                  <span>问题</span>
+                  <b style="font-size:16px">${escapeHtml(panel.question)}</b>
+                  <div class="focus-actions">
+                    <span class="tag">${escapeHtml(layoutName)}</span>
+                    <span class="tag orange">${tables.length} 表</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            ${kpis.length ? `
+              <section class="ai-kpi-grid">
+                ${kpis.slice(0, 8).map((item) => `
+                  <article class="card ai-kpi">
+                    <div class="card-title"><span>${escapeHtml(item.label)}</span><span class="tag ${escapeHtml(item.tone || "")}">${escapeHtml(item.badge || "AI")}</span></div>
+                    <b class="${escapeHtml(item.tone || "")}">${escapeHtml(item.value)}</b>
+                    <div class="note">${escapeHtml(item.note || "")}</div>
+                  </article>
+                `).join("")}
+              </section>
+            ` : ""}
+
+            ${orderedPanels}
+
+            <article class="card panel">
+              <div class="panel-head"><h3>补充原文</h3><span class="note">Markdown 完整渲染</span></div>
+              <div class="ai-supplement markdown-body">${markdownToHtml(panel.answer)}</div>
+            </article>
+          </section>
+        `;
+      }
+
+      function renderAiAnalysisPanels(sections, actions, risks) {
+        return `
+          <section class="ai-section-grid">
+            <article class="card panel">
+              <div class="panel-head"><h3>结构化研判</h3><span class="tag">${sections.length}</span></div>
+              <div class="ai-list">
+                ${sections.map((section) => `
+                  <div class="ai-list-item">
+                    <b>${escapeHtml(section.title)}</b>
+                    <div class="note markdown-body">${markdownToHtml(section.body, { compact: true })}</div>
+                  </div>
+                `).join("") || `<div class="note">暂无结构化要点</div>`}
+              </div>
+            </article>
+
+            <article class="card panel">
+              <div class="panel-head"><h3>执行与风控</h3><span class="tag orange">${actions.length + risks.length}</span></div>
+              <div class="ai-list">
+                ${actions.map((item) => `<div class="ai-list-item"><b>${escapeHtml(item.title)}</b><div class="note markdown-body">${markdownToHtml(item.body, { compact: true })}</div></div>`).join("")}
+                ${risks.map((item) => `<div class="ai-list-item"><b class="red">${escapeHtml(item.title)}</b><div class="note markdown-body">${markdownToHtml(item.body, { compact: true })}</div></div>`).join("")}
+                ${!actions.length && !risks.length ? `<div class="note">暂无执行/风控条目</div>` : ""}
+              </div>
+            </article>
+          </section>
+        `;
+      }
+
+      function renderAiTablePanels(tables) {
+        return tables.map((table) => `
+          <article class="card panel">
+            <div class="panel-head">
+              <h3>${escapeHtml(table.title)}</h3>
+              <span class="tag">${escapeHtml(table.kind || "Table")} · ${table.rows.length}</span>
+            </div>
+            ${renderStructuredTable(table)}
+          </article>
+        `).join("");
+      }
+
+      function renderStructuredTable(table) {
+        const headers = table.headers || [];
+        const rows = table.rows || [];
+        if (!headers.length || !rows.length) return `<div class="note">暂无表格数据</div>`;
+        return `
+          <div class="table-wrap" style="max-height:none">
+            <table>
+              <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr></thead>
+              <tbody>${rows.map((row) => `<tr>${headers.map((_, i) => `<td>${markdownToHtml(row[i] || "", { inlineOnly: true })}</td>`).join("")}</tr>`).join("")}</tbody>
+            </table>
+          </div>
         `;
       }
 
@@ -1507,21 +1651,381 @@
         return `<div class="form-row"><label for="${id}">${escapeHtml(label)}</label><input class="field" id="${id}" type="${type}" value="${escapeHtml(value)}" /></div>`;
       }
 
-      function markdownToHtml(markdown) {
+      function buildAiDashboardDoc(question, answer) {
+        const source = String(answer || "");
+        const clean = stripCodeBlocks(source);
+        const tables = parseMarkdownTables(source);
+        const sections = extractAiSections(clean);
+        const { actions, risks } = extractAiActionsAndRisks(sections, clean);
+        const kpis = extractAiKpis(clean, tables);
+        return {
+          title: extractAiTitle(clean, question),
+          summary: extractAiSummary(clean, sections),
+          layout: chooseAiLayout({ source: clean, tables, actions, risks, question }),
+          kpis,
+          sections,
+          tables,
+          actions,
+          risks,
+        };
+      }
+
+      function stripCodeBlocks(value) {
+        return String(value || "").replace(/```[\s\S]*?```/g, "");
+      }
+
+      function extractAiTitle(source, question) {
+        const lines = meaningfulLines(source);
+        const heading = lines.find((line) => /^(#{1,6})\s+/.test(line));
+        if (heading) return cleanAiLabel(heading.replace(/^(#{1,6})\s+/, ""));
+        const titled = lines.find((line) => isAiHeadingLine(line));
+        if (titled) return cleanAiLabel(splitAiTitleValue(titled)?.title || titled);
+        return cleanAiLabel(question || "AI 研判");
+      }
+
+      function extractAiSummary(source, sections) {
+        const fromSections = (sections || []).find((section) => section.body && section.body.length >= 12)?.body;
+        const paragraph = source
+          .split(/\n{2,}/)
+          .map((block) => compactAiText(block))
+          .find((block) => block.length >= 18 && !isTableLikeLine(block) && !/^(#{1,6})\s+/.test(block));
+        return truncateText(paragraph || fromSections || "右侧已根据 AI 返回自动拆成指标、表格、执行和风控模块。", 160);
+      }
+
+      function parseMarkdownTables(markdown) {
+        const lines = stripCodeBlocks(markdown).replace(/\r\n/g, "\n").split("\n");
+        const tables = [];
+        let lastHeading = "";
+        let i = 0;
+        while (i < lines.length) {
+          const line = lines[i] || "";
+          const trimmed = line.trim();
+          const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
+          if (heading) {
+            lastHeading = cleanAiLabel(heading[2]);
+            i += 1;
+            continue;
+          }
+          const looseTitle = isAiHeadingLine(trimmed) ? splitAiTitleValue(trimmed)?.title || trimmed : "";
+          if (looseTitle && !trimmed.includes("|") && !trimmed.includes("\t")) lastHeading = cleanAiLabel(looseTitle);
+
+          if (isTableStart(lines, i) || isLoosePipeTableStart(lines, i)) {
+            const tableLines = [];
+            while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
+              tableLines.push(lines[i]);
+              i += 1;
+            }
+            const rows = tableLines
+              .filter((item) => !isMarkdownTableDelimiter(item))
+              .map(splitMarkdownTableRow)
+              .filter((row) => row.length >= 2 && row.some(Boolean));
+            addParsedTable(tables, rows, lastHeading);
+            continue;
+          }
+
+          if (isTsvTableStart(lines, i)) {
+            const tableLines = [];
+            while (i < lines.length && /\t/.test(lines[i]) && lines[i].trim()) {
+              tableLines.push(lines[i]);
+              i += 1;
+            }
+            const rows = tableLines
+              .map((item) => item.split("\t").map((cell) => cell.trim()))
+              .filter((row) => row.length >= 2 && row.some(Boolean));
+            addParsedTable(tables, rows, lastHeading);
+            continue;
+          }
+
+          i += 1;
+        }
+        return tables.slice(0, 6);
+      }
+
+      function addParsedTable(tables, rows, title) {
+        if (!rows.length) return;
+        const headers = rows[0].map((cell, i) => cleanAiLabel(cell) || `列${i + 1}`);
+        const body = rows.slice(1)
+          .map((row) => headers.map((_, i) => row[i] || ""))
+          .filter((row) => row.some((cell) => String(cell).trim()));
+        if (!headers.length || !body.length) return;
+        tables.push({
+          title: title || inferTableTitle(headers, tables.length),
+          headers,
+          rows: body,
+          kind: inferTableKind(headers, title),
+        });
+      }
+
+      function inferTableTitle(headers, index) {
+        const joined = headers.join(" ");
+        if (/仓位|策略|执行|预案|买点|触发/.test(joined)) return "执行预案";
+        if (/风险|止损|失败|应对/.test(joined)) return "风控清单";
+        if (/板块|题材|标的|股票|代码/.test(joined)) return "标的与板块";
+        if (/维度|数据|信号|指标/.test(joined)) return "核心指标拆解";
+        return `AI 表格 ${index + 1}`;
+      }
+
+      function inferTableKind(headers, title = "") {
+        const joined = `${title} ${headers.join(" ")}`;
+        if (/风险|止损|失败|回撤/.test(joined)) return "Risk";
+        if (/仓位|策略|执行|预案|买点|触发/.test(joined)) return "Action";
+        if (/板块|题材|标的|股票|代码/.test(joined)) return "Watch";
+        return "Data";
+      }
+
+      function extractAiSections(source) {
+        const lines = source.replace(/\r\n/g, "\n").split("\n");
+        const sections = [];
+        let current = null;
+        const flush = () => {
+          if (!current) return;
+          const body = compactAiText(current.body.join("\n"));
+          if (body) sections.push({ title: cleanAiLabel(current.title), body });
+          current = null;
+        };
+
+        lines.forEach((raw) => {
+          const line = raw.trim();
+          if (!line || isTableLikeLine(line) || isMarkdownTableDelimiter(line)) return;
+          const heading = line.match(/^(#{1,6})\s+(.+)$/);
+          const titleValue = splitAiTitleValue(line);
+          if (heading || titleValue || isAiHeadingLine(line)) {
+            flush();
+            const title = heading ? heading[2] : titleValue?.title || line;
+            current = { title, body: [] };
+            if (titleValue?.value) current.body.push(titleValue.value);
+            return;
+          }
+          const listItem = stripListPrefix(line);
+          if (!current && listItem !== line) {
+            sections.push({ title: listTitle(listItem), body: compactAiText(listItem) });
+            return;
+          }
+          if (!current) current = { title: "核心结论", body: [] };
+          current.body.push(line);
+        });
+        flush();
+
+        const deduped = [];
+        const seen = new Set();
+        sections.forEach((section) => {
+          const title = cleanAiLabel(section.title || "结论");
+          const body = truncateText(compactAiText(section.body), 260);
+          const key = `${title}:${body}`.slice(0, 120);
+          if (!body || seen.has(key)) return;
+          seen.add(key);
+          deduped.push({ title, body });
+        });
+        return deduped.slice(0, 8);
+      }
+
+      function extractAiActionsAndRisks(sections, source) {
+        const risks = [];
+        const actions = [];
+        const add = (target, item) => {
+          const title = cleanAiLabel(item.title || listTitle(item.body || ""));
+          const body = truncateText(compactAiText(item.body || item.title || ""), 220);
+          const key = `${title}:${body}`.slice(0, 120);
+          if (!body || target.some((old) => old._key === key)) return;
+          target.push({ title, body, _key: key });
+        };
+
+        (sections || []).forEach((section) => {
+          const combined = `${section.title} ${section.body}`;
+          if (isRiskText(combined)) add(risks, section);
+          if (isActionText(combined)) add(actions, section);
+        });
+
+        meaningfulLines(source).forEach((line) => {
+          if (isTableLikeLine(line) || isMarkdownTableDelimiter(line)) return;
+          const item = stripListPrefix(line);
+          if (isRiskText(item)) add(risks, { title: listTitle(item, "风险"), body: item });
+          if (isActionText(item)) add(actions, { title: listTitle(item, "执行"), body: item });
+        });
+
+        return {
+          actions: actions.slice(0, 6).map(({ _key, ...item }) => item),
+          risks: risks.slice(0, 6).map(({ _key, ...item }) => item),
+        };
+      }
+
+      function extractAiKpis(source, tables) {
+        const kpis = [];
+        const add = (label, value, note = "", tone = "") => {
+          const cleanLabel = cleanAiLabel(label).slice(0, 18);
+          const cleanValue = cleanAiLabel(value).slice(0, 18);
+          if (!cleanLabel || !cleanValue || kpis.some((item) => item.label === cleanLabel && item.value === cleanValue)) return;
+          kpis.push({
+            label: cleanLabel,
+            value: cleanValue,
+            note: truncateText(compactAiText(note), 56),
+            tone: tone || toneForText(`${cleanLabel} ${cleanValue} ${note}`),
+            badge: /仓位|执行|策略/.test(cleanLabel) ? "Action" : /风险|止损|失败/.test(cleanLabel) ? "Risk" : "AI",
+          });
+        };
+
+        (tables || []).forEach((table) => {
+          table.rows.forEach((row) => {
+            const label = row[0] || table.headers[0];
+            const valueCell = row.find((cell, index) => index > 0 && isMetricValue(cell));
+            if (valueCell) add(label, valueCell, row.slice(1).join(" / "));
+          });
+        });
+
+        meaningfulLines(source).forEach((line) => {
+          if (isTableLikeLine(line)) return;
+          const cleaned = stripListPrefix(line);
+          const metric = cleaned.match(/([^：:，,。；;\n]{2,18})[：:]\s*([^，,。；;\n]{1,24})/);
+          const value = cleaned.match(/([+-]?\d+(?:\.\d+)?\s*(?:%|成|家|亿|分|板|日|个|只)?|[一二三四五六七八九十]+(?:[~\-到至][一二三四五六七八九十]+)?成)/);
+          if (metric && isMetricLine(metric[1] + metric[2])) add(metric[1], metric[2], cleaned);
+          else if (value && isMetricLine(cleaned)) add(metricLabelFor(cleaned), value[1], cleaned);
+        });
+
+        if (!kpis.length && state.dashboard) {
+          const k = state.dashboard.kpis || {};
+          const o = state.dashboard.overview || {};
+          add("情绪指数", fmtLoose(k.sentiment, 1), o.cycle || "当前看板数据", "blue");
+          add("周期", o.cycle || "--", o.advice?.steady || "", "orange");
+          add("稳健仓位", o.advice?.steady || "--", "来自当前策略看板", "green");
+          add("风险项", String((state.dashboard.risks || []).length), "当前风险提示数量", "red");
+        }
+        return kpis.slice(0, 8);
+      }
+
+      function buildChatSupplement(aiDoc) {
+        const stats = [
+          `${aiDoc.kpis?.length || 0} 个指标`,
+          `${aiDoc.tables?.length || 0} 张表`,
+          `${aiDoc.actions?.length || 0} 条执行`,
+          `${aiDoc.risks?.length || 0} 条风控`,
+        ].join(" / ");
+        return [
+          `已同步到右侧 **${aiDoc.title || "AI 研判"}** 看板。`,
+          `左侧只保留补充说明：本次已提取 ${stats}。`,
+          aiDoc.summary ? `补充：${aiDoc.summary}` : "",
+        ].filter(Boolean).join("\n\n");
+      }
+
+      function chooseAiLayout({ source, tables, actions, risks, question }) {
+        const text = `${question || ""} ${source || ""}`;
+        if ((tables || []).length && /表|清单|矩阵|维度|标的|板块|数据/.test(text)) return "table-led";
+        if ((risks || []).length >= Math.max(2, (actions || []).length) || /风险|止损|失败|回撤|防守/.test(text)) return "risk-led";
+        if ((actions || []).length || /计划|预案|仓位|执行|买点|触发/.test(text)) return "action-led";
+        return "briefing";
+      }
+
+      function meaningfulLines(source) {
+        return String(source || "")
+          .replace(/\r\n/g, "\n")
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean);
+      }
+
+      function splitAiTitleValue(line) {
+        const cleaned = stripListPrefix(line).replace(/^(?:[📊📍⚠️✅🔥🚩⭐️▶︎]+|\p{Emoji_Presentation})\s*/u, "").trim();
+        const match = cleaned.match(/^(.{2,28}?)[：:]\s*(.{1,220})$/);
+        if (!match) return null;
+        const title = cleanAiLabel(match[1]);
+        if (!/情绪|仓位|策略|建议|风险|机会|板块|标的|结论|计划|预案|维度|信号|应对|执行|提示|要点/.test(title)) return null;
+        return { title, value: match[2].trim() };
+      }
+
+      function isAiHeadingLine(line) {
+        const cleaned = cleanAiLabel(line);
+        if (!cleaned || cleaned.length > 34 || isTableLikeLine(line)) return false;
+        if (/^(?:[📊📍⚠️✅🔥🚩⭐️▶︎]+|\p{Emoji_Presentation})\s*/u.test(line.trim())) return true;
+        if (/情绪|仓位|策略|建议|风险|机会|板块|标的|结论|计划|预案|要点|复盘|清单/.test(cleaned) && !/[。；;,.，]$/.test(cleaned)) return true;
+        return false;
+      }
+
+      function isRiskText(value) {
+        return /风险|止损|失败|回撤|炸板|跌停|退潮|谨慎|防守|⚠/.test(value || "");
+      }
+
+      function isActionText(value) {
+        return /建议|策略|执行|计划|预案|仓位|买点|触发|观察|参与|应对|清单|检查/.test(value || "");
+      }
+
+      function isMetricLine(value) {
+        return /仓位|情绪|周期|涨停|跌停|炸板|封板|溢价|成交|强度|风险|评分|温度|比例|家数|指数|资金/.test(value || "");
+      }
+
+      function isMetricValue(value) {
+        return /[+-]?\d+(?:\.\d+)?\s*(?:%|成|家|亿|分|板|日|个|只)?|[一二三四五六七八九十]+(?:[~\-到至][一二三四五六七八九十]+)?成/.test(value || "");
+      }
+
+      function metricLabelFor(line) {
+        const keys = ["仓位", "情绪", "周期", "涨停", "跌停", "炸板", "封板率", "溢价", "成交", "强度", "风险", "温度", "指数", "资金"];
+        return keys.find((key) => line.includes(key)) || "关键指标";
+      }
+
+      function toneForText(value) {
+        if (/风险|止损|失败|跌停|退潮/.test(value)) return "red";
+        if (/仓位|策略|执行|预案|建议/.test(value)) return "orange";
+        if (/机会|转强|修复|稳健|确认/.test(value)) return "green";
+        if (/情绪|指数|周期/.test(value)) return "blue";
+        return "";
+      }
+
+      function cleanAiLabel(value) {
+        return String(value || "")
+          .replace(/^[#>*\-\s、)）]+/, "")
+          .replace(/^(?:[📊📍⚠️✅🔥🚩⭐️▶︎]+|\p{Emoji_Presentation})\s*/u, "")
+          .replace(/\*\*|__|~~|`/g, "")
+          .trim();
+      }
+
+      function compactAiText(value) {
+        return String(value || "")
+          .split("\n")
+          .map((line) => stripListPrefix(line.trim()))
+          .filter((line) => line && !isMarkdownTableDelimiter(line) && !isTableLikeLine(line))
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function stripListPrefix(value) {
+        return String(value || "").replace(/^\s*(?:[-+*]|\d+[.)、])\s+/, "").trim();
+      }
+
+      function listTitle(value, fallback = "要点") {
+        const cleaned = cleanAiLabel(value);
+        const title = cleaned.split(/[：:，,。；;]/)[0] || fallback;
+        return truncateText(title, 18);
+      }
+
+      function truncateText(value, max) {
+        const textValue = String(value || "").trim();
+        return textValue.length > max ? `${textValue.slice(0, max - 1)}...` : textValue;
+      }
+
+      function isTableLikeLine(line) {
+        if (/\t/.test(line || "")) return true;
+        if (!String(line || "").includes("|")) return false;
+        return splitMarkdownTableRow(line).length >= 2;
+      }
+
+      function markdownToHtml(markdown, options = {}) {
+        if (options.inlineOnly) return inlineMd(String(markdown || ""));
         const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
         const out = [];
         let i = 0;
         let inCode = false;
         let code = [];
+        let codeLang = "";
         while (i < lines.length) {
           const line = lines[i];
           if (line.trim().startsWith("```")) {
             if (inCode) {
-              out.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+              out.push(`<pre><code${codeLang ? ` class="language-${escapeHtml(codeLang)}"` : ""}>${escapeHtml(code.join("\n"))}</code></pre>`);
               code = [];
               inCode = false;
+              codeLang = "";
             } else {
               inCode = true;
+              codeLang = line.trim().replace(/^```/, "").trim().split(/\s+/)[0] || "";
             }
             i += 1;
             continue;
@@ -1535,7 +2039,12 @@
             i += 1;
             continue;
           }
-          if (isTableStart(lines, i)) {
+          if (/^\s*[-*_]{3,}\s*$/.test(line)) {
+            out.push("<hr>");
+            i += 1;
+            continue;
+          }
+          if (isTableStart(lines, i) || isLoosePipeTableStart(lines, i)) {
             const tableLines = [];
             while (i < lines.length && lines[i].includes("|") && lines[i].trim()) {
               tableLines.push(lines[i]);
@@ -1544,7 +2053,16 @@
             out.push(renderMarkdownTable(tableLines));
             continue;
           }
-          const h = line.match(/^(#{1,3})\s+(.*)$/);
+          if (isTsvTableStart(lines, i)) {
+            const tableLines = [];
+            while (i < lines.length && /\t/.test(lines[i]) && lines[i].trim()) {
+              tableLines.push(lines[i]);
+              i += 1;
+            }
+            out.push(renderTsvTable(tableLines));
+            continue;
+          }
+          const h = line.match(/^(#{1,6})\s+(.*)$/);
           if (h) {
             out.push(`<h${h[1].length}>${inlineMd(h[2])}</h${h[1].length}>`);
             i += 1;
@@ -1579,11 +2097,11 @@
           }
           const paragraph = [line];
           i += 1;
-          while (i < lines.length && lines[i].trim() && !/^(#{1,3})\s+/.test(lines[i]) && !isTableStart(lines, i) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^>\s?/.test(lines[i])) {
+          while (i < lines.length && lines[i].trim() && !/^(#{1,6})\s+/.test(lines[i]) && !/^\s*[-*_]{3,}\s*$/.test(lines[i]) && !isTableStart(lines, i) && !isLoosePipeTableStart(lines, i) && !isTsvTableStart(lines, i) && !/^\s*[-*]\s+/.test(lines[i]) && !/^\s*\d+\.\s+/.test(lines[i]) && !/^>\s?/.test(lines[i])) {
             paragraph.push(lines[i]);
             i += 1;
           }
-          out.push(`<p>${inlineMd(paragraph.join(" "))}</p>`);
+          out.push(`<p>${paragraph.map(inlineMd).join(options.compact ? " " : "<br>")}</p>`);
         }
         if (inCode) out.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
         return out.join("");
@@ -1591,23 +2109,78 @@
 
       function inlineMd(value) {
         let html = escapeHtml(value);
+        html = html.replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g, '<img src="$2" alt="$1" loading="lazy" />');
+        html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+        html = html.replace(/&lt;(https?:\/\/[^&\s]+)&gt;/g, '<a href="$1" target="_blank" rel="noreferrer">$1</a>');
         html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
         html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-        html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+        html = html.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+        html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+        html = html.replace(/(^|\s)\*([^*]+)\*/g, "$1<em>$2</em>");
+        html = html.replace(/(^|\s)_([^_]+)_/g, "$1<em>$2</em>");
+        html = html.replace(/^\[x\]\s+/i, '<span class="task-box">✓</span>');
+        html = html.replace(/^\[\s\]\s+/i, '<span class="task-box"></span>');
         return html;
       }
 
       function isTableStart(lines, index) {
-        return lines[index]?.includes("|") && /^\s*\|?[\s:-]+\|[\s|:-]+\s*$/.test(lines[index + 1] || "");
+        return lines[index]?.includes("|") && isMarkdownTableDelimiter(lines[index + 1] || "");
+      }
+
+      function isLoosePipeTableStart(lines, index) {
+        const current = lines[index] || "";
+        const next = lines[index + 1] || "";
+        if (!current.includes("|") || !next.includes("|") || isMarkdownTableDelimiter(next)) return false;
+        return splitMarkdownTableRow(current).length >= 2 && splitMarkdownTableRow(next).length >= 2;
+      }
+
+      function isMarkdownTableDelimiter(line) {
+        return /^\s*\|?[\s:-]+\|[\s|:-]+\s*$/.test(line || "");
+      }
+
+      function isTsvTableStart(lines, index) {
+        if (!/\t/.test(lines[index] || "")) return false;
+        const current = (lines[index] || "").split("\t").filter((cell) => cell.trim()).length;
+        const next = (lines[index + 1] || "").split("\t").filter((cell) => cell.trim()).length;
+        return current >= 2 && next >= 2;
       }
 
       function renderMarkdownTable(tableLines) {
         const rows = tableLines
-          .filter((line) => !/^\s*\|?[\s:-]+\|[\s|:-]+\s*$/.test(line))
-          .map((line) => line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim()));
+          .filter((line) => !isMarkdownTableDelimiter(line))
+          .map(splitMarkdownTableRow);
         if (!rows.length) return "";
         const [head, ...body] = rows;
-        return `<table class="md-table"><thead><tr>${head.map((c) => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>${body.map((row) => `<tr>${row.map((c) => `<td>${inlineMd(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+        return `<table class="md-table"><thead><tr>${head.map((c) => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>${body.map((row) => `<tr>${head.map((_, i) => `<td>${inlineMd(row[i] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      }
+
+      function splitMarkdownTableRow(line) {
+        const cells = [];
+        let cur = "";
+        let escaped = false;
+        const value = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+        for (const ch of value) {
+          if (escaped) {
+            cur += ch;
+            escaped = false;
+          } else if (ch === "\\") {
+            escaped = true;
+          } else if (ch === "|") {
+            cells.push(cur.trim());
+            cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        cells.push(cur.trim());
+        return cells;
+      }
+
+      function renderTsvTable(tableLines) {
+        const rows = tableLines.map((line) => line.split("\t").map((cell) => cell.trim()));
+        if (!rows.length) return "";
+        const [head, ...body] = rows;
+        return `<table class="md-table"><thead><tr>${head.map((c) => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>${body.map((row) => `<tr>${head.map((_, i) => `<td>${inlineMd(row[i] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
       }
 
       async function sendPrompt(prompt) {
@@ -1621,7 +2194,7 @@
           const chatMessages = state.messages
             .filter((m) => m.role === "user" || m.role === "assistant")
             .slice(-10)
-            .map((m) => ({ role: m.role, content: m.content }));
+            .map((m) => ({ role: m.role, content: m.fullContent || m.content }));
           const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1633,7 +2206,13 @@
           });
           const data = await res.json();
           const answer = data.content || JSON.stringify(data, null, 2);
-          state.messages.push({ role: "assistant", content: answer });
+          const aiDoc = buildAiDashboardDoc(content, answer);
+          state.aiDoc = aiDoc;
+          state.messages.push({
+            role: "assistant",
+            content: buildChatSupplement(aiDoc),
+            fullContent: answer,
+          });
           state.assistantPanel = {
             question: content,
             answer,

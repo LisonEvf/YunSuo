@@ -9,3 +9,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .DS_Store
+data/trajectories/*.jsonl
+data/reviews/*.jsonl
+data/skill_usage.json

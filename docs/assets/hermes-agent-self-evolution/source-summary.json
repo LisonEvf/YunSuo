@@ -1,0 +1,75 @@
+{
+  "sourceUrl": "https://ccn7vpu5l5y8.feishu.cn/wiki/YuKwwFonciCOvqkbOp3cDsgKnid",
+  "exportedAt": "2026-06-07",
+  "blockCount": 199,
+  "rootBlock": "IpgRdJq0KotNUbxV8Fechke9nsg",
+  "copiedAssets": {
+    "Tsb0bVMB7oZum5xdpmlchehbnPc": "assets/hermes-agent-self-evolution/01-cover-hermes-self-evolution.png",
+    "WfOCb1S4GoxkGzxs0H2c9nFFn2g": "assets/hermes-agent-self-evolution/02-content-problem.png"
+  },
+  "imageBlocks": [
+    {
+      "id": "BpNkdXV6goFtBTxIa3tcJf4snlw",
+      "token": "OCUAbwoj4o52E9xQYg2cHsTdnQc",
+      "name": "03-content-loop.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/OCUAbwoj4o52E9xQYg2cHsTdnQc/?fallback_source=1&height=1280&mount_node_token=BpNkdXV6goFtBTxIa3tcJf4snlw&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "JMW1dGd4lodQuNxS8mfcVNRVnlg",
+      "token": "HbtBbgUCXorL6bxYu3GctXednYb",
+      "name": "09-ending-quote.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/HbtBbgUCXorL6bxYu3GctXednYb/?fallback_source=1&height=1280&mount_node_token=JMW1dGd4lodQuNxS8mfcVNRVnlg&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "JPspdyG3IooUCsxSrbPct9sInfh",
+      "token": "PmlqbUTMNoAInZxB5cecupCantc",
+      "name": "04-content-memory.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/PmlqbUTMNoAInZxB5cecupCantc/?fallback_source=1&height=1280&mount_node_token=JPspdyG3IooUCsxSrbPct9sInfh&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "KDNedwhrMotTMRxyKNmcoQtLnXK",
+      "token": "WfOCb1S4GoxkGzxs0H2c9nFFn2g",
+      "name": "02-content-problem.png",
+      "localAsset": "assets/hermes-agent-self-evolution/02-content-problem.png",
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/WfOCb1S4GoxkGzxs0H2c9nFFn2g/?fallback_source=1&height=1280&mount_node_token=KDNedwhrMotTMRxyKNmcoQtLnXK&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "KysZdOrhkoESB7xeu1ocCu8fnEb",
+      "token": "ITYQb4uccoOG0zx49oFcYk9lnwc",
+      "name": "07-content-evolution.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/ITYQb4uccoOG0zx49oFcYk9lnwc/?fallback_source=1&height=1280&mount_node_token=KysZdOrhkoESB7xeu1ocCu8fnEb&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "M3h3dRiVMoC5YXxK0nDcFChknSc",
+      "token": "Tsb0bVMB7oZum5xdpmlchehbnPc",
+      "name": "01-cover-hermes-self-evolution.png",
+      "localAsset": "assets/hermes-agent-self-evolution/01-cover-hermes-self-evolution.png",
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/Tsb0bVMB7oZum5xdpmlchehbnPc/?fallback_source=1&height=1280&mount_node_token=M3h3dRiVMoC5YXxK0nDcFChknSc&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "QcRpdOF6sosUcsxiqihcngD7nhd",
+      "token": "SJ7tbNcNmoaLf8x5DXac8jDVnNf",
+      "name": "05-content-skill.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/SJ7tbNcNmoaLf8x5DXac8jDVnNf/?fallback_source=1&height=1280&mount_node_token=QcRpdOF6sosUcsxiqihcngD7nhd&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "XW78dDeTKo1yNvxndBNc9YvhnIh",
+      "token": "HqvwbNEe9oENDIxD7jZcJeAbnQf",
+      "name": "06-content-trajectory.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/HqvwbNEe9oENDIxD7jZcJeAbnQf/?fallback_source=1&height=1280&mount_node_token=XW78dDeTKo1yNvxndBNc9YvhnIh&mount_point=docx_image&policy=equal&width=1280"
+    },
+    {
+      "id": "ZQmyd5u7fosaGBxBDbXcvk8cnCc",
+      "token": "O85PbpuTSoNTBax32hoc5lcNnHf",
+      "name": "08-content-difference.png",
+      "localAsset": null,
+      "url": "https://internal-api-drive-stream.feishu.cn/space/api/box/stream/download/v2/cover/O85PbpuTSoNTBax32hoc5lcNnHf/?fallback_source=1&height=1280&mount_node_token=ZQmyd5u7fosaGBxBDbXcvk8cnCc&mount_point=docx_image&policy=equal&width=1280"
+    }
+  ]
+}

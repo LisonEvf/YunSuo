@@ -5,7 +5,7 @@ description: 基于情绪周期和风险指标的仓位建议决策树
 
 ## 仓位建议决策框架
 
-调用 `get_dashboard` 获取当前情绪数据后，按以下决策树给出仓位建议。
+调用 `get_sentiment_overview` 和 `get_trade_methods` 获取当前情绪数据后，按以下决策树给出仓位建议。
 
 ### 决策维度
 

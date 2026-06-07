@@ -5,7 +5,7 @@ description: 板块轮动分析框架，识别主线切换和资金迁移方向
 
 ## 板块轮动分析框架
 
-调用 `get_dashboard`、`get_board_list`、`get_plate_ranking` 获取数据后分析。
+调用 `get_plate_top`、`get_board_list`、`get_plate_ranking` 获取数据后分析。
 
 ### 第一步：板块全景扫描
 1. **涨幅排名 TOP 10 板块**：名称、涨幅、涨停家数

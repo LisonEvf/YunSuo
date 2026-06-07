@@ -28,9 +28,12 @@ from . import config
 from .context import ContextManager
 from .guardrails import ToolGuardrails
 from .memory import memory_manager
+from .review import background_review_recorder
 from .retry import classify_error, jittered_backoff
+from .skills import build_skill_prompt, record_skill_usage, select_relevant_skills
 from .system_prompt import build_system_prompt
 from .tools import TOOL_DEFINITIONS, execute_tool
+from .trajectory import trajectory_recorder
 
 _MAX_TOOL_RESULT_CHARS = 6000
 logger = logging.getLogger(__name__)
@@ -61,8 +64,14 @@ class SentimentAgent:
         messages: list[dict[str, Any]],
         skills: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        from .skills import build_skill_prompt
+        api_messages, _ = self._build_messages_with_selection(messages, skills=skills)
+        return api_messages
 
+    def _build_messages_with_selection(
+        self,
+        messages: list[dict[str, Any]],
+        skills: list[str] | None = None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         system_content = self._system_prompt
 
         # 注入记忆上下文
@@ -76,16 +85,28 @@ class SentimentAgent:
             if memory_block:
                 system_content += memory_block
 
-        if skills:
+        selected_skills: list[dict[str, Any]] = []
+        if config.AGENT_CONFIG.get("skills", {}).get("enabled", True):
+            selected_skills = select_relevant_skills(
+                last_user_msg,
+                explicit_skills=skills,
+                auto_fill=skills is None,
+            )
+
+        if selected_skills:
             parts: list[str] = []
-            for slug in skills:
-                prompt = build_skill_prompt(slug.strip().lstrip("/"))
+            for selected in selected_skills:
+                prompt = build_skill_prompt(str(selected["slug"]))
                 if prompt:
                     parts.append(prompt)
             if parts:
                 system_content += "\n\n" + "\n\n---\n\n".join(parts)
+                try:
+                    record_skill_usage(selected_skills)
+                except Exception as exc:
+                    logger.warning("Skill usage recording failed: %s", exc)
 
-        return [{"role": "system", "content": system_content}, *messages]
+        return [{"role": "system", "content": system_content}, *messages], selected_skills
 
     async def _fetch_snapshot(self) -> dict[str, Any] | None:
         try:
@@ -156,8 +177,11 @@ class SentimentAgent:
         skills: list[str] | None = None,
     ) -> dict[str, Any]:
         """运行完整对话循环，返回最终回复。"""
-        api_messages = self._build_messages(messages, skills=skills)
+        api_messages, selected_skills = self._build_messages_with_selection(messages, skills=skills)
+        trajectory_metadata = _trajectory_metadata(selected_skills)
         tool_calls_log: list[dict[str, Any]] = []
+        tool_events: list[dict[str, Any]] = []
+        system_prompt = api_messages[0].get("content", "")
         self._guardrails.reset_turn()
 
         for _ in range(config.AGENT_MAX_ITERATIONS):
@@ -169,9 +193,27 @@ class SentimentAgent:
                 response = await self._call_llm(api_messages)
             except APIStatusError as exc:
                 logger.warning("LLM API error: %s %s", exc.status_code, exc.message[:200])
+                self._record_trajectory(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content="",
+                    completed=False,
+                    error=f"LLM API error {exc.status_code}: {exc.message[:300]}",
+                    metadata=trajectory_metadata,
+                )
                 return {"content": f"LLM 调用失败（{exc.status_code}）：{exc.message[:300]}", "tool_calls": tool_calls_log}
             except Exception as exc:
                 logger.warning("LLM error: %s", exc)
+                self._record_trajectory(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content="",
+                    completed=False,
+                    error=f"LLM error: {exc!s:.300}",
+                    metadata=trajectory_metadata,
+                )
                 return {"content": f"LLM 调用异常：{exc!s:.300}", "tool_calls": tool_calls_log}
 
             choice = response.choices[0]
@@ -201,10 +243,18 @@ class SentimentAgent:
                     if decision.allows_execution:
                         allowed.append((tc_id, fn_name, fn_args))
                     else:
+                        blocked_result = json.dumps({"error": decision.reason}, ensure_ascii=False)
                         api_messages.append({
                             "role": "tool",
                             "tool_call_id": tc_id,
-                            "content": json.dumps({"error": decision.reason}, ensure_ascii=False),
+                            "content": blocked_result,
+                        })
+                        tool_events.append({
+                            "name": fn_name,
+                            "arguments": fn_args,
+                            "result": blocked_result,
+                            "error": decision.reason,
+                            "blocked": True,
                         })
                         logger.info("Tool blocked: %s — %s", fn_name, decision.reason)
 
@@ -216,12 +266,22 @@ class SentimentAgent:
                     )
                     for (tc_id, fn_name, fn_args), result in zip(allowed, results):
                         self._guardrails.record(fn_name, fn_args)
+                        error_text = ""
                         if isinstance(result, Exception):
+                            error_text = str(result)
                             result = json.dumps({"error": str(result)}, ensure_ascii=False)
+                        elif _looks_like_tool_error(str(result)):
+                            error_text = _extract_tool_error(str(result))
                         api_messages.append({
                             "role": "tool",
                             "tool_call_id": tc_id,
                             "content": _truncate_tool_result(result),
+                        })
+                        tool_events.append({
+                            "name": fn_name,
+                            "arguments": fn_args,
+                            "result": _truncate_tool_result(result),
+                            "error": error_text,
                         })
                 continue
 
@@ -235,8 +295,39 @@ class SentimentAgent:
                 },
             }
             self._save_memory_if_needed(messages, result["content"])
+            self._record_trajectory(
+                system_prompt=system_prompt,
+                messages=messages,
+                tool_events=tool_events,
+                final_content=result["content"],
+                completed=True,
+                metadata=trajectory_metadata,
+            )
+            self._record_background_review(
+                messages=messages,
+                tool_events=tool_events,
+                final_content=result["content"],
+                selected_skills=selected_skills,
+                completed=True,
+            )
             return result
 
+        self._record_trajectory(
+            system_prompt=system_prompt,
+            messages=messages,
+            tool_events=tool_events,
+            final_content="已达到最大迭代次数，请简化问题后重试。",
+            completed=False,
+            error="max_iterations_reached",
+            metadata=trajectory_metadata,
+        )
+        self._record_background_review(
+            messages=messages,
+            tool_events=tool_events,
+            final_content="已达到最大迭代次数，请简化问题后重试。",
+            selected_skills=selected_skills,
+            completed=False,
+        )
         return {"content": "已达到最大迭代次数，请简化问题后重试。", "tool_calls": tool_calls_log}
 
     # ── SSE 流式对话 ────────────────────────────────────────────
@@ -247,7 +338,10 @@ class SentimentAgent:
         skills: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """流式对话循环，yield SSE 事件 dict。"""
-        api_messages = self._build_messages(messages, skills=skills)
+        api_messages, selected_skills = self._build_messages_with_selection(messages, skills=skills)
+        trajectory_metadata = _trajectory_metadata(selected_skills)
+        tool_events: list[dict[str, Any]] = []
+        system_prompt = api_messages[0].get("content", "")
         self._guardrails.reset_turn()
 
         for _ in range(config.AGENT_MAX_ITERATIONS):
@@ -259,11 +353,31 @@ class SentimentAgent:
                 stream = await self._call_llm(api_messages, stream=True)
             except APIStatusError as exc:
                 logger.warning("LLM stream error: %s %s", exc.status_code, exc.message[:200])
+                self._record_trajectory(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content="",
+                    completed=False,
+                    stream=True,
+                    error=f"LLM API error {exc.status_code}: {exc.message[:300]}",
+                    metadata=trajectory_metadata,
+                )
                 yield {"type": "delta", "content": f"LLM 调用失败（{exc.status_code}）：{exc.message[:300]}"}
                 yield {"type": "done"}
                 return
             except Exception as exc:
                 logger.warning("LLM stream error: %s", exc)
+                self._record_trajectory(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content="",
+                    completed=False,
+                    stream=True,
+                    error=f"LLM error: {exc!s:.300}",
+                    metadata=trajectory_metadata,
+                )
                 yield {"type": "delta", "content": f"LLM 调用异常：{exc!s:.300}"}
                 yield {"type": "done"}
                 return
@@ -294,6 +408,24 @@ class SentimentAgent:
                                 tool_calls_map[idx]["arguments"] += tc.function.arguments
 
             if not tool_calls_map:
+                final_content = "".join(content_parts)
+                self._save_memory_if_needed(messages, final_content)
+                self._record_trajectory(
+                    system_prompt=system_prompt,
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content=final_content,
+                    completed=True,
+                    stream=True,
+                    metadata=trajectory_metadata,
+                )
+                self._record_background_review(
+                    messages=messages,
+                    tool_events=tool_events,
+                    final_content=final_content,
+                    selected_skills=selected_skills,
+                    completed=True,
+                )
                 yield {"type": "done"}
                 return
 
@@ -330,11 +462,19 @@ class SentimentAgent:
                 if decision.allows_execution:
                     allowed.append((tc_id, fn_name, fn_args))
                 else:
-                    yield {"type": "tool_result", "name": fn_name, "result": json.dumps({"error": decision.reason}), "error": decision.reason}
+                    blocked_result = json.dumps({"error": decision.reason}, ensure_ascii=False)
+                    yield {"type": "tool_result", "name": fn_name, "result": blocked_result, "error": decision.reason}
                     api_messages.append({
                         "role": "tool",
                         "tool_call_id": tc_id,
-                        "content": json.dumps({"error": decision.reason}, ensure_ascii=False),
+                        "content": blocked_result,
+                    })
+                    tool_events.append({
+                        "name": fn_name,
+                        "arguments": fn_args,
+                        "result": blocked_result,
+                        "error": decision.reason,
+                        "blocked": True,
                     })
                     logger.info("Tool blocked: %s — %s", fn_name, decision.reason)
 
@@ -345,13 +485,16 @@ class SentimentAgent:
                 )
                 for (tc_id, fn_name, fn_args), result in zip(allowed, results):
                     self._guardrails.record(fn_name, fn_args)
+                    error_text = ""
                     if isinstance(result, Exception):
+                        error_text = str(result)
                         result = json.dumps({"error": str(result)}, ensure_ascii=False)
                     event: dict[str, Any] = {"type": "tool_result", "name": fn_name, "result": result}
                     try:
                         parsed = json.loads(result)
                         if isinstance(parsed, dict) and "error" in parsed:
                             event["error"] = parsed["error"]
+                            error_text = str(parsed["error"])
                     except json.JSONDecodeError:
                         pass
                     yield event
@@ -365,14 +508,37 @@ class SentimentAgent:
                         "tool_call_id": tc_id,
                         "content": _truncate_tool_result(result),
                     })
+                    tool_events.append({
+                        "name": fn_name,
+                        "arguments": fn_args,
+                        "result": _truncate_tool_result(result),
+                        "error": error_text,
+                    })
 
+        self._record_trajectory(
+            system_prompt=system_prompt,
+            messages=messages,
+            tool_events=tool_events,
+            final_content="[已达到最大迭代次数]",
+            completed=False,
+            stream=True,
+            error="max_iterations_reached",
+            metadata=trajectory_metadata,
+        )
+        self._record_background_review(
+            messages=messages,
+            tool_events=tool_events,
+            final_content="[已达到最大迭代次数]",
+            selected_skills=selected_skills,
+            completed=False,
+        )
         yield {"type": "delta", "content": "\n\n[已达到最大迭代次数]"}
         yield {"type": "done"}
 
     # ── 辅助方法 ──────────────────────────────────────────────────
 
     def _save_memory_if_needed(self, messages: list[dict[str, Any]], assistant_content: str) -> None:
-        """非流式回复后尝试提取用户偏好。"""
+        """回复后尝试提取用户偏好。"""
         user_msg = ""
         for m in reversed(messages):
             if m.get("role") == "user":
@@ -384,11 +550,71 @@ class SentimentAgent:
             except Exception:
                 pass
 
+    def _record_trajectory(
+        self,
+        *,
+        system_prompt: str,
+        messages: list[dict[str, Any]],
+        tool_events: list[dict[str, Any]],
+        final_content: str,
+        completed: bool,
+        stream: bool = False,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        try:
+            trajectory_recorder.record(
+                system_prompt=system_prompt,
+                input_messages=messages,
+                tool_events=tool_events,
+                final_content=final_content,
+                model=self.model,
+                completed=completed,
+                stream=stream,
+                error=error,
+                metadata=metadata,
+            )
+        except Exception as exc:
+            logger.warning("Trajectory recording failed: %s", exc)
+
+    def _record_background_review(
+        self,
+        *,
+        messages: list[dict[str, Any]],
+        tool_events: list[dict[str, Any]],
+        final_content: str,
+        selected_skills: list[dict[str, Any]],
+        completed: bool,
+    ) -> None:
+        try:
+            background_review_recorder.record(
+                messages=messages,
+                tool_events=tool_events,
+                final_content=final_content,
+                selected_skills=selected_skills,
+                completed=completed,
+            )
+        except Exception as exc:
+            logger.warning("Background review recording failed: %s", exc)
+
     def get_usage(self) -> dict[str, Any]:
         return self._context.get_usage()
 
 
 # ── 全局单例（线程安全）────────────────────────────────────────────
+
+def _trajectory_metadata(selected_skills: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "selected_skills": [
+            {
+                "slug": item.get("slug"),
+                "source": item.get("source"),
+                "score": item.get("score"),
+            }
+            for item in selected_skills
+        ]
+    }
+
 
 _agent: SentimentAgent | None = None
 _agent_lock = threading.Lock()
@@ -440,3 +666,21 @@ def _truncate_tool_result(result: str, max_chars: int = _MAX_TOOL_RESULT_CHARS) 
 
     head = max_chars * 3 // 4
     return result[:head] + f"\n...[truncated, total {len(result)} chars]..."
+
+
+def _looks_like_tool_error(result: str) -> bool:
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(parsed, dict) and "error" in parsed
+
+
+def _extract_tool_error(result: str) -> str:
+    try:
+        parsed = json.loads(result)
+    except json.JSONDecodeError:
+        return ""
+    if isinstance(parsed, dict) and "error" in parsed:
+        return str(parsed["error"])
+    return ""

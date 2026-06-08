@@ -54,9 +54,9 @@ def test_ws_send_interaction():
 
         ws.send_json({
             "type": "interaction",
-            "widgetRef": "table-plates",
-            "interaction": "drilldown",
-            "payload": {"plate": "半导体", "code": "881270"},
+            "widgetRef": "artifact-plan",
+            "interaction": "inspect",
+            "payload": {"section": "steps"},
         })
 
         session = session_manager.get("interact-test")
@@ -66,5 +66,5 @@ def test_ws_send_interaction():
             session.async_dequeue_event(timeout=2.0)
         )
         assert event is not None
-        assert event["widgetRef"] == "table-plates"
-        assert event["interaction"] == "drilldown"
+        assert event["widgetRef"] == "artifact-plan"
+        assert event["interaction"] == "inspect"

@@ -14,36 +14,35 @@ from app.agent.skills import (
 )
 
 
-def test_auto_selects_position_and_plate_skills():
-    selected = select_relevant_skills("今天应该几成仓位，怎么做风险控制？", limit=2)
-    assert selected[0]["slug"] == "position-advice"
-    assert any(item["slug"] == "risk-control" for item in selected)
+def test_auto_selects_planning_and_debugging_skills():
+    selected = select_relevant_skills("请把这个迁移方案拆解成执行计划和里程碑", limit=2)
+    assert selected[0]["slug"] == "task-planning"
 
-    plate = select_relevant_skills("帮我看板块轮动和主线方向", limit=1)
-    assert plate[0]["slug"] == "plate-rotation"
-    assert plate[0]["source"] == "auto"
+    debug = select_relevant_skills("接口报错了，帮我 debug 并定位失败原因", limit=1)
+    assert debug[0]["slug"] == "debugging"
+    assert debug[0]["source"] == "auto"
 
 
 def test_explicit_skill_can_disable_autofill():
     selected = select_relevant_skills(
-        "分析今天市场情绪",
-        explicit_skills=["risk-control"],
+        "帮我写一份说明文档",
+        explicit_skills=["code-review"],
         limit=2,
         auto_fill=False,
     )
-    assert [item["slug"] for item in selected] == ["risk-control"]
+    assert [item["slug"] for item in selected] == ["code-review"]
     assert selected[0]["source"] == "explicit"
 
 
 def test_skill_usage_tracker_records_sources(tmp_path):
     usage_path = tmp_path / "skill_usage.json"
     record_skill_usage(
-        [{"slug": "position-advice", "name": "position-advice", "source": "auto", "score": 8.0}],
+        [{"slug": "task-planning", "name": "task-planning", "source": "auto", "score": 8.0}],
         usage_path=usage_path,
     )
 
     data = load_skill_usage(usage_path=usage_path)
-    stats = data["skills"]["position-advice"]
+    stats = data["skills"]["task-planning"]
     assert stats["selected_count"] == 1
     assert stats["viewed_count"] == 1
     assert stats["applied_count"] == 1
@@ -61,16 +60,16 @@ def test_curator_reports_unused_skills_without_mutation(tmp_path):
 
 def test_background_review_flags_memory_and_skill_candidates():
     review = build_background_review(
-        messages=[{"role": "user", "content": "以后都按这个流程做，记住我喜欢低吸"}],
+        messages=[{"role": "user", "content": "以后都按这个流程做，记住我喜欢先看风险"}],
         tool_events=[
             {"name": f"tool_{idx}", "arguments": {}, "result": "{}"}
             for idx in range(5)
         ],
         final_content="ok",
-        selected_skills=[{"slug": "trade-plan", "source": "auto", "score": 4.0}],
+        selected_skills=[{"slug": "task-planning", "source": "auto", "score": 4.0}],
     )
 
     assert review["actionable"] is True
     assert review["memory_candidates"][0]["type"] == "user_preference_or_correction"
     assert review["skill_candidates"][0]["type"] == "reusable_workflow"
-    assert review["selected_skills"][0]["slug"] == "trade-plan"
+    assert review["selected_skills"][0]["slug"] == "task-planning"

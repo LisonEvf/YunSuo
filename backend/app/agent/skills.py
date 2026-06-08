@@ -33,7 +33,6 @@ SKILL_USAGE_PATH = PROJECT_ROOT / "data" / "skill_usage.json"
 _FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _HEADING_RE = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
 _ASCII_WORD_RE = re.compile(r"[a-z0-9][a-z0-9_-]{1,}", re.IGNORECASE)
-_STOCK_CODE_RE = re.compile(r"\b(?:00|30|60|68|83|87)\d{4}\b")
 
 # TTL 缓存，避免每次调用 scan_skills 都遍历磁盘
 _SCAN_CACHE: tuple[float, dict[str, dict[str, Any]]] = (0.0, {})
@@ -41,23 +40,23 @@ _SCAN_CACHE_TTL = 60.0
 _USAGE_LOCK = threading.Lock()
 
 _KEYWORD_HINTS: dict[str, tuple[str, ...]] = {
-    "market-analysis": (
-        "市场", "情绪", "行情", "周期", "涨停", "跌停", "赚钱效应", "封板", "炸板", "大盘", "全景",
+    "task-planning": (
+        "计划", "规划", "方案", "拆解", "路线图", "步骤", "执行", "里程碑", "优先级", "排期",
     ),
-    "plate-rotation": (
-        "板块", "题材", "主线", "轮动", "热点", "概念", "资金迁移", "方向", "切换", "接力",
+    "debugging": (
+        "报错", "失败", "异常", "debug", "bug", "修复", "诊断", "排查", "不工作", "broken", "failing",
     ),
-    "position-advice": (
-        "仓位", "几成", "加仓", "减仓", "空仓", "满仓", "持仓", "配置", "仓控", "轻仓", "重仓",
+    "code-review": (
+        "review", "评审", "代码审查", "风险", "回归", "缺陷", "测试缺口", "安全", "性能", "可维护",
     ),
-    "risk-control": (
-        "风险", "风控", "止损", "回撤", "亏损", "离场", "防守", "高风险", "纪律", "排雷",
+    "artifact-design": (
+        "面板", "可视化", "artifact", "表格", "图表", "看板", "UI", "组件", "渲染", "展示",
     ),
-    "stock-research": (
-        "个股", "股票", "代码", "标的", "龙头", "k线", "K线", "走势", "支撑位", "压力位", "龙虎榜",
+    "writing": (
+        "文档", "说明", "总结", "报告", "PRD", "邮件", "改写", "润色", "草稿", "提纲",
     ),
-    "trade-plan": (
-        "计划", "交易计划", "明日", "明天", "买点", "卖点", "止盈", "竞价", "预案", "清单", "执行",
+    "research-synthesis": (
+        "研究", "调研", "对比", "资料", "总结", "归纳", "分析", "取舍", "方案比较", "证据",
     ),
 }
 
@@ -331,9 +330,6 @@ def _score_skill(user_message: str, info: dict[str, Any]) -> float:
         needle = keyword.lower()
         if needle and needle in query:
             score += 4.0 if len(needle) > 1 else 2.0
-
-    if slug == "stock-research" and _STOCK_CODE_RE.search(query):
-        score += 8.0
 
     for word in set(_ASCII_WORD_RE.findall(query)):
         if len(word) >= 3 and word in search_text:

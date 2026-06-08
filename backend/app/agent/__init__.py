@@ -1,3 +1,3 @@
-from .agent import SentimentAgent, get_agent, reset_agent
+from .agent import GeneralAgent, get_agent, reset_agent
 
-__all__ = ["SentimentAgent", "get_agent", "reset_agent"]
+__all__ = ["GeneralAgent", "get_agent", "reset_agent"]

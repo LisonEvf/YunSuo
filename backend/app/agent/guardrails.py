@@ -17,12 +17,9 @@ MAX_DUPLICATE_CALLS = 2
 MAX_CALLS_PER_TOOL = 5
 
 IDEMPOTENT_TOOLS = frozenset({
-    "get_sentiment_overview", "get_plate_top", "get_trend_history",
-    "get_stock_quotes", "get_stock_kline", "get_board_list",
-    "get_board_members", "get_market_emotion", "get_news_flash",
-    "get_plate_ranking", "get_stock_zhangting_gene", "get_stock_plates",
-    "get_theme_detail",
-    "render_airui_panel", "patch_airui_panel",
+    "get_agent_runtime_status",
+    "render_airui_panel",
+    "patch_airui_panel",
 })
 
 

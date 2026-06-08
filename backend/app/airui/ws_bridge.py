@@ -53,14 +53,6 @@ def register_ws_routes(app: FastAPI) -> None:
                     sess.enqueue_event(event)
                     logger.info("Interaction on session %s: %s", session, event.get("interaction"))
 
-                    # 触发 drilldown handler
-                    if event.get("interaction") == "drilldown":
-                        try:
-                            from .drilldown import handle_drilldown
-                            asyncio.create_task(handle_drilldown(event))
-                        except ImportError:
-                            pass
-
         except WebSocketDisconnect:
             logger.info("WS disconnected: session=%s", session)
         finally:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from pathlib import Path
@@ -11,11 +10,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .services import data_service
-
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Sentiment Data API", version="0.3.0")
+app = FastAPI(title="General Agent Client API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,66 +23,13 @@ app.add_middleware(
 )
 
 
-# ── 数据接口 ─────────────────────────────────────────────────────
-
 @app.get("/health")
 def health():
-    return data_service.health()
-
-
-@app.get("/api/dashboard")
-def dashboard(day: str | None = Query(default=None, description="交易日，格式 YYYY-MM-DD")):
-    return data_service.dashboard(day=day)
-
-
-@app.get("/api/dashboard/trend")
-def dashboard_trend(
-    days: int = Query(default=15, ge=1, le=60),
-    day: str | None = Query(default=None, description="截止交易日 YYYY-MM-DD"),
-):
-    return {"trend": data_service.dashboard_trend(days=days, day=day)}
-
-
-@app.get("/api/quotes")
-def quotes(symbols: str = Query(default="SZ:000001,SH:600000")):
-    try:
-        parsed = [item.strip() for item in symbols.split(",") if item.strip()]
-        return data_service.quotes(parsed)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/kline/{market}/{code}")
-def kline(
-    market: str,
-    code: str,
-    period: str = Query(default="DAILY"),
-    count: int = Query(default=80, ge=1, le=800),
-    adjust: str = Query(default="NONE"),
-):
-    try:
-        return data_service.kline(market, code, period_name=period, count=count, adjust_name=adjust)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/boards")
-def boards(count: int = Query(default=80, ge=1, le=300)):
-    try:
-        return data_service.boards(count=count)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/boards/{board}/members")
-def board_members(board: str, count: int = Query(default=30, ge=1, le=120)):
-    try:
-        return data_service.board_members(board=board, count=count)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-# ── Agent 接口 ───────────────────────────────────────────────────
+    return {
+        "status": "ok",
+        "service": "general-agent-client",
+        "capabilities": ["chat", "skills", "memory", "trajectories", "airui"],
+    }
 
 
 class ChatMessage(BaseModel):
@@ -105,7 +49,7 @@ class ConfigRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    """Agent 对话接口，支持流式和非流式，可激活 skill。"""
+    """General agent chat endpoint with optional streaming and skill activation."""
     from .agent import get_agent
 
     try:
@@ -125,13 +69,11 @@ async def chat(req: ChatRequest):
             },
         )
 
-    result = await agent.chat(messages, skills=req.skills)
-    return result
+    return await agent.chat(messages, skills=req.skills)
 
 
 @app.get("/api/config")
 def get_config():
-    """读取 Agent/LLM/Skill/MCP 配置。"""
     from .agent.config import load_agent_config
 
     return {"config": load_agent_config()}
@@ -139,7 +81,6 @@ def get_config():
 
 @app.put("/api/config")
 def update_config(req: ConfigRequest):
-    """保存 Agent/LLM/Skill/MCP 配置，并重建 Agent 单例。"""
     from .agent import reset_agent
     from .agent.config import save_agent_config
 
@@ -149,22 +90,22 @@ def update_config(req: ConfigRequest):
 
 
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):
-    """SSE 流式输出。"""
     async for event in agent.chat_stream(messages, skills=skills):
         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
 
-# ── Skill 接口 ───────────────────────────────────────────────────
-
-
 @app.get("/api/skills")
 def list_skills():
-    """列出所有可用的 skill。"""
     from .agent.skills import list_skills as _list
+
     return {"skills": _list()}
 
 
-# ── 记忆接口 ─────────────────────────────────────────────────────
+@app.get("/api/skills/curation")
+def skill_curation():
+    from .agent.skills import curate_skills
+
+    return curate_skills(dry_run=True)
 
 
 @app.get("/api/memory")
@@ -172,8 +113,8 @@ def list_memory(
     keyword: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
 ):
-    """搜索或列出记忆条目。"""
     from .agent.memory import memory_manager
+
     if keyword:
         return {"memories": memory_manager.search(keyword, limit=limit)}
     return {"memories": memory_manager._recent(limit)}
@@ -182,72 +123,50 @@ def list_memory(
 @app.get("/api/memory/stats")
 def memory_stats():
     from .agent.memory import memory_manager
+
     return memory_manager.stats()
 
 
 @app.delete("/api/memory/{memory_id}")
 def delete_memory(memory_id: int):
     from .agent.memory import memory_manager
+
     if not memory_manager.delete(memory_id):
-        raise HTTPException(status_code=404, detail="记忆不存在")
+        raise HTTPException(status_code=404, detail="Memory entry not found")
     return {"ok": True}
-
-
-# ── Token 用量接口 ───────────────────────────────────────────────
 
 
 @app.get("/api/usage")
 def get_usage():
-    """获取当前 Agent 的 token 用量统计。"""
     from .agent import get_agent
+
     try:
         return get_agent().get_usage()
     except ValueError:
         return {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
 
 
-# ── AIRUI 看板 ──────────────────────────────────────────────────
+@app.get("/api/trajectories/summary")
+def trajectory_summary():
+    from .agent.trajectory import summarize_trajectories
 
-from .airui.ws_bridge import register_ws_routes, push_document
+    return summarize_trajectories()
+
+
+from .airui.renderer import render_console
 from .airui.session import session_manager
-from .airui.renderer import render_dashboard
+from .airui.ws_bridge import register_ws_routes
 
 register_ws_routes(app)
 
 _static_dir = Path(__file__).resolve().parent.parent / "static" / "airui"
 if _static_dir.exists():
-    app.mount("/dashboard", StaticFiles(directory=str(_static_dir), html=True), name="airui-static")
-
-
-async def _init_dashboard():
-    """启动时立即构建初始看板数据，确保第一个 WS 客户端连接时就有内容。"""
-    try:
-        loop = asyncio.get_event_loop()
-        data = await loop.run_in_executor(None, data_service.dashboard)
-        doc = render_dashboard(data)
-        sess = session_manager.get_or_create("default")
-        sess.doc = doc
-        logging.info("AIRUI initial dashboard loaded")
-    except Exception as exc:
-        logging.warning("AIRUI initial dashboard failed: %s", exc)
+    app.mount("/console", StaticFiles(directory=str(_static_dir), html=True), name="console-static")
 
 
 @app.on_event("startup")
-async def _airui_auto_refresh():
-    """启动时构建初始数据 + 后台定时刷新。"""
-    await _init_dashboard()
-
-    async def _loop():
-        while True:
-            await asyncio.sleep(45)
-            try:
-                for sid in session_manager.list():
-                    sess = session_manager.get(sid)
-                    if sess and sess.ws_clients:
-                        loop = asyncio.get_event_loop()
-                        data = await loop.run_in_executor(None, data_service.dashboard)
-                        doc = render_dashboard(data)
-                        await push_document(sid, doc, title="市场情绪看板")
-            except Exception as exc:
-                logging.warning("AIRUI auto-refresh error: %s", exc)
-    asyncio.create_task(_loop())
+async def _airui_console_init():
+    """Initialize the default AIRUI session with a generic operations console."""
+    sess = session_manager.get_or_create("default")
+    if not sess.doc:
+        sess.doc = render_console()

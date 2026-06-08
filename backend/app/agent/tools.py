@@ -1,12 +1,4 @@
-"""Agent 工具定义与执行器。
-
-复刻 hermes-agent 的 tool dispatch 模式：
-- TOOL_DEFINITIONS: OpenAI function calling 格式的工具 schema
-- execute_tool(name, args, snapshot): 统一工具调度入口
-
-dashboard 按功能拆分为 5 个精简工具，避免单次返回数据过大撑爆 context。
-支持 snapshot 参数：同轮次多个工具共享同一份 dashboard 快照，保证数据一致性。
-"""
+"""Generic agent tool definitions and dispatch."""
 from __future__ import annotations
 
 import asyncio
@@ -14,259 +6,37 @@ import json
 import logging
 from typing import Any, Callable
 
-from ..utils import to_jsonable, pick_number, recent_weekdays
-from ..connections import get_kpl
+from ..utils import to_jsonable
 
 logger = logging.getLogger(__name__)
 
 
-def _data_svc():
-    from ..services import data_service
-    return data_service
-
-
-# ── OpenAI function-calling 工具 schema ──────────────────────────
-
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
-    # ── 情绪概览类 ──
     {
         "type": "function",
         "function": {
-            "name": "get_sentiment_overview",
-            "description": "获取市场情绪概览：情绪周期定位、综合指数、涨停/跌停/炸板家数、封板率、昨日溢价、涨跌家数、两市成交额等核心 KPI",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "day": {"type": "string", "description": "交易日 YYYY-MM-DD，不传取最近交易日"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_plate_top",
-            "description": "获取板块梯队 TOP10，包含板块名称、涨幅、龙头、涨停家数、连板高度、资金类型、强度评分",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "day": {"type": "string", "description": "交易日 YYYY-MM-DD"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_trend_history",
-            "description": "获取近 N 日情绪趋势，每日返回：日期、情绪评分、涨停/跌停家数、成交额、封板率、周期状态",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "days": {"type": "integer", "description": "天数，默认 5"},
-                    "day": {"type": "string", "description": "截止交易日 YYYY-MM-DD"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_risks_and_opportunities",
-            "description": "获取风险提示和机会研判：跌停扩散风险、炸板率风险、高潮兑现风险、急速回撤预警、机会板块等",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "day": {"type": "string", "description": "交易日 YYYY-MM-DD"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_trade_methods",
-            "description": "获取赚钱手法评分：空仓观望、超跌反弹、低吸半路、首板打板、龙头接力、高位打板的适合度和建议",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "day": {"type": "string", "description": "交易日 YYYY-MM-DD"},
-                },
-                "required": [],
-            },
-        },
-    },
-    # ── 行情数据类 ──
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_quotes",
-            "description": "获取个股实时行情（价格、涨跌幅、成交量等）",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "symbols": {
-                        "type": "string",
-                        "description": "股票代码，格式 '市场:代码'，多个用逗号分隔，如 'SZ:000001,SH:600000'",
-                    },
-                },
-                "required": ["symbols"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_kline",
-            "description": "获取个股 K 线数据（日线/周线/月线），支持前复权/后复权",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "market": {"type": "string", "enum": ["SZ", "SH", "BJ"], "description": "市场"},
-                    "code": {"type": "string", "description": "股票代码，如 '000001'"},
-                    "period": {"type": "string", "enum": ["DAILY", "WEEKLY", "MONTHLY"], "description": "周期，默认日线"},
-                    "count": {"type": "integer", "description": "返回条数，默认 80"},
-                    "adjust": {"type": "string", "enum": ["NONE", "FRONT", "BACK"], "description": "复权方式，默认不复权"},
-                },
-                "required": ["market", "code"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_board_list",
-            "description": "获取行业板块涨幅排行列表",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "count": {"type": "integer", "description": "返回条数，默认 80"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_board_members",
-            "description": "获取板块成分股明细，按涨跌幅排序",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "board": {"type": "string", "description": "板块代码，如 '881001'"},
-                    "count": {"type": "integer", "description": "返回条数，默认 30"},
-                },
-                "required": ["board"],
-            },
-        },
-    },
-    # ── KPL 情绪/资讯类 ──
-    {
-        "type": "function",
-        "function": {
-            "name": "get_market_emotion",
-            "description": "获取市场情绪原始数据，包括打板统计、涨停排行、风向标、资金反抽等",
+            "name": "get_agent_runtime_status",
+            "description": "Get current generic agent runtime status: skills, memory stats, trajectory summary, and model config.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_news_flash",
-            "description": "获取 7x24 市场快讯，支持按关键词搜索",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "keyword": {"type": "string", "description": "搜索关键词"},
-                    "limit": {"type": "integer", "description": "返回条数，默认 20"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_plate_ranking",
-            "description": "获取概念板块排行数据（实时或历史）",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "order": {"type": "integer", "description": "排序方式，1=涨幅降序"},
-                    "count": {"type": "integer", "description": "返回条数，默认 30"},
-                    "date": {"type": "string", "description": "历史日期 YYYY-MM-DD，不传则实时"},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_lhb",
-            "description": "获取龙虎榜数据，包括市场动向、热门题材、个股席位明细",
-            "parameters": {"type": "object", "properties": {}, "required": []},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_zhangting_gene",
-            "description": "获取个股涨停基因评分（封板率、连板能力、板块号召力等）",
-            "parameters": {
-                "type": "object",
-                "properties": {"code": {"type": "string", "description": "股票代码"}},
-                "required": ["code"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_stock_plates",
-            "description": "获取个股所属概念板块列表",
-            "parameters": {
-                "type": "object",
-                "properties": {"code": {"type": "string", "description": "股票代码"}},
-                "required": ["code"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_theme_detail",
-            "description": "获取题材详情，包含成分股、关联板块、涨停映射",
-            "parameters": {
-                "type": "object",
-                "properties": {"theme_id": {"type": "string", "description": "题材 ID"}},
-                "required": ["theme_id"],
-            },
-        },
-    },
-    # ── AIRUI 看板渲染类 ──
     {
         "type": "function",
         "function": {
             "name": "render_airui_panel",
-            "description": "在看板上渲染一个新面板（Widget），用于展示板块/个股的深入分析结果。调用后看板会立即更新。",
+            "description": "Render a generic AIRUI artifact panel in the operations console.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ref": {"type": "string", "description": "面板引用 ID，如 'drilldown-plate-半导体'"},
-                    "title": {"type": "string", "description": "面板标题，如 '半导体板块深度分析'"},
-                    "col_span": {"type": "integer", "description": "列宽 1-12，默认 12"},
-                    "row_span": {"type": "integer", "description": "行高，默认 1"},
+                    "ref": {"type": "string", "description": "Stable panel reference ID, e.g. 'artifact-plan'."},
+                    "title": {"type": "string", "description": "Panel title."},
+                    "col_span": {"type": "integer", "description": "Grid width from 1 to 12. Default: 12."},
+                    "row_span": {"type": "integer", "description": "Relative panel height. Default: 1."},
                     "content": {
                         "type": "object",
-                        "description": "AIRUI 组件树，如 {\"type\": \"Table\", \"props\": {\"columns\": [...], \"rows\": [...]}}"
+                        "description": "AIRUI component tree, such as Table, Chart, KPI, Row, Column, or Text.",
                     },
-                    "session_id": {"type": "string", "description": "看板 session ID，默认 'default'"},
+                    "session_id": {"type": "string", "description": "AIRUI session ID. Default: 'default'."},
                 },
                 "required": ["ref", "title", "content"],
             },
@@ -276,281 +46,104 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "patch_airui_panel",
-            "description": "更新看板上已有面板的内容，用于增量更新分析结论。",
+            "description": "Apply JSON Patch operations to the current AIRUI console document.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "ref": {"type": "string", "description": "面板引用 ID"},
                     "patches": {
                         "type": "array",
-                        "description": "JSON Patch 操作列表，如 [{\"op\": \"replace\", \"path\": \"/props/rows/0/pct\", \"value\": 5.2}]"
+                        "description": "JSON Patch operations, e.g. [{\"op\":\"replace\",\"path\":\"/root/children/0/props/title\",\"value\":\"Done\"}].",
                     },
-                    "session_id": {"type": "string", "description": "看板 session ID，默认 'default'"},
+                    "session_id": {"type": "string", "description": "AIRUI session ID. Default: 'default'."},
                 },
-                "required": ["ref", "patches"],
+                "required": ["patches"],
             },
         },
     },
 ]
 
 
-# ── 工具实现 ──────────────────────────────────────────────────────
+def _runtime_status(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    from . import config
+    from .memory import memory_manager
+    from .skills import list_skills, load_skill_usage
+    from .trajectory import summarize_trajectories
 
-
-def _sentiment_overview(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    """情绪概览：overview + kpis + indexes。"""
-    day = args.get("day")
-    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
     return {
-        "overview": full["overview"],
-        "kpis": full["kpis"],
-        "indexes": full["indexes"],
+        "model": {
+            "name": config.LLM_MODEL,
+            "base_url": config.LLM_BASE_URL,
+            "max_tokens": config.LLM_MAX_TOKENS,
+        },
+        "skills": list_skills(),
+        "skill_usage": load_skill_usage(),
+        "memory": memory_manager.stats(),
+        "trajectories": summarize_trajectories(),
     }
-
-
-def _plate_top(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
-    """板块 TOP10。"""
-    day = args.get("day")
-    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
-    return full["plates"]
-
-
-def _trend_history(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
-    """趋势历史，精简版：不含每日板块热力数据。"""
-    days = args.get("days", 5)
-    day = args.get("day")
-    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
-    trend = full.get("trend", [])
-    slim = []
-    for t in trend[-days:]:
-        slim.append({
-            "date": t["date"],
-            "score": t["score"],
-            "limitUp": t["limit_up"],
-            "limitDown": t["limit_down"],
-            "amount": t["amount"],
-            "sealRate": t["seal_rate"],
-            "bombRate": t["bomb_rate"],
-            "cycle": t["cycle"],
-            "marketCoef": t.get("marketCoef"),
-            "shortSentiment": t.get("shortSentiment"),
-            "moneyLoss": t.get("moneyLoss"),
-        })
-    return slim
-
-
-def _risks_and_opps(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    """风险提示 + 机会研判。"""
-    day = args.get("day")
-    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
-    return {
-        "cycle": full["overview"]["cycle"],
-        "sentiment": full["overview"]["sentiment"],
-        "risks": full["risks"],
-        "opportunities": full["opportunities"],
-    }
-
-
-def _trade_methods(args: dict, snapshot: dict | None = None) -> list[dict[str, Any]]:
-    """赚钱手法评分。"""
-    day = args.get("day")
-    full = snapshot if (snapshot and not day) else _data_svc().dashboard(day=day)
-    return full["methods"]
-
-
-# ── 行情数据类 ──
-
-
-def _stock_quotes(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    symbols = [s.strip() for s in args.get("symbols", "").split(",") if s.strip()]
-    if not symbols:
-        return {"error": "symbols 参数不能为空"}
-    return _data_svc().quotes(symbols)
-
-
-def _stock_kline(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    market = args.get("market")
-    code = args.get("code")
-    if not market or not code:
-        return {"error": "market 和 code 参数必填"}
-    return _data_svc().kline(
-        market=market, code=code,
-        period_name=args.get("period", "DAILY"),
-        count=args.get("count", 80),
-        adjust_name=args.get("adjust", "NONE"),
-    )
-
-
-def _board_list(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    return _data_svc().boards(count=args.get("count", 80))
-
-
-def _board_members(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    board = args.get("board")
-    if not board:
-        return {"error": "board 参数必填"}
-    return _data_svc().board_members(board=board, count=args.get("count", 30))
-
-
-# ── KPL SDK 直接调用 ──
-
-
-def _kpl_emotion(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    kpl = get_kpl()
-    data = kpl.emotion.today()
-    return {
-        "daban": to_jsonable(data.daban) if data.daban else None,
-        "plates": to_jsonable(data.plates) if data.plates else None,
-        "phb": to_jsonable(data.phb) if data.phb else None,
-        "day": data.day,
-        "ts": data.ts,
-    }
-
-
-def _kpl_news(args: dict, snapshot: dict | None = None) -> Any:
-    kpl = get_kpl()
-    keyword = args.get("keyword")
-    limit = args.get("limit", 20)
-    if keyword:
-        result = kpl.news_flash.search(keyword, st=limit)
-    else:
-        result = kpl.news_flash.list(st=limit)
-    return to_jsonable(result)
-
-
-def _kpl_plate_ranking(args: dict, snapshot: dict | None = None) -> Any:
-    kpl = get_kpl()
-    return kpl.plate.ranking_raw(
-        order=args.get("order", 1),
-        st=args.get("count", 30),
-        date=args.get("date"),
-    )
-
-
-def _kpl_lhb(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    kpl = get_kpl()
-    overview = kpl.lhb.today()
-    detail = kpl.lhb.stock_list()
-    return {"overview": to_jsonable(overview), "detail": to_jsonable(detail)}
-
-
-def _kpl_zhangting_gene(args: dict, snapshot: dict | None = None) -> Any:
-    code = args.get("code")
-    if not code:
-        return {"error": "code 参数必填"}
-    kpl = get_kpl()
-    return to_jsonable(kpl.stock.zhangting_gene(code))
-
-
-def _kpl_stock_plates(args: dict, snapshot: dict | None = None) -> Any:
-    code = args.get("code")
-    if not code:
-        return {"error": "code 参数必填"}
-    kpl = get_kpl()
-    return to_jsonable(kpl.stock.stock_plates(code))
-
-
-def _kpl_theme_detail(args: dict, snapshot: dict | None = None) -> Any:
-    theme_id = args.get("theme_id")
-    if not theme_id:
-        return {"error": "theme_id 参数必填"}
-    kpl = get_kpl()
-    return to_jsonable(kpl.theme.info(theme_id))
-
-
-# ── AIRUI 看板渲染类 ──
 
 
 def _render_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    """渲染 AIRUI 面板。"""
-    import asyncio
-    from ..airui.ws_bridge import push_document
+    from ..airui.renderer import render_console
     from ..airui.session import session_manager
+    from ..airui.ws_bridge import push_document
 
-    ref = args.get("ref", "")
-    title = args.get("title", "")
-    col_span = args.get("col_span", 12)
-    row_span = args.get("row_span", 1)
+    ref = str(args.get("ref", "")).strip()
+    title = str(args.get("title", "")).strip()
     content = args.get("content", {})
-    session_id = args.get("session_id", "default")
+    session_id = str(args.get("session_id") or "default")
+    col_span = int(args.get("col_span", 12))
+    row_span = int(args.get("row_span", 1))
 
-    sess = session_manager.get(session_id)
-    if not sess or not sess.doc:
-        return {"status": "error", "message": "看板 session 不存在或未初始化"}
+    if not ref:
+        return {"status": "error", "message": "ref is required"}
+    if not title:
+        return {"status": "error", "message": "title is required"}
+    if not isinstance(content, dict):
+        return {"status": "error", "message": "content must be an AIRUI component object"}
+    content = _normalize_airui_component(content)
+
+    sess = session_manager.get_or_create(session_id)
+    if not sess.doc:
+        sess.doc = render_console()
 
     doc = sess.doc
-    widget = {
+    root = doc.setdefault("root", {"type": "Dashboard", "children": []})
+    children = root.setdefault("children", [])
+
+    artifact_row = _find_ref(root, "row-artifacts")
+    target_children = artifact_row.setdefault("children", []) if artifact_row else children
+    _remove_ref(target_children, ref)
+    target_children.append({
         "type": "Widget",
         "ref": ref,
-        "props": {"title": title, "colSpan": col_span, "rowSpan": row_span},
+        "props": {"title": title, "colSpan": max(1, min(col_span, 12)), "rowSpan": max(1, row_span)},
         "children": [content],
-    }
-    root = doc.get("root", doc)
-    root["children"].append({"type": "Row", "children": [widget]})
+    })
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(push_document(session_id, doc))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(push_document(session_id, doc))
-
-    return {"status": "rendered", "ref": ref}
+    _run_push(push_document(session_id, doc, title="General Agent Console"))
+    return {"status": "rendered", "ref": ref, "session_id": session_id}
 
 
 def _patch_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
-    """Patch AIRUI 面板。"""
-    import asyncio
     from ..airui.ws_bridge import push_patch
-    from ..airui.session import session_manager
 
-    ref = args.get("ref", "")
     patches = args.get("patches", [])
-    session_id = args.get("session_id", "default")
+    session_id = str(args.get("session_id") or "default")
+    if not isinstance(patches, list):
+        return {"status": "error", "message": "patches must be a list"}
 
-    sess = session_manager.get(session_id)
-    if not sess:
-        return {"status": "error", "message": "看板 session 不存在"}
+    _run_push(push_patch(session_id, patches))
+    return {"status": "patched", "patchCount": len(patches), "session_id": session_id}
 
-    try:
-        loop = asyncio.get_running_loop()
-        loop.create_task(push_patch(session_id, patches))
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(push_patch(session_id, patches))
-
-    return {"status": "patched", "ref": ref, "patchCount": len(patches)}
-
-
-# ── Handler 注册表（替代 match/case，便于扩展）────────────────────
 
 _HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
-    "get_sentiment_overview": _sentiment_overview,
-    "get_plate_top": _plate_top,
-    "get_trend_history": _trend_history,
-    "get_risks_and_opportunities": _risks_and_opps,
-    "get_trade_methods": _trade_methods,
-    "get_stock_quotes": _stock_quotes,
-    "get_stock_kline": _stock_kline,
-    "get_board_list": _board_list,
-    "get_board_members": _board_members,
-    "get_market_emotion": _kpl_emotion,
-    "get_news_flash": _kpl_news,
-    "get_plate_ranking": _kpl_plate_ranking,
-    "get_lhb": _kpl_lhb,
-    "get_stock_zhangting_gene": _kpl_zhangting_gene,
-    "get_stock_plates": _kpl_stock_plates,
-    "get_theme_detail": _kpl_theme_detail,
+    "get_agent_runtime_status": _runtime_status,
     "render_airui_panel": _render_airui_panel,
     "patch_airui_panel": _patch_airui_panel,
 }
 
 
-# ── 工具执行器 ───────────────────────────────────────────────────
-
-
 def _sync_execute(name: str, args: dict[str, Any], snapshot: dict | None = None) -> str:
-    from .. import sdk_bootstrap  # noqa: F401
     try:
         handler = _HANDLERS.get(name)
         if not handler:
@@ -567,3 +160,140 @@ async def execute_tool(
 ) -> str:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, _sync_execute, name, args, snapshot)
+
+
+def _find_ref(node: dict[str, Any], ref: str) -> dict[str, Any] | None:
+    if node.get("ref") == ref:
+        return node
+    for child in node.get("children", []) or []:
+        if isinstance(child, dict):
+            found = _find_ref(child, ref)
+            if found:
+                return found
+    return None
+
+
+def _remove_ref(nodes: list[Any], ref: str) -> None:
+    nodes[:] = [node for node in nodes if not (isinstance(node, dict) and node.get("ref") == ref)]
+
+
+def _run_push(coro) -> None:
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(coro)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+
+_AIRUI_TYPE_ALIASES = {
+    "card": "Widget",
+    "panel": "Widget",
+    "container": "Column",
+    "stack": "Column",
+    "vstack": "Column",
+    "hstack": "Row",
+    "paragraph": "Text",
+    "markdown": "Text",
+    "heading": "Text",
+    "title": "Text",
+    "datatable": "Table",
+    "metric": "KPI",
+    "stat": "KPI",
+    "kpi": "KPI",
+}
+
+_AIRUI_BUILTIN_TYPES = {
+    "Column",
+    "Row",
+    "Divider",
+    "Text",
+    "Button",
+    "Input",
+    "Select",
+    "Switch",
+    "Checkbox",
+    "Radio",
+    "Slider",
+    "Image",
+    "Dropdown",
+    "KPI",
+    "PlateCard",
+    "Gauge",
+    "Progress",
+    "Tag",
+    "Badge",
+    "Avatar",
+    "Skeleton",
+    "Table",
+    "Pagination",
+    "Chart",
+    "Tabs",
+    "Breadcrumb",
+    "Steps",
+    "Modal",
+    "Drawer",
+    "DropdownMenu",
+    "Alert",
+    "Loading",
+    "ErrorFallback",
+    "Tooltip",
+    "Dashboard",
+    "Widget",
+    "Accordion",
+    "Timeline",
+    "Tree",
+}
+
+
+def _normalize_airui_component(node: Any) -> dict[str, Any]:
+    if isinstance(node, (str, int, float, bool)):
+        return {"type": "Text", "props": {"value": str(node)}}
+    if not isinstance(node, dict):
+        return {"type": "Text", "props": {"value": ""}}
+
+    normalized = dict(node)
+    props = dict(normalized.get("props") or {})
+    component_type = _normalize_airui_type(normalized.get("type"), props)
+
+    if component_type == "Table" and "data" not in props and "rows" in props:
+        props["data"] = props.pop("rows")
+    if component_type == "Text" and "value" not in props:
+        props["value"] = props.pop("text", props.pop("content", props.get("label", "")))
+    if component_type == "KPI" and "value" not in props and "count" in props:
+        props["value"] = props.pop("count")
+
+    children = normalized.get("children")
+    if isinstance(children, list):
+        normalized["children"] = [_normalize_airui_component(child) for child in children]
+
+    normalized["type"] = component_type
+    normalized["props"] = props
+    return normalized
+
+
+def _normalize_airui_type(value: Any, props: dict[str, Any]) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        if "columns" in props and ("data" in props or "rows" in props):
+            return "Table"
+        if "value" in props or "count" in props:
+            return "KPI"
+        return "Text"
+
+    if raw in _AIRUI_BUILTIN_TYPES:
+        return raw
+
+    compact = raw.replace(" ", "").replace("-", "").replace("_", "")
+    alias = _AIRUI_TYPE_ALIASES.get(raw) or _AIRUI_TYPE_ALIASES.get(compact) or _AIRUI_TYPE_ALIASES.get(compact.lower())
+    if alias:
+        return alias
+
+    pascal = compact[:1].upper() + compact[1:].lower()
+    if pascal in _AIRUI_BUILTIN_TYPES:
+        return pascal
+
+    return "Text"

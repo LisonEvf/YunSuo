@@ -12,7 +12,7 @@
   - 上下文压缩（context.py）
   - 会话记忆（memory.py）
   - 工具防护（guardrails.py）
-  - Dashboard 快照预取 + 并行工具执行
+  - 运行上下文预取 + 并行工具执行
 """
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ _MAX_TOOL_RESULT_CHARS = 6000
 logger = logging.getLogger(__name__)
 
 
-class SentimentAgent:
-    """市场情绪分析 Agent。"""
+class GeneralAgent:
+    """General-purpose agent runtime."""
 
     def __init__(
         self,
@@ -109,12 +109,7 @@ class SentimentAgent:
         return [{"role": "system", "content": system_content}, *messages], selected_skills
 
     async def _fetch_snapshot(self) -> dict[str, Any] | None:
-        try:
-            from ..services import data_service
-            loop = asyncio.get_running_loop()
-            return await loop.run_in_executor(None, data_service.dashboard)
-        except Exception:
-            return None
+        return None
 
     async def _call_llm(
         self,
@@ -343,6 +338,8 @@ class SentimentAgent:
         tool_events: list[dict[str, Any]] = []
         system_prompt = api_messages[0].get("content", "")
         self._guardrails.reset_turn()
+
+        yield {"type": "skills", "skills": selected_skills}
 
         for _ in range(config.AGENT_MAX_ITERATIONS):
             # 上下文压缩
@@ -616,11 +613,11 @@ def _trajectory_metadata(selected_skills: list[dict[str, Any]]) -> dict[str, Any
     }
 
 
-_agent: SentimentAgent | None = None
+_agent: GeneralAgent | None = None
 _agent_lock = threading.Lock()
 
 
-def get_agent() -> SentimentAgent:
+def get_agent() -> GeneralAgent:
     global _agent
     if _agent is None:
         with _agent_lock:
@@ -628,7 +625,7 @@ def get_agent() -> SentimentAgent:
                 config.reload_config()
                 if not config.LLM_API_KEY:
                     raise ValueError("LLM_API_KEY 未配置，请在环境变量中设置")
-                _agent = SentimentAgent()
+                _agent = GeneralAgent()
     return _agent
 
 

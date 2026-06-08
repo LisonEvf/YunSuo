@@ -20,6 +20,10 @@ DEFAULT_AGENT_CONFIG: dict = {
         "api_key": "llama",
         "max_output_tokens": 4096,
     },
+    "ui": {
+        "theme": "light",
+        "language": "zh-CN",
+    },
     "skills": {
         "enabled": True,
         "search_paths": ["skills"],

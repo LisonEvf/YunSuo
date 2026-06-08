@@ -8,7 +8,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import app.agent.agent as agent_module
-from app.agent.agent import SentimentAgent
+from app.agent.agent import GeneralAgent
 from app.agent.trajectory import (
     SUCCESS_FILE,
     TrajectoryRecorder,
@@ -68,15 +68,15 @@ def test_trajectory_recorder_writes_sharegpt_jsonl(tmp_path):
 
     path = recorder.record(
         system_prompt="system prompt",
-        input_messages=[{"role": "user", "content": "看一下情绪"}],
+        input_messages=[{"role": "user", "content": "看一下运行状态"}],
         tool_events=[
             {
-                "name": "get_sentiment_overview",
+                "name": "get_agent_runtime_status",
                 "arguments": {},
-                "result": '{"kpis": {"sentiment": 60}}',
+                "result": '{"status": "ready"}',
             }
         ],
-        final_content="情绪偏强",
+        final_content="运行状态正常",
         model="test-model",
         completed=True,
     )
@@ -85,13 +85,13 @@ def test_trajectory_recorder_writes_sharegpt_jsonl(tmp_path):
     record = json.loads(path.read_text(encoding="utf-8").strip())
     assert record["completed"] is True
     assert record["conversations"][0]["from"] == "system"
-    assert record["conversations"][1] == {"from": "human", "value": "看一下情绪"}
-    assert record["conversations"][-1] == {"from": "gpt", "value": "情绪偏强"}
-    assert record["tool_stats"]["get_sentiment_overview"]["success"] == 1
+    assert record["conversations"][1] == {"from": "human", "value": "看一下运行状态"}
+    assert record["conversations"][-1] == {"from": "gpt", "value": "运行状态正常"}
+    assert record["tool_stats"]["get_agent_runtime_status"]["success"] == 1
 
 
 def test_chat_records_tool_trajectory(monkeypatch):
-    agent = SentimentAgent(api_key="test", base_url="http://test.invalid/v1", model="test-model")
+    agent = GeneralAgent(api_key="test", base_url="http://test.invalid/v1", model="test-model")
     calls = {"count": 0}
     records = []
 
@@ -102,10 +102,10 @@ def test_chat_records_tool_trajectory(monkeypatch):
                 finish_reason="tool_calls",
                 message=_Message(
                     content=None,
-                    tool_calls=[_tool_call("get_sentiment_overview", {})],
+                    tool_calls=[_tool_call("get_agent_runtime_status", {})],
                 ),
             )
-        return _response(finish_reason="stop", message=_Message(content="情绪偏强", tool_calls=None))
+        return _response(finish_reason="stop", message=_Message(content="运行状态正常", tool_calls=None))
 
     async def fake_fetch_snapshot():
         return None
@@ -121,23 +121,23 @@ def test_chat_records_tool_trajectory(monkeypatch):
     monkeypatch.setattr(agent_module, "record_skill_usage", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(agent_module.background_review_recorder, "record", lambda **_kwargs: None)
 
-    result = _run(agent.chat([{"role": "user", "content": "分析今天情绪"}]))
+    result = _run(agent.chat([{"role": "user", "content": "请把这个迁移方案拆成执行计划"}]))
 
-    assert result["content"] == "情绪偏强"
+    assert result["content"] == "运行状态正常"
     assert len(records) == 1
     assert records[0]["completed"] is True
-    assert records[0]["tool_events"][0]["name"] == "get_sentiment_overview"
-    assert records[0]["final_content"] == "情绪偏强"
-    assert records[0]["metadata"]["selected_skills"][0]["slug"] == "market-analysis"
+    assert records[0]["tool_events"][0]["name"] == "get_agent_runtime_status"
+    assert records[0]["final_content"] == "运行状态正常"
+    assert records[0]["metadata"]["selected_skills"][0]["slug"] == "task-planning"
 
 
 def test_chat_stream_saves_memory_and_trajectory(monkeypatch):
-    agent = SentimentAgent(api_key="test", base_url="http://test.invalid/v1", model="test-model")
+    agent = GeneralAgent(api_key="test", base_url="http://test.invalid/v1", model="test-model")
     records = []
     saved = []
 
     async def stream_chunks():
-        yield _Obj(choices=[_Obj(delta=_Obj(content="我喜欢低吸", tool_calls=None))])
+        yield _Obj(choices=[_Obj(delta=_Obj(content="我喜欢清单输出", tool_calls=None))])
 
     async def fake_call_llm(api_messages, *, stream=False):
         return stream_chunks()
@@ -149,7 +149,7 @@ def test_chat_stream_saves_memory_and_trajectory(monkeypatch):
     monkeypatch.setattr(agent_module.background_review_recorder, "record", lambda **_kwargs: None)
 
     async def collect():
-        return [event async for event in agent.chat_stream([{"role": "user", "content": "我喜欢低吸"}])]
+        return [event async for event in agent.chat_stream([{"role": "user", "content": "我喜欢清单输出"}])]
 
     events = _run(collect())
 
@@ -158,24 +158,24 @@ def test_chat_stream_saves_memory_and_trajectory(monkeypatch):
     assert len(records) == 1
     assert records[0]["completed"] is True
     assert records[0]["stream"] is True
-    assert records[0]["final_content"] == "我喜欢低吸"
+    assert records[0]["final_content"] == "我喜欢清单输出"
 
 
 def test_trajectory_export_and_summary(tmp_path):
     recorder = TrajectoryRecorder(tmp_path)
     recorder.record(
         system_prompt="system",
-        input_messages=[{"role": "user", "content": "分析情绪"}],
-        tool_events=[{"name": "get_sentiment_overview", "arguments": {}, "result": "{}"}],
+        input_messages=[{"role": "user", "content": "检查运行状态"}],
+        tool_events=[{"name": "get_agent_runtime_status", "arguments": {}, "result": "{}"}],
         final_content="ok",
         model="test-model",
         completed=True,
-        metadata={"selected_skills": [{"slug": "market-analysis", "source": "auto", "score": 4.0}]},
+        metadata={"selected_skills": [{"slug": "task-planning", "source": "auto", "score": 4.0}]},
     )
     recorder.record(
         system_prompt="system",
         input_messages=[{"role": "user", "content": "失败样本"}],
-        tool_events=[{"name": "get_sentiment_overview", "arguments": {}, "result": "{}", "error": "boom"}],
+        tool_events=[{"name": "get_agent_runtime_status", "arguments": {}, "result": "{}", "error": "boom"}],
         final_content="",
         model="test-model",
         completed=False,
@@ -198,7 +198,7 @@ def test_trajectory_export_and_summary(tmp_path):
     assert summary["failed"] == 1
     assert summary["tool_calls"] == 2
     assert summary["tool_failures"] == 1
-    assert summary["selected_skills"]["market-analysis"] == 1
+    assert summary["selected_skills"]["task-planning"] == 1
 
 
 def test_skill_prompts_do_not_reference_removed_dashboard_tool():

@@ -1,32 +1,39 @@
-import React from "react";
 import { useStore } from "../store";
+import { t } from "../i18n";
 
 export default function StatusBar() {
+  const language = useStore((s) => s.appConfig.ui.language);
   const connected = useStore((s) => s.connected);
   const sessionId = useStore((s) => s.sessionId);
+  const loading = useStore((s) => s.chatLoading);
+  const activeTools = useStore((s) => s.activeTools);
   const doc = useStore((s) => s.doc);
 
-  const day = (doc as any)?.state?.day || "--";
+  const mode = (doc as any)?.state?.mode || "general-agent";
 
   return (
-    <div
+    <footer
+      className="status-bar"
       style={{
-        height: 32,
+        height: 34,
         padding: "0 16px",
-        background: "#0f172a",
+        background: "var(--color-surface)",
         display: "flex",
         alignItems: "center",
-        gap: 16,
+        gap: 18,
         fontSize: 12,
-        color: "#64748b",
-        borderTop: "1px solid #1e293b",
+        color: "var(--color-muted)",
+        borderTop: "1px solid var(--color-border)",
+        flexShrink: 0,
       }}
     >
-      <span style={{ color: connected ? "#22c55e" : "#ef4444" }}>
-        ● {connected ? "已连接" : "未连接"}
+      <span style={{ color: connected ? "var(--color-success)" : "var(--color-danger)", fontWeight: 700 }}>
+        {connected ? t(language, "connected") : t(language, "disconnected")}
       </span>
-      <span>Session: {sessionId}</span>
-      <span>交易日: {day}</span>
-    </div>
+      <span>{t(language, "session")}: {sessionId}</span>
+      <span>{t(language, "mode")}: {mode}</span>
+      <span>{t(language, "run")}: {loading ? t(language, "activeRun") : t(language, "idle")}</span>
+      <span>{t(language, "tools")}: {activeTools.length}</span>
+    </footer>
   );
 }

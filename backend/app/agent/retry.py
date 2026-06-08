@@ -1,6 +1,6 @@
 """API 错误分类与重试策略。
 
-借鉴 hermes-agent error_classifier 的分类思路，针对 sentiment 场景精简为 6 种。
+借鉴 hermes-agent error_classifier 的分类思路，针对通用 agent 场景精简为 6 种。
 """
 from __future__ import annotations
 

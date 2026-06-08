@@ -1,313 +1,74 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
-import { useStore } from "../store";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import type { Component } from "@air-ui/core";
-import { AirUIComponent, InteractionProvider, useAirUIStore } from "@air-ui/renderer-react";
-import { sendInteraction } from "../ws-client";
+import { useEffect, useRef, useState } from "react";
+import { useStore, type ChatMessage, type ToolStatus } from "../store";
+import { t } from "../i18n";
 
-// ── 类型 ────────────────────────────────────────────────────────────
-interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-  /** AIRUI 组件树，内联渲染在消息下方 */
-  airui?: Component;
-  /** 工具调用状态 */
-  toolStatus?: { name: string; state: "running" | "done" | "error" }[];
-}
-
-// ── Markdown 样式 ────────────────────────────────────────────────────
-const markdownComponents = {
-  p: ({ children }: any) => (
-    <p style={{ margin: "4px 0", lineHeight: 1.6 }}>{children}</p>
-  ),
-  strong: ({ children }: any) => (
-    <strong style={{ color: "#fbbf24", fontWeight: 600 }}>{children}</strong>
-  ),
-  em: ({ children }: any) => (
-    <em style={{ color: "#93c5fd" }}>{children}</em>
-  ),
-  code: ({ inline, className, children }: any) => {
-    if (inline) {
-      return (
-        <code
-          style={{
-            background: "#1e293b",
-            padding: "1px 5px",
-            borderRadius: 3,
-            fontSize: 12,
-            color: "#7dd3fc",
-          }}
-        >
-          {children}
-        </code>
-      );
-    }
-    return (
-      <pre
-        style={{
-          background: "#0f172a",
-          padding: 10,
-          borderRadius: 6,
-          overflowX: "auto",
-          fontSize: 12,
-          lineHeight: 1.4,
-          margin: "8px 0",
-        }}
-      >
-        <code>{children}</code>
-      </pre>
-    );
-  },
-  ul: ({ children }: any) => (
-    <ul style={{ paddingLeft: 18, margin: "4px 0" }}>{children}</ul>
-  ),
-  ol: ({ children }: any) => (
-    <ol style={{ paddingLeft: 18, margin: "4px 0" }}>{children}</ol>
-  ),
-  li: ({ children }: any) => (
-    <li style={{ lineHeight: 1.6, margin: "2px 0" }}>{children}</li>
-  ),
-  table: ({ children }: any) => (
-    <table
-      style={{
-        borderCollapse: "collapse",
-        width: "100%",
-        fontSize: 12,
-        margin: "8px 0",
-      }}
-    >
-      {children}
-    </table>
-  ),
-  th: ({ children }: any) => (
-    <th
-      style={{
-        border: "1px solid #334155",
-        padding: "4px 8px",
-        background: "#1e293b",
-        textAlign: "left",
-        fontWeight: 600,
-      }}
-    >
-      {children}
-    </th>
-  ),
-  td: ({ children }: any) => (
-    <td style={{ border: "1px solid #334155", padding: "4px 8px" }}>
-      {children}
-    </td>
-  ),
-  blockquote: ({ children }: any) => (
-    <blockquote
-      style={{
-        borderLeft: "3px solid #3b82f6",
-        paddingLeft: 10,
-        margin: "6px 0",
-        color: "#94a3b8",
-      }}
-    >
-      {children}
-    </blockquote>
-  ),
-  h1: ({ children }: any) => (
-    <h1 style={{ fontSize: 16, fontWeight: 700, margin: "8px 0 4px" }}>
-      {children}
-    </h1>
-  ),
-  h2: ({ children }: any) => (
-    <h2 style={{ fontSize: 14, fontWeight: 700, margin: "8px 0 4px" }}>
-      {children}
-    </h2>
-  ),
-  h3: ({ children }: any) => (
-    <h3 style={{ fontSize: 13, fontWeight: 600, margin: "6px 0 2px" }}>
-      {children}
-    </h3>
-  ),
-};
-
-// ── AIRUI 内联渲染 ──────────────────────────────────────────────────
-function AirUIInline({ comp }: { comp: Component }) {
-  const doc = useStore((s) => s.doc);
-  const setAiruiDoc = useAirUIStore((s) => s.setDoc);
-  useEffect(() => {
-    if (doc) setAiruiDoc(doc);
-  }, [doc, setAiruiDoc]);
-
-  const handler = (widgetRef: string, interaction: string, payload: Record<string, unknown>) => {
-    sendInteraction(widgetRef, interaction, payload);
-  };
+function MessageBubble({ msg, thinkingLabel }: { msg: ChatMessage; thinkingLabel: string }) {
+  if (msg.role === "system") return null;
+  const isUser = msg.role === "user";
 
   return (
-    <div
-      style={{
-        marginTop: 8,
-        background: "#1e293b",
-        borderRadius: 8,
-        padding: 10,
-        border: "1px solid #334155",
-      }}
-    >
-      <InteractionProvider value={handler}>
-        <AirUIComponent comp={comp} />
-      </InteractionProvider>
+    <div style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", marginBottom: 12 }}>
+      <div
+        style={{
+          maxWidth: "86%",
+          padding: "10px 12px",
+          borderRadius: 8,
+          background: isUser ? "var(--color-primary)" : "var(--color-surface)",
+          color: isUser ? "var(--color-primary-text)" : "var(--color-text)",
+          border: isUser ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
+          boxShadow: isUser ? "none" : "0 1px 2px rgba(15, 23, 42, 0.06)",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontSize: 13,
+          lineHeight: 1.55,
+        }}
+      >
+        {msg.content || (isUser ? "" : thinkingLabel)}
+      </div>
     </div>
   );
 }
 
-// ── 工具状态条 ──────────────────────────────────────────────────────
-function ToolStatusBar({ tools }: { tools: { name: string; state: string }[] }) {
+function ToolStrip({ tools }: { tools: ToolStatus[] }) {
+  if (!tools.length) return null;
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
-      {tools.map((t, i) => (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+      {tools.map((tool) => (
         <span
-          key={i}
+          key={tool.name}
           style={{
             fontSize: 11,
-            padding: "2px 8px",
-            borderRadius: 10,
-            background: t.state === "running" ? "#1d4ed8" : t.state === "error" ? "#7f1d1d" : "#14532d",
-            color: t.state === "running" ? "#93c5fd" : t.state === "error" ? "#fca5a5" : "#86efac",
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
+            padding: "3px 8px",
+            borderRadius: 999,
+            background:
+              tool.state === "running"
+                ? "var(--color-surface-muted)"
+                : tool.state === "error"
+                  ? "rgba(153, 27, 27, 0.12)"
+                  : "var(--color-primary-soft)",
+            color:
+              tool.state === "running" ? "var(--color-info)" : tool.state === "error" ? "var(--color-danger)" : "var(--color-success)",
+            border: "1px solid var(--color-border)",
           }}
         >
-          {t.state === "running" && "⏳"}
-          {t.state === "done" && "✓"}
-          {t.state === "error" && "✗"}
-          {t.name}
+          {tool.name}: {tool.state}
         </span>
       ))}
     </div>
   );
 }
 
-// ── 单条消息 ────────────────────────────────────────────────────────
-function MessageBubble({ msg }: { msg: ChatMessage }) {
-  if (msg.role === "system") return null;
-
-  const isUser = msg.role === "user";
-
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: isUser ? "flex-end" : "flex-start",
-        marginBottom: 12,
-        padding: "0 12px",
-      }}
-    >
-      {/* 助手头像 */}
-      {!isUser && (
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 13,
-            flexShrink: 0,
-            marginTop: 2,
-            marginRight: 8,
-          }}
-        >
-          AI
-        </div>
-      )}
-
-      <div style={{ maxWidth: "78%", minWidth: 60 }}>
-        {/* 工具调用状态 */}
-        {msg.toolStatus && msg.toolStatus.length > 0 && (
-          <ToolStatusBar tools={msg.toolStatus} />
-        )}
-
-        {/* 消息气泡 */}
-        {msg.content && (
-          <div
-            style={{
-              padding: "10px 14px",
-              borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-              background: isUser ? "#3b82f6" : "#1e293b",
-              color: isUser ? "#fff" : "#e2e8f0",
-              fontSize: 13,
-              lineHeight: 1.6,
-              wordBreak: "break-word",
-            }}
-          >
-            {isUser ? (
-              msg.content
-            ) : (
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                {msg.content}
-              </ReactMarkdown>
-            )}
-          </div>
-        )}
-
-        {/* 空内容的思考状态 */}
-        {!msg.content && !msg.airui && msg.role === "assistant" && (
-          <div
-            style={{
-              padding: "12px 16px",
-              borderRadius: "16px 16px 16px 4px",
-              background: "#1e293b",
-              color: "#64748b",
-              fontSize: 13,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span className="dot-pulse" style={{ display: "inline-flex", gap: 3 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#64748b", animation: "pulse 1.2s infinite" }} />
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#64748b", animation: "pulse 1.2s 0.2s infinite" }} />
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#64748b", animation: "pulse 1.2s 0.4s infinite" }} />
-            </span>
-            分析中...
-          </div>
-        )}
-
-        {/* AIRUI 内联渲染 */}
-        {msg.airui && <AirUIInline comp={msg.airui} />}
-      </div>
-
-      {/* 用户头像 */}
-      {isUser && (
-        <div
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: "50%",
-            background: "#475569",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 13,
-            flexShrink: 0,
-            marginTop: 2,
-            marginLeft: 8,
-          }}
-        >
-          Me
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── 主面板 ──────────────────────────────────────────────────────────
 export default function ChatPanel() {
   const [input, setInput] = useState("");
-  const [collapsed, setCollapsed] = useState(false);
-  const messages = useStore((s) => s.chatMessages) as ChatMessage[];
+  const language = useStore((s) => s.appConfig.ui.language);
+  const messages = useStore((s) => s.chatMessages);
   const loading = useStore((s) => s.chatLoading);
   const addMessage = useStore((s) => s.addChatMessage);
+  const updateLastMessage = useStore((s) => s.updateLastMessage);
   const setLoading = useStore((s) => s.setChatLoading);
+  const setActiveTools = useStore((s) => s.setActiveTools);
+  const setActiveSkills = useStore((s) => s.setActiveSkills);
+  const addRunEvent = useStore((s) => s.addRunEvent);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -322,7 +83,14 @@ export default function ChatPanel() {
 
     setInput("");
     addMessage({ role: "user", content: text });
+    addMessage({ role: "assistant", content: "" });
     setLoading(true);
+    setActiveTools([]);
+    setActiveSkills([]);
+    addRunEvent({ label: "Request accepted", detail: text.slice(0, 120), state: "running" });
+
+    let assistantContent = "";
+    let toolStatuses: ToolStatus[] = [];
 
     try {
       const res = await fetch("/api/chat", {
@@ -335,252 +103,160 @@ export default function ChatPanel() {
       });
 
       if (!res.ok || !res.body) {
-        addMessage({ role: "assistant", content: `请求失败: ${res.status}` });
-        setLoading(false);
+        const detail = `Request failed: ${res.status}`;
+        updateLastMessage({ content: detail });
+        addRunEvent({ label: "Request failed", detail, state: "error" });
         return;
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let assistantContent = "";
-      let toolStatuses: { name: string; state: string }[] = [];
-      let airuiComp: Component | undefined;
-
-      addMessage({ role: "assistant", content: "" });
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
-          try {
-            const evt = JSON.parse(line.slice(6));
+          const evt = JSON.parse(line.slice(6));
 
-            switch (evt.type) {
-              case "delta":
-                if (evt.content) {
-                  assistantContent += evt.content;
-                  useStore.setState((s) => {
-                    const msgs = [...s.chatMessages];
-                    const last = msgs[msgs.length - 1];
-                    msgs[msgs.length - 1] = { ...last, content: assistantContent };
-                    return { chatMessages: msgs };
-                  });
-                }
-                break;
-
-              case "tool_start":
-                toolStatuses = (evt.tools || []).map((t: any) => ({
-                  name: t.name.replace(/^get_/, "").replace(/_/g, " "),
-                  state: "running",
-                }));
-                useStore.setState((s) => {
-                  const msgs = [...s.chatMessages];
-                  const last = msgs[msgs.length - 1];
-                  msgs[msgs.length - 1] = { ...last, toolStatus: [...toolStatuses] };
-                  return { chatMessages: msgs };
-                });
-                break;
-
-              case "tool_result": {
-                const toolName = (evt.name || "").replace(/^get_/, "").replace(/_/g, " ");
-                toolStatuses = toolStatuses.map((t) =>
-                  t.name === toolName
-                    ? { ...t, state: evt.error ? "error" : "done" }
-                    : t
-                );
-                // 检测 AIRUI 渲染事件
-                if (evt.name === "render_airui_panel" && !evt.error) {
-                  try {
-                    const result = JSON.parse(evt.result);
-                    if (result.status === "rendered") {
-                      // 渲染成功 — 在消息下方显示提示
-                      assistantContent += "\n\n📊 *已渲染到看板*";
-                      useStore.setState((s) => {
-                        const msgs = [...s.chatMessages];
-                        const last = msgs[msgs.length - 1];
-                        msgs[msgs.length - 1] = {
-                          ...last,
-                          content: assistantContent,
-                          toolStatus: [...toolStatuses],
-                        };
-                        return { chatMessages: msgs };
-                      });
-                    }
-                  } catch {}
-                }
-                // 检测内联 AIRUI 数据
-                if (evt.airui) {
-                  airuiComp = evt.airui;
-                  useStore.setState((s) => {
-                    const msgs = [...s.chatMessages];
-                    const last = msgs[msgs.length - 1];
-                    msgs[msgs.length - 1] = { ...last, airui: airuiComp, toolStatus: [...toolStatuses] };
-                    return { chatMessages: msgs };
-                  });
-                }
-                break;
-              }
-
-              case "airui":
-                if (evt.data) {
-                  useStore.setState((s) => {
-                    const msgs = [...s.chatMessages];
-                    const last = msgs[msgs.length - 1];
-                    msgs[msgs.length - 1] = { ...last, airui: evt.data };
-                    return { chatMessages: msgs };
-                  });
-                }
-                break;
+          if (evt.type === "skills") {
+            setActiveSkills(evt.skills || []);
+            const names = (evt.skills || []).map((skill: { name?: string; slug?: string }) => skill.name || skill.slug);
+            if (names.length) {
+              addRunEvent({
+                label: "Skills selected",
+                detail: names.join(", "),
+                state: "running",
+              });
             }
-          } catch {
-            // ignore
+          }
+
+          if (evt.type === "delta" && evt.content) {
+            assistantContent += evt.content;
+            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
+          }
+
+          if (evt.type === "tool_start") {
+            toolStatuses = (evt.tools || []).map((tool: { name: string }) => ({
+              name: tool.name,
+              state: "running",
+            }));
+            setActiveTools(toolStatuses);
+            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
+            addRunEvent({
+              label: "Tool call started",
+              detail: toolStatuses.map((tool) => tool.name).join(", "),
+              state: "running",
+            });
+          }
+
+          if (evt.type === "tool_result") {
+            toolStatuses = toolStatuses.map((tool) =>
+              tool.name === evt.name ? { ...tool, state: evt.error ? "error" : "done" } : tool
+            );
+            setActiveTools(toolStatuses);
+            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
+            addRunEvent({
+              label: evt.error ? "Tool call failed" : "Tool call completed",
+              detail: evt.name || "unknown",
+              state: evt.error ? "error" : "done",
+            });
+          }
+
+          if (evt.type === "airui" && evt.data) {
+            updateLastMessage({ content: assistantContent, airui: evt.data, toolStatus: toolStatuses });
+          }
+
+          if (evt.type === "done") {
+            addRunEvent({ label: "Final response", detail: "Assistant response completed.", state: "done" });
           }
         }
       }
     } catch (err) {
-      addMessage({ role: "assistant", content: `连接失败: ${err}` });
+      const detail = `Connection failed: ${err}`;
+      updateLastMessage({ content: detail });
+      addRunEvent({ label: "Connection failed", detail, state: "error" });
     } finally {
       setLoading(false);
     }
   }
 
-  if (collapsed) {
-    return (
-      <div
-        onClick={() => setCollapsed(false)}
-        style={{
-          width: 40,
-          height: "100%",
-          background: "#1e293b",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          color: "#94a3b8",
-          fontSize: 20,
-          borderRight: "1px solid #334155",
-        }}
-      >
-        💬
-      </div>
-    );
-  }
-
   return (
-    <div
+    <aside
+      className="chat-panel"
       style={{
-        width: 400,
+        width: 320,
+        minWidth: 320,
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        background: "#0f172a",
-        color: "#e2e8f0",
-        borderRight: "1px solid #1e293b",
+        background: "var(--color-surface-muted)",
+        borderRight: "1px solid var(--color-border)",
       }}
     >
-      {/* 标题栏 */}
-      <div
-        style={{
-          padding: "14px 16px",
-          borderBottom: "1px solid #1e293b",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "#0f172a",
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: 14 }}>💬 对话</span>
-        <span
-          onClick={() => setCollapsed(true)}
-          style={{
-            cursor: "pointer",
-            color: "#64748b",
-            fontSize: 16,
-            lineHeight: 1,
-            padding: "2px 4px",
-          }}
-        >
-          ◀
-        </span>
+      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--color-text)" }}>{t(language, "chat")}</div>
+        <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 2 }}>{t(language, "chatSubtitle")}</div>
       </div>
 
-      {/* 消息列表 */}
-      <div
-        ref={scrollRef}
-        style={{ flex: 1, overflow: "auto", padding: "12px 0" }}
-      >
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+      <div ref={scrollRef} style={{ flex: 1, overflow: "auto", padding: 14 }}>
+        {messages.map((msg, index) => (
+          <MessageBubble key={index} msg={msg} thinkingLabel={t(language, "thinking")} />
         ))}
-        {loading && !messages[messages.length - 1]?.content && (
-          <div style={{ padding: "0 12px" }}>
-            <div style={{ color: "#64748b", fontSize: 12, padding: "4px 8px" }}>
-              Agent 思考中...
-            </div>
-          </div>
-        )}
+        <ToolStrip tools={messages[messages.length - 1]?.toolStatus || []} />
       </div>
 
-      {/* 输入区域 */}
-      <div
-        style={{
-          padding: 12,
-          borderTop: "1px solid #1e293b",
-          display: "flex",
-          gap: 8,
-          background: "#0f172a",
-        }}
-      >
-        <input
+      <div style={{ padding: 12, borderTop: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+        <textarea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
-          placeholder="输入问题... (Enter 发送)"
+          onChange={(event) => setInput(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              handleSend();
+            }
+          }}
+          placeholder={t(language, "askPlaceholder")}
           disabled={loading}
           style={{
-            flex: 1,
-            padding: "10px 14px",
+            width: "100%",
+            minHeight: 72,
+            resize: "vertical",
+            boxSizing: "border-box",
+            padding: "10px 11px",
             borderRadius: 8,
-            background: "#1e293b",
-            border: "1px solid #334155",
-            color: "#e2e8f0",
-            fontSize: 13,
+            border: "1px solid var(--color-border-strong)",
             outline: "none",
-            transition: "border-color 0.2s",
+            fontSize: 13,
+            lineHeight: 1.45,
+            color: "var(--color-text)",
+            background: loading ? "var(--color-app-bg)" : "var(--color-surface)",
           }}
-          onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
-          onBlur={(e) => (e.target.style.borderColor = "#334155")}
         />
         <button
           onClick={handleSend}
           disabled={loading || !input.trim()}
           style={{
-            padding: "10px 18px",
+            width: "100%",
+            marginTop: 8,
+            height: 36,
             borderRadius: 8,
-            background: loading || !input.trim() ? "#1e293b" : "#3b82f6",
-            color: loading || !input.trim() ? "#475569" : "#fff",
             border: "none",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontSize: 13,
-            fontWeight: 500,
-            transition: "background 0.2s",
+            background: loading || !input.trim() ? "var(--color-border)" : "var(--color-primary)",
+            color: loading || !input.trim() ? "var(--color-muted)" : "var(--color-primary-text)",
+            fontWeight: 700,
+            cursor: loading || !input.trim() ? "not-allowed" : "pointer",
           }}
         >
-          发送
+          {loading ? t(language, "running") : t(language, "send")}
         </button>
       </div>
-
-      {/* 加载动画 keyframes */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 1; }
-        }
-      `}</style>
-    </div>
+    </aside>
   );
 }

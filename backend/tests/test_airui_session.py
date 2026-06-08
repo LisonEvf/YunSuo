@@ -1,12 +1,12 @@
-"""测试 DashboardSession 和 SessionManager。"""
+"""测试 ConsoleSession 和 SessionManager。"""
 import asyncio
 import pytest
 
 
 def test_session_init():
-    from app.airui.session import DashboardSession
+    from app.airui.session import ConsoleSession
 
-    s = DashboardSession("test")
+    s = ConsoleSession("test")
     assert s.session_id == "test"
     assert s.doc is None
     assert s.ws_clients == []
@@ -59,10 +59,10 @@ def test_manager_list():
 
 
 def test_session_enqueue_event():
-    from app.airui.session import DashboardSession
+    from app.airui.session import ConsoleSession
 
-    s = DashboardSession("test")
-    event = {"type": "interaction", "widgetRef": "table-plates", "interaction": "drilldown", "payload": {}}
+    s = ConsoleSession("test")
+    event = {"type": "interaction", "widgetRef": "artifact-plan", "interaction": "inspect", "payload": {}}
     s.enqueue_event(event)
 
     got = s.dequeue_event(timeout=0.1)
@@ -70,16 +70,16 @@ def test_session_enqueue_event():
 
 
 def test_session_dequeue_timeout():
-    from app.airui.session import DashboardSession
+    from app.airui.session import ConsoleSession
 
-    s = DashboardSession("test")
+    s = ConsoleSession("test")
     assert s.dequeue_event(timeout=0.01) is None
 
 
 def test_session_dequeue_multiple():
-    from app.airui.session import DashboardSession
+    from app.airui.session import ConsoleSession
 
-    s = DashboardSession("test")
+    s = ConsoleSession("test")
     s.enqueue_event({"i": 1})
     s.enqueue_event({"i": 2})
     s.enqueue_event({"i": 3})

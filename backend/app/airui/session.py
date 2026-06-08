@@ -1,4 +1,4 @@
-"""AIRUI Session 管理 —— 多 session 隔离的看板状态和事件队列。"""
+"""AIRUI Session 管理 —— 多 session 隔离的控制台状态和事件队列。"""
 from __future__ import annotations
 
 import asyncio
@@ -8,8 +8,8 @@ from typing import Any
 from fastapi import WebSocket
 
 
-class DashboardSession:
-    """单个看板 session 的状态管理。"""
+class ConsoleSession:
+    """单个 AIRUI 控制台 session 的状态管理。"""
 
     def __init__(self, session_id: str):
         self.session_id = session_id
@@ -62,19 +62,19 @@ class DashboardSession:
 
 
 class SessionManager:
-    """管理所有 dashboard session。"""
+    """管理所有 AIRUI 控制台 session。"""
 
     def __init__(self):
-        self._sessions: dict[str, DashboardSession] = {}
+        self._sessions: dict[str, ConsoleSession] = {}
         self._lock = threading.Lock()
 
-    def get_or_create(self, session_id: str) -> DashboardSession:
+    def get_or_create(self, session_id: str) -> ConsoleSession:
         with self._lock:
             if session_id not in self._sessions:
-                self._sessions[session_id] = DashboardSession(session_id)
+                self._sessions[session_id] = ConsoleSession(session_id)
             return self._sessions[session_id]
 
-    def get(self, session_id: str) -> DashboardSession | None:
+    def get(self, session_id: str) -> ConsoleSession | None:
         return self._sessions.get(session_id)
 
     def delete(self, session_id: str) -> None:

@@ -2,6 +2,8 @@ import { type FC, type CSSProperties } from "react";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore, registerComponent } from "@air-ui/renderer-react";
+import type { ProviderInstance } from "./store";
+import { providerPresets } from "./providerPresets";
 
 // ── gap / align helpers（与包内 layout.tsx 对齐）──────────────────────
 
@@ -736,6 +738,131 @@ const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
   );
 };
 
+// LlmProviderPanel: 预设一键回填 + 已保存 provider 列表（切换/删除/保存为 provider）
+// 直接读写 draft.model / draft.providers / draft.active_provider_id，与 McpServers 风格一致
+const actBtnStyle: CSSProperties = { flexShrink: 0, height: 28, padding: "0 10px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
+const providerRowActive: CSSProperties = { display: "flex", gap: 6, alignItems: "center", border: "1px solid var(--color-primary)", borderRadius: 8, padding: "6px 10px", background: "var(--color-surface-muted)" };
+const providerRowIdle: CSSProperties = { display: "flex", gap: 6, alignItems: "center", border: "1px solid var(--color-border)", borderRadius: 8, padding: "6px 10px", background: "var(--color-surface)" };
+
+const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const draft = (state.draft ?? {}) as Record<string, unknown>;
+  const model = (draft.model ?? {}) as Record<string, unknown>;
+  const providers = (Array.isArray(draft.providers) ? draft.providers : []) as ProviderInstance[];
+  const activeId = (draft.active_provider_id as string | null) ?? null;
+  const txt = (k: string) => t[k] ?? k;
+
+  const patchDraft = (delta: Record<string, unknown>) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, "draft", { ...draft, ...delta }) });
+  };
+
+  const applyPreset = (key: string) => {
+    const preset = providerPresets.find((p) => p.key === key);
+    if (!preset) return;
+    patchDraft({
+      model: {
+        ...model,
+        display_name: preset.name,
+        provider: preset.provider,
+        base_url: preset.base_url,
+        name: preset.defaultModel,
+        max_output_tokens: preset.maxOutputTokens,
+      },
+    });
+  };
+
+  const saveAsProvider = () => {
+    const id = `p-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`;
+    const inst: ProviderInstance = {
+      id,
+      name: String(model.display_name || ""),
+      provider: String(model.provider || "openai"),
+      base_url: String(model.base_url || ""),
+      api_key: String(model.api_key || ""),
+      model_name: String(model.name || ""),
+      max_output_tokens: Number(model.max_output_tokens || 4096),
+    };
+    patchDraft({ providers: [...providers, inst], active_provider_id: id });
+  };
+
+  const activate = (id: string) => {
+    const inst = providers.find((p) => p.id === id);
+    if (!inst) return;
+    patchDraft({
+      active_provider_id: id,
+      model: {
+        ...model,
+        display_name: inst.name,
+        provider: inst.provider,
+        name: inst.model_name,
+        base_url: inst.base_url,
+        api_key: inst.api_key,
+        max_output_tokens: inst.max_output_tokens,
+      },
+    });
+  };
+
+  const remove = (id: string) => {
+    const next = providers.filter((p) => p.id !== id);
+    if (id === activeId && next.length > 0) {
+      const first = next[0];
+      patchDraft({
+        providers: next,
+        active_provider_id: first.id,
+        model: {
+          ...model,
+          display_name: first.name,
+          provider: first.provider,
+          name: first.model_name,
+          base_url: first.base_url,
+          api_key: first.api_key,
+          max_output_tokens: first.max_output_tokens,
+        },
+      });
+    } else {
+      patchDraft({ providers: next, active_provider_id: id === activeId ? null : activeId });
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <label style={fieldLabelStyle}>
+        {txt("providerPresets")}
+        <select defaultValue="" onChange={(e) => { const v = e.target.value; if (v) applyPreset(v); e.target.value = ""; }} style={fieldStyle}>
+          <option value="">{txt("providerPresetsHint")}</option>
+          {providerPresets.map((p) => <option key={p.key} value={p.key}>{p.name}</option>)}
+        </select>
+      </label>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("savedProviders")}</div>
+        {providers.length === 0 ? (
+          <div style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("noSavedProviders")}</div>
+        ) : providers.map((p) => {
+          const active = p.id === activeId;
+          return (
+            <div key={p.id} style={active ? providerRowActive : providerRowIdle}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {p.name || p.model_name || "(unnamed)"}{" "}
+                  {active && <span style={{ fontSize: 10, color: "var(--color-primary)" }}>[{txt("currentProvider")}]</span>}
+                </span>
+                <span style={{ fontSize: 10, color: "var(--color-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.model_name} · {p.base_url}</span>
+              </div>
+              {!active && <button onClick={() => activate(p.id)} style={actBtnStyle}>{txt("activateProvider")}</button>}
+              <button onClick={() => remove(p.id)} style={delBtnStyle}>×</button>
+            </div>
+          );
+        })}
+        <button onClick={saveAsProvider} style={addBtnStyle}>+ {txt("saveAsProvider")}</button>
+      </div>
+    </div>
+  );
+};
+
 let registered = false;
 /** 注册 console 专用自定义组件（幂等）�?*/
 export function registerConsoleComponents() {
@@ -752,4 +879,5 @@ export function registerConsoleComponents() {
   registerComponent("SettingCard", SettingCard);
   registerComponent("ListEditor", ListEditor);
   registerComponent("McpServers", McpServers);
+  registerComponent("LlmProviderPanel", LlmProviderPanel);
 }

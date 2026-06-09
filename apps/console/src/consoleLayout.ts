@@ -23,7 +23,9 @@ export const consoleLayout: AirUIDocument = {
     saveLabel: "",
     draft: {
       ui: { theme: "light", language: "zh-CN" },
-      model: { provider: "", name: "", base_url: "", api_key: "", max_output_tokens: 4096 },
+      model: { provider: "", name: "", base_url: "", api_key: "", max_output_tokens: 4096, display_name: "" },
+      providers: [],
+      active_provider_id: null as string | null,
       runtime: { max_iterations: 12, context_window_tokens: 65536 },
     },
     artifacts: [],
@@ -133,6 +135,8 @@ export const consoleLayout: AirUIDocument = {
                     type: "SettingCard",
                     props: { title: "{state.t.llm}", desc: "{state.t.settingsLlmDesc}" },
                     children: [
+                      { type: "LlmProviderPanel" },
+                      { type: "Setting", props: { path: "model.display_name", kind: "text", label: "{state.t.displayName}" } },
                       { type: "Setting", props: { path: "model.provider", kind: "text", label: "{state.t.provider}" } },
                       { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
                       { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },

@@ -39,6 +39,19 @@ export interface McpServerConfig {
   headers?: Record<string, string>;
 }
 
+/** 已配置的 provider 实例（书签集合），id 唯一；active_provider_id 指向当前激活项 */
+export interface ProviderInstance {
+  id: string;
+  /** 显示名（列表展示用），与 model.display_name 双向同步 */
+  name: string;
+  provider: string;
+  base_url: string;
+  api_key: string;
+  /** 模型标识，与 model.name 双向同步 */
+  model_name: string;
+  max_output_tokens: number;
+}
+
 export interface AgentConfig {
   runtime: {
     max_iterations: number;
@@ -51,7 +64,13 @@ export interface AgentConfig {
     base_url: string;
     api_key: string;
     max_output_tokens: number;
+    /** 仅 UI 展示用，运行时不读 */
+    display_name: string;
   };
+  /** 已配置 provider 实例列表 */
+  providers: ProviderInstance[];
+  /** 当前激活的 provider 实例 id（null 表示未激活，走 model 字段） */
+  active_provider_id: string | null;
   ui: {
     theme: ThemeMode;
     language: LanguageCode;
@@ -89,7 +108,10 @@ export const defaultAgentConfig: AgentConfig = {
     base_url: "",
     api_key: "",
     max_output_tokens: 4096,
+    display_name: "",
   },
+  providers: [],
+  active_provider_id: null,
   ui: {
     theme: "light",
     language: "zh-CN",
@@ -177,6 +199,8 @@ export const useStore = create<AppState>((set, get) => ({
         ...config,
         runtime: { ...defaultAgentConfig.runtime, ...s.appConfig.runtime, ...config.runtime },
         model: { ...defaultAgentConfig.model, ...s.appConfig.model, ...config.model },
+        providers: config.providers ?? s.appConfig.providers ?? [],
+        active_provider_id: config.active_provider_id ?? s.appConfig.active_provider_id ?? null,
         ui: { ...defaultAgentConfig.ui, ...s.appConfig.ui, ...config.ui },
         skills: { ...defaultAgentConfig.skills, ...s.appConfig.skills, ...config.skills },
         mcp: { ...defaultAgentConfig.mcp, ...s.appConfig.mcp, ...config.mcp },

@@ -19,7 +19,14 @@ DEFAULT_AGENT_CONFIG: dict = {
         "base_url": "http://192.168.31.57:11232/v1",
         "api_key": "llama",
         "max_output_tokens": 4096,
+        # display_name 仅 UI 展示用，运行时不读；与 active provider 实例的 name 双向同步
+        "display_name": "",
     },
+    # providers: 已配置的 provider 实例（书签集合），每项结构：
+    #   {id, name(显示名), provider, base_url, api_key, model_name, max_output_tokens}
+    # active_provider_id 命中时，其实例字段同步到 model（运行时实际读取 model）
+    "providers": [],
+    "active_provider_id": None,
     "ui": {
         "theme": "light",
         "language": "zh-CN",
@@ -53,6 +60,44 @@ def _deep_merge(base: dict, override: dict) -> dict:
     return merged
 
 
+def _find_active_provider(cfg: dict) -> dict | None:
+    providers = cfg.get("providers") or []
+    active_id = cfg.get("active_provider_id")
+    if not active_id or not isinstance(providers, list):
+        return None
+    return next((p for p in providers if isinstance(p, dict) and p.get("id") == active_id), None)
+
+
+def _sync_active_to_model(cfg: dict) -> dict:
+    """active provider 实例 → model（运行时实际读 model，agent.py 零改动）。"""
+    prov = _find_active_provider(cfg)
+    if not prov:
+        return cfg
+    model = cfg.setdefault("model", {})
+    model["display_name"] = prov.get("name", model.get("display_name", ""))
+    model["provider"] = prov.get("provider", model.get("provider", "openai"))
+    model["name"] = prov.get("model_name", model.get("name", ""))
+    model["base_url"] = prov.get("base_url", model.get("base_url", ""))
+    model["api_key"] = prov.get("api_key", model.get("api_key", ""))
+    model["max_output_tokens"] = prov.get("max_output_tokens", model.get("max_output_tokens", 4096))
+    return cfg
+
+
+def _sync_model_to_active(cfg: dict) -> dict:
+    """model → active provider 实例（反向同步，保证书签集合反映最新编辑）。"""
+    prov = _find_active_provider(cfg)
+    if not prov:
+        return cfg
+    model = cfg.get("model", {})
+    prov["name"] = model.get("display_name", prov.get("name", ""))
+    prov["provider"] = model.get("provider", prov.get("provider", "openai"))
+    prov["model_name"] = model.get("name", prov.get("model_name", ""))
+    prov["base_url"] = model.get("base_url", prov.get("base_url", ""))
+    prov["api_key"] = model.get("api_key", prov.get("api_key", ""))
+    prov["max_output_tokens"] = model.get("max_output_tokens", prov.get("max_output_tokens", 4096))
+    return cfg
+
+
 def load_agent_config() -> dict:
     """Load project config, then apply environment-variable overrides."""
     loaded: dict = {}
@@ -63,6 +108,8 @@ def load_agent_config() -> dict:
             loaded = {}
 
     cfg = _deep_merge(DEFAULT_AGENT_CONFIG, loaded)
+    # 先用 active provider 回填 model，再让 env 覆盖（env 优先级最高）
+    _sync_active_to_model(cfg)
     model = cfg.setdefault("model", {})
     runtime = cfg.setdefault("runtime", {})
 
@@ -81,6 +128,8 @@ def load_agent_config() -> dict:
 def save_agent_config(config: dict) -> dict:
     """Persist project config. Environment variables may still override it at runtime."""
     merged = _deep_merge(DEFAULT_AGENT_CONFIG, config)
+    # model 是权威：把当前 model 字段反向写回 active provider 实例，保持书签集合一致
+    _sync_model_to_active(merged)
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_PATH.write_text(
         json.dumps(merged, ensure_ascii=False, indent=2) + "\n",

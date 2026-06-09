@@ -135,7 +135,7 @@ export const consoleLayout: AirUIDocument = {
                   },
                   {
                     type: "SettingCard",
-                    props: { title: "Runtime", desc: "{state.t.settingsRuntimeDesc}" },
+                    props: { title: "{state.t.runtime}", desc: "{state.t.settingsRuntimeDesc}" },
                     children: [
                       { type: "Setting", props: { path: "runtime.max_iterations", kind: "number", label: "{state.t.maxIterations}" } },
                       { type: "Setting", props: { path: "runtime.context_window_tokens", kind: "number", label: "{state.t.contextWindow}" } },

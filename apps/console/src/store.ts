@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { AirUIDocument, Component, Patch } from "@air-ui/core";
+import type { ProviderPreset } from "./providerPresets";
 import { applyPatches } from "@air-ui/core";
 
 export interface ToolStatus {
@@ -71,6 +72,8 @@ export interface AgentConfig {
   providers: ProviderInstance[];
   /** 当前激活的 provider 实例 id（null 表示未激活，走 model 字段） */
   active_provider_id: string | null;
+  /** 合并后的 provider 预设模板列表（后端 /api/config 返回，前端只读展示） */
+  provider_presets: ProviderPreset[];
   ui: {
     theme: ThemeMode;
     language: LanguageCode;
@@ -122,6 +125,7 @@ export const defaultAgentConfig: AgentConfig = {
   },
   providers: [],
   active_provider_id: null,
+  provider_presets: [],
   ui: {
     theme: "light",
     language: "zh-CN",
@@ -212,6 +216,7 @@ export const useStore = create<AppState>((set, get) => ({
         model: { ...defaultAgentConfig.model, ...s.appConfig.model, ...config.model },
         providers: config.providers ?? s.appConfig.providers ?? [],
         active_provider_id: config.active_provider_id ?? s.appConfig.active_provider_id ?? null,
+        provider_presets: config.provider_presets ?? s.appConfig.provider_presets ?? [],
         ui: { ...defaultAgentConfig.ui, ...s.appConfig.ui, ...config.ui },
         skills: { ...defaultAgentConfig.skills, ...s.appConfig.skills, ...config.skills },
         mcp: { ...defaultAgentConfig.mcp, ...s.appConfig.mcp, ...config.mcp },

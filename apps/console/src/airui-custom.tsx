@@ -2,8 +2,8 @@ import { type FC, type CSSProperties, useState, useEffect } from "react";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore, registerComponent } from "@air-ui/renderer-react";
-import type { ProviderInstance, MarketplaceSource } from "./store";
-import { providerPresets, colorForProvider } from "./providerPresets";
+import { useStore, type ProviderInstance, type MarketplaceSource } from "./store";
+import { colorForProvider } from "./providerPresets";
 
 // ── gap / align helpers（与包内 layout.tsx 对齐）──────────────────────
 
@@ -842,6 +842,9 @@ const initialOf = (name?: string) => {
 };
 
 const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const appConfig = useStore((s) => s.appConfig);
+  const setAppConfig = useStore((s) => s.setAppConfig);
+  const presets = appConfig.provider_presets ?? [];
   const doc = useAirUIStore((s) => s.doc);
   const setDoc = useAirUIStore((s) => s.setDoc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
@@ -858,7 +861,7 @@ const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<string, unkn
   };
 
   const applyPreset = (key: string) => {
-    const preset = providerPresets.find((p) => p.key === key);
+    const preset = presets.find((p) => p.key === key);
     if (!preset) return;
     patchDraft({
       model: {
@@ -927,16 +930,32 @@ const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<string, unkn
 
   const hoverBorder = (e: React.MouseEvent<HTMLElement>, color: string) => { e.currentTarget.style.borderColor = color; };
 
+  const restoreDefaultPresets = async () => {
+    const next = { ...appConfig, provider_presets: [] };
+    const res = await fetch("/api/config", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: next }),
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      setAppConfig(payload?.config ?? next);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* 预设网格 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("providerPresets")}</span>
-          <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("providerPresetsHint")}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("providerPresetsHint")}</span>
+            <button onClick={restoreDefaultPresets} style={{ fontSize: 11, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{txt("restoreDefault")}</button>
+          </span>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-          {providerPresets.map((p) => (
+          {presets.map((p) => (
             <button
               key={p.key}
               onClick={() => applyPreset(p.key)}

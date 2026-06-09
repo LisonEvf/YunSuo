@@ -101,6 +101,10 @@ export async function sendChat(text: string) {
           useStore.getState().updateLastMessage({ content: assistantContent, airui: evt.data, toolStatus: toolStatuses });
         }
 
+        if (evt.type === "config_changed" && evt.config) {
+          useStore.getState().setAppConfig(evt.config);
+        }
+
         if (evt.type === "done") {
           useStore.getState().addRunEvent({ label: "Final response", detail: "Assistant response completed.", state: "done" });
         }

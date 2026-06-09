@@ -1,6 +1,13 @@
 /**
  * 内置 LLM provider 预设模板（仅 OpenAI 兼容协议）。
- * 预设不含 api_key，仅作「一键回填表单」的起点；保存后才进入 providers 列表。
+ *
+ * 注意：本表是「内置默认值」。用户通过对话或设置页的改动存为后端 agent.json 的覆盖层；
+ * 前端设置页渲染的是后端 /api/config 返回的「合并后列表」（store.appConfig.provider_presets），
+ * 不再直接使用本表的 providerPresets。本表仅供：
+ *   ① 后端 provider_presets.py 的 Python 镜像作一致性参考
+ *   ② colorForProvider 品牌色匹配
+ *   ③ 「恢复默认」语义的权威来源
+ * 修改内置条目时，必须同步 apps/api/app/agent/provider_presets.py。
  */
 export interface ProviderPreset {
   key: string;

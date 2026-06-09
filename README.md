@@ -1,13 +1,16 @@
 # General Agent Console
 
-FastAPI + React + AIRUI 的通用 agent 客户端。项目现在采用 monorepo 结构，目标是提供一个可扩展的 agent 操作台：聊天、流式运行事件、技能选择、记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
+FastAPI + React + AIRUI 的通用 agent 客户端。项目采用 monorepo 结构，提供一个可扩展的 agent 操作台：聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
 
 ## 当前能力
 
-- 后端提供通用 agent 接口：`/api/chat`、`/api/config`、`/api/skills`、`/api/memory`、`/api/trajectories/summary`。
-- 前端是 React + Vite + Zustand 控制台，首屏采用 Operations Console v1：左侧聊天，中间运行时间线与 AIRUI artifacts，右侧 Inspector。
-- AIRUI WebSocket 保留为通用产物面：`/ws/airui?session=default`。
-- 记忆、技能、轨迹、后台复盘保留，并已从股票市场语义改为通用协作语义。
+- 通用 agent 接口：`/api/chat`（支持 SSE 流式）、`/api/config`、`/api/skills`、`/api/memory`、`/api/usage`、`/api/trajectories/summary`。
+- MCP 工具集成：`/api/mcp/status`、`/api/mcp/reconnect`，支持 stdio / HTTP / SSE 三种 transport，发现的工具以 `mcp_<server>_<tool>` 注入 agent 工具表。
+- 插件市场（发现层）：`/api/plugins`、`/api/plugins/marketplace`、`/api/plugins/install`，支持 git clone 安装/卸载。
+- LLM provider 预设与多实例切换：内置常用预设，可保存多个 provider 实例一键激活（仅 OpenAI 兼容协议）。
+- 前端是 React 19 + Vite + Zustand 控制台：左侧聊天，主区 AIRUI 文档渲染（运行时间线、artifacts、skills/memory/trajectory inspector），底部状态栏。
+- AIRUI WebSocket 通用产物面：`/ws/airui?session=default`，agent 调 `render_airui_panel` 推送持久产物，SSE 内联事件推送一次性产物。
+- 会话记忆（SQLite + 关键词召回）、技能路由（关键词打分）、轨迹记录（JSONL）、后台复盘候选记录。
 - `external/openkpl/` 与 `external/opentdx/` 作为历史/外部 SDK 子模块保留，当前主运行路径不再导入它们。
 
 ## Monorepo 结构
@@ -18,9 +21,8 @@ FastAPI + React + AIRUI 的通用 agent 客户端。项目现在采用 monorepo 
 - `packages/airui/`：AIRUI 子模块，包含 `packages/core` 与 `packages/renderer-react`。
 - `packages/agent-skills/`：通用 agent skills，例如 task planning、debugging、code review、artifact design、writing、research synthesis。
 - `external/`：历史/外部 SDK 子模块。
-- `archive/`：旧 Vue 前端和历史 HTML 模板。
 - `data/`：SQLite 记忆数据与运行轨迹。
-- `docs/`：设计记录、执行计划、评估报告。
+- `docs/`：设计记录与参考文档。
 
 ## 本地开发
 
@@ -69,12 +71,6 @@ bun run dev
 bun run build:console
 ```
 
-Docker：
-
-```bash
-docker compose up --build
-```
-
 ## Agent / LLM 配置
 
 运行时代码默认读取环境变量与 `apps/api/config/agent.json`：
@@ -85,7 +81,7 @@ docker compose up --build
 - `LLM_MAX_TOKENS`
 - `CONTEXT_WINDOW_TOKENS`
 
-也可以通过 `/api/config` 读取或更新 agent 配置；更新后后端会重置单例 agent，使下一次请求使用最新配置。
+也可以通过 `/api/config` 读取或更新 agent 配置；更新后后端会重置单例 agent，使下一次请求使用最新配置。环境变量优先级最高，会覆盖文件配置。
 
 ## 测试
 
@@ -95,14 +91,23 @@ docker compose up --build
 bun run test:api
 ```
 
-前端：
+前端类型检查（dev 模式 vite 不做类型检查，改完需手动跑）：
 
 ```bash
-bun run build:console
+cd apps/console && bun run build
 ```
+
+## 文档
+
+- [docs/general-agent-console-design.md](docs/general-agent-console-design.md) — 通用 agent console 重构目标与范围
+- [docs/2026-06-09-airui-usage.md](docs/2026-06-09-airui-usage.md) — AIRUI 中间表示、组件清单、事件与增量更新、React 渲染 API、console 集成
+- [docs/2026-06-09-theme-system.md](docs/2026-06-09-theme-system.md) — 主题架构、内置主题、自定义风格重载
+- [docs/hermes-agent-self-evolution.md](docs/hermes-agent-self-evolution.md) — 外部参考（agent 自演进，后端多处设计借鉴来源）
+- [PROJECT_REPORT.md](PROJECT_REPORT.md) — 完整项目分析报告（架构、数据流、模块职责、改进建议）
 
 ## 注意事项
 
 - `packages/airui/` 是子模块；首次 checkout 后需要确保子模块已初始化。
 - 默认 AIRUI session 是 `default`；新建非 `default` session 只会收到 session id。
-- 股票市场 REST API 与运行时工具已从主应用路径拆除；历史 SDK 保留在 `external/`，历史界面保留在 `archive/`。
+- 股票市场 REST API 与运行时工具已从主应用路径拆除；历史 SDK 保留在 `external/`。
+- `apps/api/config/agent.json` 是运行时实际读取的配置；项目根的 `config/agent.json` 为历史残留，不被后端使用。

@@ -5,6 +5,6 @@
 **/.mypy_cache
 **/.ruff_cache
 **/node_modules
-frontend/dist
-frontend/.vite
+apps/console/dist
+apps/console/.vite
 .DS_Store

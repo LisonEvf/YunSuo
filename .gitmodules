@@ -1,9 +1,3 @@
-[submodule "opentdx"]
-	path = opentdx
-	url = https://github.com/LisonEvf/opentdx.git
-[submodule "openkpl"]
-	path = openkpl
-	url = https://github.com/LisonEvf/openkpl.git
 [submodule "AIRUI"]
-	path = AIRUI
-	url = .\\AIRUI\\
+	path = packages/airui
+	url = https://github.com/LisonEvf/AIRUI

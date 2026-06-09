@@ -2,14 +2,18 @@
   "name": "sentiment",
   "private": true,
   "workspaces": [
-    "frontend",
-    "AIRUI/packages/core",
-    "AIRUI/packages/renderer-react"
+    "apps/console",
+    "packages/airui/packages/core",
+    "packages/airui/packages/renderer-react"
   ],
   "scripts": {
-    "dev": "concurrently -n backend,frontend -c blue,green \"bun run dev:backend\" \"bun run dev:frontend\"",
-    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
-    "dev:frontend": "cd frontend && bun run dev"
+    "dev": "concurrently -n api,console -c blue,green \"bun run dev:api\" \"bun run dev:console\"",
+    "dev:api": "python -m uvicorn app.main:app --reload --app-dir apps/api --host 0.0.0.0 --port 8000",
+    "dev:backend": "bun run dev:api",
+    "dev:console": "cd apps/console && bun run dev",
+    "dev:frontend": "bun run dev:console",
+    "build:console": "cd apps/console && bun run build",
+    "test:api": "cd apps/api && python -m pytest tests -q"
   },
   "devDependencies": {
     "concurrently": "^10.0.3"

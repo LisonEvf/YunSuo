@@ -302,6 +302,26 @@ def shutdown_all() -> None:
             pass
 
 
+def status() -> list[dict]:
+    """返回已连接 server 的工具清单：[{name, connected, tools: [{name, description}]}]。
+
+    供 /api/mcp/status 暴露给前端做"能力感知"——只回报实际连上并发现工具的 server。
+    """
+    with _registry_lock:
+        items = list(_servers.items())
+    out: list[dict] = []
+    for name, server in items:
+        tools = [
+            {
+                "name": getattr(t, "name", ""),
+                "description": getattr(t, "description", "") or "",
+            }
+            for t in server.tools
+        ]
+        out.append({"name": name, "connected": server.session is not None, "tools": tools})
+    return out
+
+
 def _convert_schema(server_name: str, mcp_tool: Any) -> tuple[dict, str]:
     """MCP tool → OpenAI function definition，工具名加 server 前缀防冲突。"""
     raw_name = getattr(mcp_tool, "name", "") or ""

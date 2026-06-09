@@ -63,7 +63,13 @@ function closeSettings() {
 }
 
 function backHome() {
-  patchConsole({ homePinned: true, artifacts: [] });
+  patchConsole({ homePinned: true, artifacts: [], wikiOpen: false, wikiCategory: "" });
+}
+
+function toggleWiki() {
+  const doc = useAirUIStore.getState().doc;
+  const open = ((doc?.state as Record<string, unknown> | undefined)?.wikiOpen as boolean) ?? false;
+  patchConsole({ wikiOpen: !open, wikiCategory: "" });
 }
 
 async function saveSettings() {
@@ -174,17 +180,21 @@ export default function ConsoleView() {
     let cancelled = false;
     async function loadInspector() {
       try {
-        const [skillsRes, memoryRes, trajectoriesRes, configRes] = await Promise.all([
+        const [skillsRes, memoryRes, trajectoriesRes, configRes, mcpRes, pluginsRes] = await Promise.all([
           fetch("/api/skills"),
           fetch("/api/memory/stats"),
           fetch("/api/trajectories/summary"),
           fetch("/api/config"),
+          fetch("/api/mcp/status"),
+          fetch("/api/plugins"),
         ]);
-        const [skills, memory, trajectories, config] = await Promise.all([
+        const [skills, memory, trajectories, config, mcpStatus, pluginsData] = await Promise.all([
           skillsRes.json(),
           memoryRes.json(),
           trajectoriesRes.json(),
           configRes.json(),
+          mcpRes.json(),
+          pluginsRes.json(),
         ]);
         if (cancelled) return;
         const loaded = config?.config || defaultAgentConfig;
@@ -196,6 +206,8 @@ export default function ConsoleView() {
             op: "update-state",
             stateDelta: {
               skills: skills.skills || [],
+              mcpServers: mcpStatus.servers || [],
+              plugins: pluginsData.plugins || [],
               runtime: {
                 modelText: loaded?.model?.name || t(lang, "notLoaded"),
                 memoryText: `${memory.total || 0} ${t(lang, "entries")}`,
@@ -217,6 +229,7 @@ export default function ConsoleView() {
 
   const handleInteraction = useCallback((widgetRef: string, interaction: string, payload: Record<string, unknown>) => {
     if (widgetRef === "console:home" && interaction === "click") backHome();
+    else if (widgetRef === "console:wiki" && interaction === "click") toggleWiki();
     else if (widgetRef === "console:settings" && interaction === "click") openSettings();
     else if (widgetRef === "console:cancel" && interaction === "click") closeSettings();
     else if (widgetRef === "console:save" && interaction === "click") void saveSettings();

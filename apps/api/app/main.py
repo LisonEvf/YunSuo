@@ -89,6 +89,22 @@ def update_config(req: ConfigRequest):
     return {"ok": True, "config": config}
 
 
+@app.get("/api/mcp/status")
+def mcp_status():
+    """实际连上的 MCP server + 发现的工具清单（能力感知）。"""
+    from .agent.mcp_client import status as _status
+
+    return {"servers": _status()}
+
+
+@app.get("/api/plugins")
+def plugins_list():
+    """扫描 plugins.search_paths 发现的 plugin 目录（发现层，不执行）。"""
+    from .agent.config import list_plugins
+
+    return {"plugins": list_plugins()}
+
+
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):
     async for event in agent.chat_stream(messages, skills=skills):
         yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"

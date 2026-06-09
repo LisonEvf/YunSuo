@@ -256,12 +256,199 @@ const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
   );
 };
 
+// ── 能力感知首页 / AIRUI Wiki ────────────────────────────────────────
+const capCardStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 12, background: "var(--color-surface)", padding: 14, display: "flex", flexDirection: "column", gap: 6 };
+const capLabelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 };
+const capRowStyle: CSSProperties = { display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 0", borderBottom: "1px solid var(--color-border)", fontSize: 12 };
+const capNameStyle: CSSProperties = { fontWeight: 600, color: "var(--color-text)" };
+const capDescStyle: CSSProperties = { color: "var(--color-muted)", fontSize: 11, textAlign: "right" as const };
+
+// CapabilityHome：根据 skills/mcp/plugins 实际加载状态展示能力清单；全无则引导去设置
+const CapabilityHome: FC = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string>) || {};
+  const skills = (state.skills as Array<{ name?: string; description?: string }>) ?? [];
+  const mcpServers = (state.mcpServers as Array<{ name?: string; connected?: boolean; tools?: Array<{ name?: string; description?: string }> }>) ?? [];
+  const plugins = (state.plugins as Array<{ name?: string; path?: string }>) ?? [];
+  const hasAny = skills.length > 0 || mcpServers.length > 0 || plugins.length > 0;
+
+  if (!hasAny) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", padding: "56px 24px", textAlign: "center" }}>
+        <div style={{ fontSize: 40 }}>🧩</div>
+        <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.noCapabilityTitle}", style: "title" } }} />
+        <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.noCapabilityDesc}", style: "body" } }} />
+        <AirUIComponent comp={{ type: "Button", ref: "console:settings", props: { label: "{state.t.openSettings}", variant: "primary" } }} />
+      </div>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.capabilityTitle}", style: "title" } }} />
+      {skills.length > 0 && (
+        <div style={capCardStyle}>
+          <div style={capLabelStyle}>{t.skills}</div>
+          {skills.map((s, i) => (
+            <div key={i} style={capRowStyle}>
+              <span style={capNameStyle}>{s.name}</span>
+              <span style={capDescStyle}>{s.description}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {mcpServers.length > 0 && (
+        <div style={capCardStyle}>
+          <div style={capLabelStyle}>{t.mcp}</div>
+          {mcpServers.map((srv, i) => (
+            <div key={i} style={{ borderBottom: "1px solid var(--color-border)", padding: "6px 0" }}>
+              <div style={capRowStyle}>
+                <span style={capNameStyle}>{srv.name}</span>
+                <span style={capDescStyle}>{srv.connected ? `connected · ${(srv.tools || []).length} tools` : "disconnected"}</span>
+              </div>
+              {(srv.tools || []).map((tool, j) => (
+                <div key={j} style={{ ...capRowStyle, borderBottom: "none", paddingLeft: 16 }}>
+                  <span style={{ ...capNameStyle, fontWeight: 400 }}>↳ {tool.name}</span>
+                  <span style={capDescStyle}>{tool.description}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+      {plugins.length > 0 && (
+        <div style={capCardStyle}>
+          <div style={capLabelStyle}>{t.plugins}</div>
+          {plugins.map((p, i) => (
+            <div key={i} style={capRowStyle}>
+              <span style={capNameStyle}>{p.name}</span>
+              <span style={capDescStyle}>{p.path}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// WikiHome：AIRUI 组件能力展示。顶层分类卡片，点击展开该类组件 demo
+interface WikiEntry { name: string; demo: Component }
+interface WikiCategory { key: string; labelKey: string; components: WikiEntry[] }
+
+const WIKI_CATEGORIES: WikiCategory[] = [
+  {
+    key: "data", labelKey: "wikiCatData",
+    components: [
+      { name: "Table", demo: { type: "Table", props: { columns: [{ key: "name", label: "名称" }, { key: "age", label: "年龄" }], data: [{ name: "张三", age: 28 }, { name: "李四", age: 34 }] } } },
+      { name: "KPI", demo: { type: "KPI", props: { label: "活跃用户", value: "12,345" } } },
+      { name: "Chart", demo: { type: "Chart", props: { type: "bar", data: { labels: ["周一", "周二", "周三", "周四"], values: [3, 5, 2, 7] } } } },
+      { name: "Progress", demo: { type: "Progress", props: { value: 65 } } },
+      { name: "Badge", demo: { type: "Badge", props: { text: "New" } } },
+    ],
+  },
+  {
+    key: "form", labelKey: "wikiCatForm",
+    components: [
+      { name: "Input", demo: { type: "Input", props: { placeholder: "输入文本" } } },
+      { name: "Select", demo: { type: "Select", props: { options: [{ value: "a", label: "选项 A" }, { value: "b", label: "选项 B" }] } } },
+      { name: "Switch", demo: { type: "Switch", props: { checked: true } } },
+      { name: "Slider", demo: { type: "Slider", props: { value: 40, min: 0, max: 100 } } },
+      { name: "Checkbox", demo: { type: "Checkbox", props: { checked: true, label: "同意条款" } } },
+    ],
+  },
+  {
+    key: "layout", labelKey: "wikiCatLayout",
+    components: [
+      { name: "Tabs", demo: { type: "Tabs", props: { tabs: [{ label: "Tab 1" }, { label: "Tab 2" }, { label: "Tab 3" }] } } },
+      { name: "Card", demo: { type: "Widget", props: { title: "卡片标题" }, children: [{ type: "Text", props: { value: "卡片内容" } }] } },
+      { name: "Accordion", demo: { type: "Accordion", props: { items: [{ title: "第一项", content: "内容 1" }, { title: "第二项", content: "内容 2" }] } } },
+      { name: "Divider", demo: { type: "Divider" } },
+    ],
+  },
+  {
+    key: "feedback", labelKey: "wikiCatFeedback",
+    components: [
+      { name: "Alert", demo: { type: "Alert", props: { variant: "info", text: "这是一条提示信息" } } },
+      { name: "Progress", demo: { type: "Progress", props: { value: 30 } } },
+      { name: "Tooltip", demo: { type: "Tooltip", props: { text: "提示文字" } } },
+      { name: "Loading", demo: { type: "Loading" } },
+    ],
+  },
+  {
+    key: "content", labelKey: "wikiCatContent",
+    components: [
+      { name: "Markdown", demo: { type: "Markdown", props: { content: "# 标题\n\n**粗体** 与 *斜体*\n\n- 列表项一\n- 列表项二" } } },
+      { name: "CodeBlock", demo: { type: "CodeBlock", props: { code: "const sum = (a, b) => a + b;", language: "ts" } } },
+      { name: "Text", demo: { type: "Text", props: { value: "普通正文文本（style: body）", style: "body" } } },
+      { name: "Image", demo: { type: "Image", props: { src: "https://placehold.co/240x80", alt: "demo" } } },
+    ],
+  },
+  {
+    key: "nav", labelKey: "wikiCatNav",
+    components: [
+      { name: "Steps", demo: { type: "Steps", props: { current: 1, steps: [{ title: "第一步" }, { title: "第二步" }, { title: "第三步" }] } } },
+      { name: "Breadcrumb", demo: { type: "Breadcrumb", props: { items: [{ label: "首页" }, { label: "分类" }, { label: "当前" }] } } },
+      { name: "Pagination", demo: { type: "Pagination", props: { total: 50, current: 1 } } },
+      { name: "Timeline", demo: { type: "Timeline", props: { items: [{ title: "事件 A", time: "09:00" }, { title: "事件 B", time: "10:30" }] } } },
+    ],
+  },
+];
+
+const WikiHome: FC = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string>) || {};
+  const category = (state.wikiCategory as string) || "";
+
+  const setCategory = (c: string) => {
+    const st = useAirUIStore.getState();
+    if (st.doc) st.applyPatch([{ op: "update-state", stateDelta: { wikiCategory: c } }]);
+  };
+
+  if (!category) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.wikiTitle}", style: "title" } }} />
+        <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.wikiSubtitle}", style: "caption" } }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+          {WIKI_CATEGORIES.map((cat) => (
+            <div key={cat.key} onClick={() => setCategory(cat.key)} style={{ border: "1px solid var(--color-border)", borderRadius: 12, padding: 16, background: "var(--color-surface)", cursor: "pointer" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text)" }}>{t[cat.labelKey] || cat.key}</div>
+              <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>{cat.components.length} 个组件</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  const cat = WIKI_CATEGORIES.find((c) => c.key === category);
+  if (!cat) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button onClick={() => setCategory("")} style={addBtnStyle}>← {t.wikiBack}</button>
+        <AirUIComponent comp={{ type: "Text", props: { value: `{state.t.${cat.labelKey}}`, style: "title" } }} />
+      </div>
+      {cat.components.map((comp, i) => (
+        <div key={i} style={capCardStyle}>
+          <div style={capLabelStyle}>{comp.name}</div>
+          <AirUIComponent comp={comp.demo} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
-  const artifacts = ((doc?.state?.artifacts as ArtifactPanel[]) ?? []);
-  const homePinned = (doc?.state?.homePinned as boolean) ?? false;
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  if (state.wikiOpen === true) {
+    return <WikiHome />;
+  }
+  const artifacts = ((state.artifacts as ArtifactPanel[]) ?? []);
+  const homePinned = state.homePinned === true;
   if (!artifacts.length || homePinned) {
-    return <AirUIComponent comp={homeLayout} />;
+    return <CapabilityHome />;
   }
   return (
     <div style={{ display: "grid", gap: 12 }}>

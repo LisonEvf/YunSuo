@@ -107,3 +107,28 @@ def reload_config() -> dict:
 
 
 AGENT_CONFIG = reload_config()
+
+
+def list_plugins() -> list[dict]:
+    """扫描 plugins.search_paths 下的直接子目录，返回 plugin 清单（发现层，不执行）。
+
+    执行系统未实现，此处仅列出目录占位供前端能力感知。结构未定，按目录名识别。
+    """
+    project_root = Path(__file__).resolve().parents[4]
+    cfg = AGENT_CONFIG.get("plugins", {}) or {}
+    paths = cfg.get("search_paths") or []
+    plugins: list[dict] = []
+    for p in paths:
+        sp = Path(p)
+        base = sp if sp.is_absolute() else project_root / sp
+        if not base.is_dir():
+            continue
+        for child in sorted(base.iterdir()):
+            if not child.is_dir() or child.name.startswith("."):
+                continue
+            try:
+                rel = str(child.relative_to(project_root))
+            except ValueError:
+                rel = str(child)
+            plugins.append({"name": child.name, "path": rel})
+    return plugins

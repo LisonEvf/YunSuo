@@ -46,6 +46,9 @@ DEFAULT_AGENT_CONFIG: dict = {
         "enabled": True,
         # search_paths: plugin 目录列表（发现层，执行系统待实现）
         "search_paths": [],
+        # marketplaces: 用户配置的插件市场源，每项 {id, name, url, enabled}
+        # url 指向返回 {name, plugins:[{name, description, author, version, category, source, iconColor}]} 的 JSON
+        "marketplaces": [],
     },
 }
 

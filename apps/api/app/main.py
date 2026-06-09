@@ -97,12 +97,59 @@ def mcp_status():
     return {"servers": _status()}
 
 
+@app.post("/api/mcp/reconnect")
+def mcp_reconnect():
+    """重连所有已保存的 enabled MCP server（用当前 config，非 draft 草稿）。
+
+    重建 agent 触发 _load_tools → mcp_client.load_all，使新配置/断线 server 立即生效；
+    返回最新连接状态。LLM 未配置等导致 agent 重建失败时不阻断，仍返回当前 status。
+    """
+    from .agent import reset_agent, get_agent
+    from .agent.mcp_client import status as _status
+
+    reset_agent()
+    try:
+        get_agent()
+    except Exception as exc:
+        logging.warning("mcp reconnect: agent rebuild failed: %s", exc)
+    return {"servers": _status()}
+
+
 @app.get("/api/plugins")
 def plugins_list():
     """扫描 plugins.search_paths 发现的 plugin 目录（发现层，不执行）。"""
     from .agent.config import list_plugins
 
     return {"plugins": list_plugins()}
+
+
+class PluginInstallRequest(BaseModel):
+    source: str
+    name: str
+
+
+@app.get("/api/plugins/marketplace")
+def plugins_marketplace():
+    """合并所有 enabled marketplace 源的插件清单，标注每项安装状态。"""
+    from .agent.plugins import fetch_marketplaces
+
+    return fetch_marketplaces()
+
+
+@app.post("/api/plugins/install")
+def plugins_install(req: PluginInstallRequest):
+    """git clone source 到 plugins.search_paths[0]/{name}（浅克隆，120s 超时）。"""
+    from .agent.plugins import install
+
+    return install(req.source, req.name)
+
+
+@app.delete("/api/plugins/{name}")
+def plugins_uninstall(name: str):
+    """从所有 search_paths 删除已安装插件目录 {name}。"""
+    from .agent.plugins import uninstall
+
+    return uninstall(name)
 
 
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):

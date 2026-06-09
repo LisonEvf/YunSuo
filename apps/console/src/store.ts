@@ -86,7 +86,17 @@ export interface AgentConfig {
   plugins: {
     enabled: boolean;
     search_paths: string[];
+    /** 用户配置的 marketplace 源清单 */
+    marketplaces: MarketplaceSource[];
   };
+}
+
+/** marketplace 源：返回 {name, plugins:[...]} 的 JSON URL */
+export interface MarketplaceSource {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
 }
 
 export interface ChatMessage {
@@ -127,6 +137,7 @@ export const defaultAgentConfig: AgentConfig = {
   plugins: {
     enabled: true,
     search_paths: [],
+    marketplaces: [],
   },
 };
 

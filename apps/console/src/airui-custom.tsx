@@ -1,8 +1,8 @@
-import { type FC, type CSSProperties } from "react";
+import { type FC, type CSSProperties, useState, useEffect } from "react";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore, registerComponent } from "@air-ui/renderer-react";
-import type { ProviderInstance } from "./store";
+import type { ProviderInstance, MarketplaceSource } from "./store";
 import { providerPresets, colorForProvider } from "./providerPresets";
 
 // ── gap / align helpers（与包内 layout.tsx 对齐）──────────────────────
@@ -630,6 +630,10 @@ const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
   const raw = doc ? getByPath(doc.state, path) : [];
   const items: string[] = Array.isArray(raw) ? raw.map((x) => String(x)) : [];
   const placeholder = (resolvedProps.placeholder as string) || "";
+  const quickPaths = (resolvedProps.quickPaths as string[] | undefined) ?? [];
+  const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+  const quickChipStyle = (used: boolean): CSSProperties => ({ height: 26, padding: "0 10px", borderRadius: 8, border: `1px solid ${used ? "var(--color-border)" : "var(--color-border-strong)"}`, background: "transparent", color: used ? "var(--color-muted)" : "var(--color-text)", cursor: used ? "default" : "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 });
 
   const update = (next: string[]) => {
     if (!doc) return;
@@ -650,17 +654,54 @@ const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
         </div>
       ))}
       <button onClick={() => update([...items, ""])} style={addBtnStyle}>+ 添加</button>
+      {quickPaths.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+          <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("quickPaths")}</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {quickPaths.map((p) => {
+              const used = items.includes(p);
+              return (
+                <button key={p} disabled={used} onClick={() => update([...items, p])} style={quickChipStyle(used)}>
+                  + {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 // McpServers: 编辑 draft.mcp.servers，每 server 一卡片（name/enabled/transport/命令或 url）
+// McpServers: 配置 + 运行时状态合并。读 draft.mcp.servers（配置）与 state.mcpServers
+// （/api/mcp/status 反馈），按 name 匹配，每个 server 卡片显示连接徽章 + 可展开工具清单 + 重连入口
+const mcpBadgeStyle = (connected: boolean): CSSProperties => ({ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: connected ? "var(--color-success)" : "var(--color-surface-muted)", color: connected ? "#fff" : "var(--color-muted)", border: connected ? "none" : "1px solid var(--color-border)" });
+const mcpExpandBtnStyle: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
+const mcpToolItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 1, padding: "6px 10px", borderRadius: 6, background: "var(--color-surface-muted)", fontSize: 11, border: "1px solid var(--color-border)" };
+
 const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
   const doc = useAirUIStore((s) => s.doc);
   const setDoc = useAirUIStore((s) => s.setDoc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
   const path = "draft.mcp.servers";
   const raw = doc ? getByPath(doc.state, path) : [];
   const servers: Array<Record<string, unknown>> = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+  const statusByName = new Map<string, { connected: boolean; tools: Array<{ name: string; description?: string }> }>();
+  for (const s of (Array.isArray(state.mcpServers) ? state.mcpServers : []) as Array<{ name?: string; connected?: boolean; tools?: Array<{ name: string; description?: string }> }>) {
+    if (s.name) statusByName.set(s.name, { connected: Boolean(s.connected), tools: s.tools || [] });
+  }
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [reconnecting, setReconnecting] = useState(false);
+  const [error, setError] = useState("");
+
+  const toggleExpand = (i: number) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
 
   const update = (next: Array<Record<string, unknown>>) => {
     if (!doc) return;
@@ -669,13 +710,44 @@ const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
   const patch = (i: number, delta: Record<string, unknown>) =>
     update(servers.map((s, j) => (j === i ? { ...s, ...delta } : s)));
 
+  // 重连：用已保存的 config 重新连接所有 enabled server（改配置需先点底部"保存"）
+  const reconnect = async () => {
+    setReconnecting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/mcp/reconnect", { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (doc) setDoc({ ...doc, state: setByPath(doc.state, "mcpServers", data.servers || []) });
+    } catch {
+      setError(txt("reconnectFailed"));
+    } finally {
+      setReconnecting(false);
+    }
+  };
+
+  const enabledCount = servers.filter((s) => s.enabled !== false).length;
+  const connectedCount = servers.filter((s) => s.enabled !== false && statusByName.get(String(s.name || ""))?.connected).length;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{connectedCount}/{enabledCount} {txt("connected")}</span>
+        <button onClick={reconnect} disabled={reconnecting} style={{ ...activateBtnStyle, opacity: reconnecting ? 0.6 : 1 }}>
+          {reconnecting ? txt("reconnecting") : txt("reconnect")}
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 11, color: "var(--color-danger)" }}>{error}</div>}
       {servers.map((srv, i) => {
         const isStdio = Boolean(srv.command);
         const mode = isStdio ? "stdio" : ((srv.transport as string) || "http");
+        const enabled = srv.enabled !== false;
+        const st = enabled ? statusByName.get(String(srv.name || "")) : undefined;
+        const connected = Boolean(st?.connected);
+        const tools = st?.tools || [];
+        const isOpen = expanded.has(i);
         return (
-          <div key={i} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
+          <div key={i} style={{ border: `1px solid ${connected ? "var(--color-success)" : "var(--color-border)"}`, borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 value={String(srv.name || "")}
@@ -683,10 +755,18 @@ const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
                 onChange={(e) => patch(i, { name: e.target.value })}
                 style={{ ...fieldStyle, flex: 1 }}
               />
+              {enabled && (
+                <span style={mcpBadgeStyle(connected)}>
+                  {connected ? `${txt("connected")} · ${tools.length} ${txt("tools")}` : txt("disconnected")}
+                </span>
+              )}
               <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--color-text)", whiteSpace: "nowrap" }}>
-                <input type="checkbox" checked={srv.enabled !== false} onChange={(e) => patch(i, { enabled: e.target.checked })} />
+                <input type="checkbox" checked={enabled} onChange={(e) => patch(i, { enabled: e.target.checked })} />
                 on
               </label>
+              {connected && tools.length > 0 && (
+                <button onClick={() => toggleExpand(i)} style={mcpExpandBtnStyle}>{isOpen ? "▲" : `▼ ${tools.length}`}</button>
+              )}
               <button onClick={() => update(servers.filter((_, j) => j !== i))} style={delBtnStyle}>×</button>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
@@ -727,6 +807,16 @@ const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }
                 />
               )}
             </div>
+            {isOpen && connected && tools.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }}>
+                {tools.map((tool, ti) => (
+                  <div key={ti} style={mcpToolItemStyle}>
+                    <span style={{ fontWeight: 700, color: "var(--color-text)" }}>{tool.name}</span>
+                    {tool.description && <span style={{ color: "var(--color-muted)" }}>{tool.description}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -969,7 +1059,8 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
       props: { title: "{state.t.skills}", desc: "{state.t.settingsSkillsDesc}" },
       children: [
         { type: "Setting", props: { path: "skills.enabled", kind: "switch", label: "{state.t.enabled}" } },
-        { type: "ListEditor", props: { path: "skills.search_paths", placeholder: "packages/agent-skills" } },
+        { type: "ListEditor", props: { path: "skills.search_paths", placeholder: "packages/agent-skills", quickPaths: ["packages/agent-skills"] } },
+        { type: "SkillsRoster" },
       ],
     },
   },
@@ -993,7 +1084,10 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
       props: { title: "{state.t.plugins}", desc: "{state.t.settingsPluginsDesc}" },
       children: [
         { type: "Setting", props: { path: "plugins.enabled", kind: "switch", label: "{state.t.enabled}" } },
-        { type: "ListEditor", props: { path: "plugins.search_paths", placeholder: "packages/plugins" } },
+        { type: "ListEditor", props: { path: "plugins.search_paths", placeholder: "packages/plugins", quickPaths: ["packages/plugins"] } },
+        { type: "PluginsRoster" },
+        { type: "MarketplaceSources" },
+        { type: "MarketplaceBrowser" },
       ],
     },
   },
@@ -1052,6 +1146,232 @@ const SettingsContent: FC<{ comp: Component; resolvedProps: Record<string, unkno
   );
 };
 
+// ── 能力 Roster：展示后端已发现的 skills / plugins（把配置从盲写变有反馈）────
+const rosterLabelStyle: CSSProperties = { fontSize: 12, fontWeight: 700, color: "var(--color-text)" };
+const rosterEmptyStyle: CSSProperties = { fontSize: 11, color: "var(--color-muted)", padding: "10px 12px", borderRadius: 8, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)" };
+const rosterItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 2, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface)" };
+
+// SkillsRoster: 读 state.skills（来自 /api/skills），展示已扫描到的技能清单
+const SkillsRoster: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+  const skills = (Array.isArray(state.skills) ? state.skills : []) as Array<{ slug?: string; name?: string; description?: string }>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span style={rosterLabelStyle}>{txt("discoveredSkills")} · {skills.length}</span>
+      {skills.length === 0 ? (
+        <div style={rosterEmptyStyle}>{txt("noSkillsFound")}</div>
+      ) : skills.map((s, i) => (
+        <div key={s.slug || i} style={rosterItemStyle}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{s.name || s.slug}</span>
+          {s.description && <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{s.description}</span>}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// PluginsRoster: 读 state.plugins（来自 /api/plugins），展示已发现插件目录 + 诚实标注执行系统未实现
+const PluginsRoster: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+  const plugins = (Array.isArray(state.plugins) ? state.plugins : []) as Array<{ name?: string; path?: string }>;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={rosterLabelStyle}>{txt("discoveredPlugins")} · {plugins.length}</span>
+        <span style={{ fontSize: 10, color: "var(--color-muted)", padding: "1px 7px", borderRadius: 6, border: "1px solid var(--color-border)" }}>{txt("pluginOnlyDiscovery")}</span>
+      </div>
+      {plugins.length === 0 ? (
+        <div style={rosterEmptyStyle}>{txt("noPluginsFound")}</div>
+      ) : plugins.map((p, i) => (
+        <div key={p.name || i} style={rosterItemStyle}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{p.name}</span>
+          {p.path && <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{p.path}</span>}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Plugin Marketplace：源管理 + 浏览/安装（git clone 到 search_paths[0]）─────
+// MarketplaceSources: 编辑 draft.plugins.marketplaces（用户配置的清单 JSON URL）
+const MarketplaceSources: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+  const path = "draft.plugins.marketplaces";
+  const raw = doc ? getByPath(doc.state, path) : [];
+  const sources: MarketplaceSource[] = Array.isArray(raw) ? (raw as MarketplaceSource[]) : [];
+
+  const update = (next: MarketplaceSource[]) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+  };
+  const patch = (i: number, delta: Partial<MarketplaceSource>) =>
+    update(sources.map((s, j) => (j === i ? { ...s, ...delta } : s)));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("marketplaceSources")}</span>
+        <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{txt("marketplaceHint")}</div>
+      </div>
+      {sources.map((src, i) => (
+        <div key={src.id} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input value={src.name} placeholder={txt("sourceNamePh")} onChange={(e) => patch(i, { name: e.target.value })} style={{ ...fieldStyle, flex: 1 }} />
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--color-text)", whiteSpace: "nowrap" }}>
+              <input type="checkbox" checked={src.enabled} onChange={(e) => patch(i, { enabled: e.target.checked })} />
+              on
+            </label>
+            <button onClick={() => update(sources.filter((_, j) => j !== i))} style={delBtnStyle}>×</button>
+          </div>
+          <input value={src.url} placeholder={txt("sourceUrlPh")} onChange={(e) => patch(i, { url: e.target.value })} style={fieldStyle} />
+        </div>
+      ))}
+      <button
+        onClick={() => update([...sources, { id: `m-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`, name: "", url: "", enabled: true }])}
+        style={addBtnStyle}
+      >{txt("addSource")}</button>
+    </div>
+  );
+};
+
+interface MarketPlugin {
+  name: string;
+  description: string;
+  author: string;
+  version: string;
+  category: string;
+  source: string;
+  iconColor: string;
+  installed: boolean;
+}
+interface MarketData {
+  marketplaces: Array<{ id: string; name: string; url: string; ok: boolean; error?: string }>;
+  plugins: MarketPlugin[];
+}
+const mpCardStyle = (installed: boolean): CSSProperties => ({ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 12, border: `1px solid ${installed ? "var(--color-success)" : "var(--color-border)"}`, background: "var(--color-surface)" });
+const mpIconStyle = (color: string): CSSProperties => ({ width: 34, height: 34, borderRadius: 9, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, flexShrink: 0 });
+
+// MarketplaceBrowser: 拉取清单 → 网格展示 → 安装(git clone)/卸载，安装后同步刷新已发现清单
+const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+  const [data, setData] = useState<MarketData>({ marketplaces: [], plugins: [] });
+  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+
+  const refresh = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/plugins/marketplace");
+      setData(await res.json());
+    } catch {
+      setError(`${txt("refresh")} failed`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { void refresh(); }, []);
+
+  // 安装/卸载后同步 state.plugins，让 PluginsRoster 立即反映
+  const refreshInstalled = async () => {
+    try {
+      const res = await fetch("/api/plugins");
+      const d = await res.json();
+      if (doc) setDoc({ ...doc, state: setByPath(doc.state, "plugins", d.plugins || []) });
+    } catch {
+      /* 静默 */
+    }
+  };
+  const setInstalled = (name: string, installed: boolean) =>
+    setData((prev) => ({ ...prev, plugins: prev.plugins.map((p) => (p.name === name ? { ...p, installed } : p)) }));
+
+  const install = async (p: MarketPlugin) => {
+    setBusy(p.name);
+    setError("");
+    try {
+      const res = await fetch("/api/plugins/install", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ source: p.source, name: p.name }) });
+      const d = await res.json();
+      if (d.ok) {
+        setInstalled(p.name, true);
+        await refreshInstalled();
+      } else {
+        setError(d.error || "install failed");
+      }
+    } finally {
+      setBusy("");
+    }
+  };
+  const uninstall = async (p: MarketPlugin) => {
+    setBusy(p.name);
+    setError("");
+    try {
+      const res = await fetch(`/api/plugins/${encodeURIComponent(p.name)}`, { method: "DELETE" });
+      const d = await res.json();
+      if (d.ok) {
+        setInstalled(p.name, false);
+        await refreshInstalled();
+      } else {
+        setError(d.error || "uninstall failed");
+      }
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const failedCount = data.marketplaces.filter((s) => !s.ok).length;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("marketplace")} · {data.plugins.length}</span>
+        <button onClick={() => void refresh()} disabled={loading} style={{ ...activateBtnStyle, opacity: loading ? 0.6 : 1 }}>{loading ? txt("loading") : txt("refresh")}</button>
+      </div>
+      {failedCount > 0 && <div style={{ fontSize: 11, color: "var(--color-danger)" }}>{failedCount} {txt("sourceFailed")}</div>}
+      {error && <div style={{ fontSize: 11, color: "var(--color-danger)" }}>{error}</div>}
+      {data.plugins.length === 0 ? (
+        <div style={rosterEmptyStyle}>{txt("marketplaceEmpty")}</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
+          {data.plugins.map((p) => (
+            <div key={p.name} style={mpCardStyle(p.installed)}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={mpIconStyle(p.iconColor || "#8B8F98")}>{(p.name || "?").charAt(0).toUpperCase()}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                  <div style={{ fontSize: 10, color: "var(--color-muted)" }}>{[p.author, p.version].filter(Boolean).join(" · ")}</div>
+                </div>
+              </div>
+              {p.description && <div style={{ fontSize: 11, color: "var(--color-muted)", lineHeight: 1.4 }}>{p.description}</div>}
+              <div>
+                {p.installed ? (
+                  <button onClick={() => void uninstall(p)} disabled={busy === p.name} style={{ ...addBtnStyle, color: "var(--color-danger)" }}>{busy === p.name ? txt("installing") : txt("uninstall")}</button>
+                ) : (
+                  <button onClick={() => void install(p)} disabled={busy === p.name || !p.source} style={activateBtnStyle}>{busy === p.name ? txt("installing") : (p.source ? txt("install") : "—")}</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 let registered = false;
 /** 注册 console 专用自定义组件（幂等）�?*/
 export function registerConsoleComponents() {
@@ -1069,6 +1389,10 @@ export function registerConsoleComponents() {
   registerComponent("ListEditor", ListEditor);
   registerComponent("McpServers", McpServers);
   registerComponent("LlmProviderPanel", LlmProviderPanel);
+  registerComponent("SkillsRoster", SkillsRoster);
+  registerComponent("PluginsRoster", PluginsRoster);
+  registerComponent("MarketplaceSources", MarketplaceSources);
+  registerComponent("MarketplaceBrowser", MarketplaceBrowser);
   registerComponent("SettingsNav", SettingsNav);
   registerComponent("SettingsContent", SettingsContent);
 }

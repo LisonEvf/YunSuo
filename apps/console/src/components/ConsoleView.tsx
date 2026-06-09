@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { Component } from "@air-ui/core";
 import { AirUIComponent, InteractionProvider, useAirUIStore } from "@air-ui/renderer-react";
-import { useStore, defaultAgentConfig, type McpServerConfig, type ProviderInstance } from "../store";
+import { useStore, defaultAgentConfig, type McpServerConfig, type ProviderInstance, type MarketplaceSource } from "../store";
 import { t, messages } from "../i18n";
 import { sendInteraction } from "../ws-client";
 import { consoleLayout } from "../consoleLayout";
@@ -19,7 +19,7 @@ interface DraftShape {
   runtime: { max_iterations: number; context_window_tokens: number };
   skills: { enabled: boolean; search_paths: string[] };
   mcp: { enabled: boolean; servers: McpServerConfig[] };
-  plugins: { enabled: boolean; search_paths: string[] };
+  plugins: { enabled: boolean; search_paths: string[]; marketplaces: MarketplaceSource[] };
 }
 
 // 从后端 artifact 影子文档提取工件面板（ref=row-artifacts 下的 Widget 列表）
@@ -57,7 +57,7 @@ function openSettings() {
       runtime: { max_iterations: cfg.runtime.max_iterations, context_window_tokens: cfg.runtime.context_window_tokens },
       skills: { enabled: cfg.skills.enabled, search_paths: [...cfg.skills.search_paths] },
       mcp: { enabled: cfg.mcp.enabled, servers: cfg.mcp.servers.map((s) => ({ ...s })) },
-      plugins: { enabled: cfg.plugins.enabled, search_paths: [...cfg.plugins.search_paths] },
+      plugins: { enabled: cfg.plugins.enabled, search_paths: [...cfg.plugins.search_paths], marketplaces: (cfg.plugins.marketplaces ?? []).map((m) => ({ ...m })) },
     } as DraftShape,
   });
 }

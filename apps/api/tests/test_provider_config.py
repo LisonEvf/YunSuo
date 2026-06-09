@@ -176,3 +176,85 @@ def test_update_provider_presets_writes_and_merges(monkeypatch, tmp_path):
     ]})
     assert out["status"] == "ok"
     assert any(p["key"] == "groq" for p in out["provider_presets"])
+
+
+def _write_cfg(tmp_path, providers, active_id=None):
+    import json
+    cfg_file = tmp_path / "agent.json"
+    cfg_file.write_text(
+        '{"model":{"provider":"openai","name":"x","base_url":"http://x/v1",'
+        '"api_key":"k","max_output_tokens":4096,"display_name":""},'
+        f'"providers":{json.dumps(providers)},'
+        f'"active_provider_id":{json.dumps(active_id)}'
+        ',"provider_presets":[]}',
+        encoding="utf-8",
+    )
+    return cfg_file
+
+
+def test_update_providers_clears_invalid_active_id(monkeypatch, tmp_path):
+    provs = [{"id": "p1", "name": "A", "provider": "openai", "base_url": "http://a/v1",
+              "api_key": "k1", "model_name": "m1", "max_output_tokens": 4096},
+             {"id": "p2", "name": "B", "provider": "openai", "base_url": "http://b/v1",
+              "api_key": "k2", "model_name": "m2", "max_output_tokens": 4096}]
+    monkeypatch.setattr(config, "CONFIG_PATH", _write_cfg(tmp_path, provs, "p2"))
+    config.reload_config()
+
+    from app.agent.tools import _update_providers
+    # 删掉 p2（当前激活），active_id 应置 null
+    out = _update_providers({"providers": [provs[0]]})
+    assert out["status"] == "ok"
+    assert out["active_provider_id"] is None
+
+
+def test_update_providers_rejects_duplicate_id(monkeypatch, tmp_path):
+    provs = [{"id": "p1", "name": "A", "provider": "openai", "base_url": "http://a/v1",
+              "api_key": "k1", "model_name": "m1", "max_output_tokens": 4096}] * 2
+    monkeypatch.setattr(config, "CONFIG_PATH", _write_cfg(tmp_path, []))
+    config.reload_config()
+
+    from app.agent.tools import _update_providers
+    out = _update_providers({"providers": provs})
+    assert out["status"] == "error"
+    assert "duplicate" in out["message"]
+
+
+def test_activate_provider_no_reverse_sync_corruption(monkeypatch, tmp_path):
+    """激活 B 后，B 实例的字段不被旧 model（A 的值）覆盖。"""
+    provs = [
+        {"id": "A", "name": "Alpha", "provider": "openai", "base_url": "http://a/v1",
+         "api_key": "key-A", "model_name": "model-A", "max_output_tokens": 4096},
+        {"id": "B", "name": "Beta", "provider": "openai", "base_url": "http://b/v1",
+         "api_key": "key-B", "model_name": "model-B", "max_output_tokens": 8192},
+    ]
+    monkeypatch.setattr(config, "CONFIG_PATH", _write_cfg(tmp_path, provs, "A"))
+    config.reload_config()
+    # 屏蔽真实 reset_agent（会清单例 + mcp/skill 缓存）
+    import app.agent.agent as agent_mod
+    monkeypatch.setattr(agent_mod, "reset_agent", lambda: None)
+    # 屏蔽 memory 真实写入
+    import app.agent.memory as mem_mod
+    monkeypatch.setattr(mem_mod.memory_manager, "upsert", lambda *a, **k: 1)
+
+    from app.agent.tools import _activate_provider
+    out = _activate_provider({"provider_id": "B"})
+    assert out["status"] == "ok"
+
+    # 重新加载验证 B 未被破坏
+    cfg = config.load_agent_config()
+    b = next(p for p in cfg["providers"] if p["id"] == "B")
+    assert b["base_url"] == "http://b/v1"
+    assert b["model_name"] == "model-B"
+    assert b["api_key"] == "key-B"
+    assert b["max_output_tokens"] == 8192
+    # model 现在应等于 B
+    assert cfg["model"]["name"] == "model-B"
+    assert cfg["active_provider_id"] == "B"
+
+
+def test_activate_provider_unknown_id(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "CONFIG_PATH", _write_cfg(tmp_path, []))
+    config.reload_config()
+    from app.agent.tools import _activate_provider
+    out = _activate_provider({"provider_id": "nope"})
+    assert out["status"] == "error"

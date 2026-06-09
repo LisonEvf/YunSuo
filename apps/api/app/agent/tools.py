@@ -82,6 +82,34 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_providers",
+            "description": "Replace the full saved provider instance list. Each instance: {id, name, provider, base_url, api_key, model_name, max_output_tokens}. If the active id is removed, active_provider_id becomes null. Does NOT change the active id otherwise.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "providers": {"type": "array", "description": "Full instance list replacing the previous one."},
+                },
+                "required": ["providers"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "activate_provider",
+            "description": "Activate a saved provider instance by id (affects the model used in the next conversation). Pass null to deactivate and fall back to the model field.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "provider_id": {"type": ["string", "null"], "description": "Instance id to activate, or null to deactivate."},
+                },
+                "required": ["provider_id"],
+            },
+        },
+    },
 ]
 
 
@@ -230,12 +258,85 @@ def _update_provider_presets(args: dict, snapshot: dict | None = None) -> dict[s
     return {"status": "ok", "provider_presets": get_merged_presets(cfg)}
 
 
+def _validate_providers(providers) -> str | None:
+    if not isinstance(providers, list):
+        return "providers must be a list"
+    seen: set[str] = set()
+    for p in providers:
+        if not isinstance(p, dict):
+            return "each provider must be an object"
+        for field in ("id", "name", "base_url", "model_name"):
+            if not p.get(field):
+                return f"provider missing required field: {field}"
+        pid = str(p["id"])
+        if pid in seen:
+            return f"duplicate provider id: {pid}"
+        seen.add(pid)
+        if p.get("provider") != "openai":
+            return f"provider {pid}: provider must be 'openai'"
+        mot = p.get("max_output_tokens")
+        if not isinstance(mot, int) or isinstance(mot, bool) or mot <= 0:
+            return f"provider {pid}: max_output_tokens must be a positive integer"
+    return None
+
+
+def _update_providers(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    from .config import load_agent_config, save_agent_config
+
+    providers = args.get("providers")
+    err = _validate_providers(providers)
+    if err:
+        return {"status": "error", "message": err}
+    cfg = load_agent_config()
+    cfg["providers"] = providers
+    active_id = cfg.get("active_provider_id")
+    if active_id and not any(p.get("id") == active_id for p in providers):
+        cfg["active_provider_id"] = None
+    save_agent_config(cfg)
+    return {
+        "status": "ok",
+        "providers": [_mask_provider(p) for p in providers],
+        "active_provider_id": cfg.get("active_provider_id"),
+    }
+
+
+def _activate_provider(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    from . import config as _config
+    from .agent import reset_agent  # app/agent/agent.py 模块（延迟导入，避免与 agent.py 循环）
+    from .memory import memory_manager
+
+    provider_id = args.get("provider_id")  # None = 取消激活
+    cfg = _config.load_agent_config()
+    providers = cfg.get("providers") or []
+    if provider_id is not None and not any(p.get("id") == provider_id for p in providers):
+        return {"status": "error", "message": f"provider not found: {provider_id}"}
+
+    cfg["active_provider_id"] = provider_id
+    # 关键：先让 model 同步为目标实例，再 save。
+    # 否则 save_agent_config 的 _sync_model_to_active 会用旧 model 反向覆盖目标实例。
+    _config._sync_active_to_model(cfg)
+    _config.save_agent_config(cfg)
+    reset_agent()
+
+    if provider_id:
+        inst = next((p for p in providers if p.get("id") == provider_id), None)
+        if inst:
+            content = f"用户当前激活的 provider: {inst.get('name', '')} / {inst.get('model_name', '')}"
+            try:
+                memory_manager.upsert("provider_preference", content)
+            except Exception as exc:
+                logger.warning("provider_preference upsert failed: %s", exc)
+    return {"status": "ok", "active_provider_id": provider_id}
+
+
 _HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
     "get_agent_runtime_status": _runtime_status,
     "render_airui_panel": _render_airui_panel,
     "patch_airui_panel": _patch_airui_panel,
     "get_provider_config": _get_provider_config,
     "update_provider_presets": _update_provider_presets,
+    "update_providers": _update_providers,
+    "activate_provider": _activate_provider,
 }
 
 

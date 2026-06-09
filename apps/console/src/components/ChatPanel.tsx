@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useStore, type ChatMessage, type ToolStatus } from "../store";
 import { t } from "../i18n";
+import { sendChat } from "../chat";
 
 function MessageBubble({ msg, thinkingLabel }: { msg: ChatMessage; thinkingLabel: string }) {
   if (msg.role === "system") return null;
@@ -16,7 +17,7 @@ function MessageBubble({ msg, thinkingLabel }: { msg: ChatMessage; thinkingLabel
           background: isUser ? "var(--color-primary)" : "var(--color-surface)",
           color: isUser ? "var(--color-primary-text)" : "var(--color-text)",
           border: isUser ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
-          boxShadow: isUser ? "none" : "0 1px 2px rgba(15, 23, 42, 0.06)",
+          boxShadow: isUser ? "none" : "var(--air-shadow)",
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
           fontSize: 13,
@@ -44,7 +45,7 @@ function ToolStrip({ tools }: { tools: ToolStatus[] }) {
               tool.state === "running"
                 ? "var(--color-surface-muted)"
                 : tool.state === "error"
-                  ? "rgba(153, 27, 27, 0.12)"
+                  ? "var(--air-dangerBg)"
                   : "var(--color-primary-soft)",
             color:
               tool.state === "running" ? "var(--color-info)" : tool.state === "error" ? "var(--color-danger)" : "var(--color-success)",
@@ -63,12 +64,6 @@ export default function ChatPanel() {
   const language = useStore((s) => s.appConfig.ui.language);
   const messages = useStore((s) => s.chatMessages);
   const loading = useStore((s) => s.chatLoading);
-  const addMessage = useStore((s) => s.addChatMessage);
-  const updateLastMessage = useStore((s) => s.updateLastMessage);
-  const setLoading = useStore((s) => s.setChatLoading);
-  const setActiveTools = useStore((s) => s.setActiveTools);
-  const setActiveSkills = useStore((s) => s.setActiveSkills);
-  const addRunEvent = useStore((s) => s.addRunEvent);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,111 +75,8 @@ export default function ChatPanel() {
   async function handleSend() {
     const text = input.trim();
     if (!text || loading) return;
-
     setInput("");
-    addMessage({ role: "user", content: text });
-    addMessage({ role: "assistant", content: "" });
-    setLoading(true);
-    setActiveTools([]);
-    setActiveSkills([]);
-    addRunEvent({ label: "Request accepted", detail: text.slice(0, 120), state: "running" });
-
-    let assistantContent = "";
-    let toolStatuses: ToolStatus[] = [];
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [...messages, { role: "user", content: text }],
-          stream: true,
-        }),
-      });
-
-      if (!res.ok || !res.body) {
-        const detail = `Request failed: ${res.status}`;
-        updateLastMessage({ content: detail });
-        addRunEvent({ label: "Request failed", detail, state: "error" });
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const evt = JSON.parse(line.slice(6));
-
-          if (evt.type === "skills") {
-            setActiveSkills(evt.skills || []);
-            const names = (evt.skills || []).map((skill: { name?: string; slug?: string }) => skill.name || skill.slug);
-            if (names.length) {
-              addRunEvent({
-                label: "Skills selected",
-                detail: names.join(", "),
-                state: "running",
-              });
-            }
-          }
-
-          if (evt.type === "delta" && evt.content) {
-            assistantContent += evt.content;
-            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
-          }
-
-          if (evt.type === "tool_start") {
-            toolStatuses = (evt.tools || []).map((tool: { name: string }) => ({
-              name: tool.name,
-              state: "running",
-            }));
-            setActiveTools(toolStatuses);
-            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
-            addRunEvent({
-              label: "Tool call started",
-              detail: toolStatuses.map((tool) => tool.name).join(", "),
-              state: "running",
-            });
-          }
-
-          if (evt.type === "tool_result") {
-            toolStatuses = toolStatuses.map((tool) =>
-              tool.name === evt.name ? { ...tool, state: evt.error ? "error" : "done" } : tool
-            );
-            setActiveTools(toolStatuses);
-            updateLastMessage({ content: assistantContent, toolStatus: toolStatuses });
-            addRunEvent({
-              label: evt.error ? "Tool call failed" : "Tool call completed",
-              detail: evt.name || "unknown",
-              state: evt.error ? "error" : "done",
-            });
-          }
-
-          if (evt.type === "airui" && evt.data) {
-            updateLastMessage({ content: assistantContent, airui: evt.data, toolStatus: toolStatuses });
-          }
-
-          if (evt.type === "done") {
-            addRunEvent({ label: "Final response", detail: "Assistant response completed.", state: "done" });
-          }
-        }
-      }
-    } catch (err) {
-      const detail = `Connection failed: ${err}`;
-      updateLastMessage({ content: detail });
-      addRunEvent({ label: "Connection failed", detail, state: "error" });
-    } finally {
-      setLoading(false);
-    }
+    void sendChat(text);
   }
 
   return (

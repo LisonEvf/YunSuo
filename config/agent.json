@@ -1,0 +1,9 @@
+﻿{
+    "model":  {
+                  "base_url":  "",
+                  "provider":  "openai",
+                  "name":  "gpt-4o",
+                  "max_output_tokens":  4096,
+                  "api_key":  "sk-xxxxx"
+              }
+}

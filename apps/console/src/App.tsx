@@ -45,7 +45,6 @@ export default function App() {
         flexDirection: "column",
         background: "var(--color-app-bg)",
         color: "var(--color-text)",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
       <div className="app-main" style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>

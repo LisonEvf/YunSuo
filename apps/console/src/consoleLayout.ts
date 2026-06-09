@@ -21,6 +21,7 @@ export const consoleLayout: AirUIDocument = {
     settingsSaving: false,
     settingsError: "",
     saveLabel: "",
+    settingsSection: "llm",
     draft: {
       ui: { theme: "light", language: "zh-CN" },
       model: { provider: "", name: "", base_url: "", api_key: "", max_output_tokens: 4096, display_name: "" },
@@ -92,102 +93,16 @@ export const consoleLayout: AirUIDocument = {
               { type: "Text", props: { value: "{state.t.settingsSubtitle}", style: "caption" } },
             ],
           },
-          // 滚动表单区（三联排卡片）
+          // 主体：左菜单 + 右内容（设置分类由 state.settingsSection 控制）
           {
             type: "Pane",
-            props: { direction: "column", grow: true, scroll: true, padding: 20, gap: "14px", minWidth: 0 },
+            props: { direction: "row", grow: true, minWidth: 0 },
             children: [
-              {
-                type: "Pane",
-                props: { direction: "row", gap: "14px", align: "start", minWidth: 0 },
-                children: [
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.appearance}", desc: "{state.t.settingsAppearanceDesc}" },
-                    children: [
-                      {
-                        type: "Setting",
-                        props: {
-                          path: "ui.theme", kind: "select", label: "{state.t.theme}",
-                          options: [
-                            { value: "light", label: "{state.t.light}" },
-                            { value: "dark", label: "{state.t.dark}" },
-                            { value: "graphite", label: "{state.t.graphite}" },
-                            { value: "neon", label: "{state.t.neon}" },
-                            { value: "glass", label: "{state.t.glass}" },
-                            { value: "system", label: "{state.t.system}" },
-                          ],
-                        },
-                      },
-                      {
-                        type: "Setting",
-                        props: {
-                          path: "ui.language", kind: "select", label: "{state.t.language}",
-                          options: [
-                            { value: "zh-CN", label: "简体中文" },
-                            { value: "en-US", label: "English" },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.llm}", desc: "{state.t.settingsLlmDesc}" },
-                    children: [
-                      { type: "LlmProviderPanel" },
-                      { type: "Setting", props: { path: "model.display_name", kind: "text", label: "{state.t.displayName}" } },
-                      { type: "Setting", props: { path: "model.provider", kind: "text", label: "{state.t.provider}" } },
-                      { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
-                      { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },
-                      { type: "Setting", props: { path: "model.api_key", kind: "password", label: "{state.t.apiKey}" } },
-                      { type: "Setting", props: { path: "model.max_output_tokens", kind: "number", label: "{state.t.maxTokens}" } },
-                    ],
-                  },
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.runtime}", desc: "{state.t.settingsRuntimeDesc}" },
-                    children: [
-                      { type: "Setting", props: { path: "runtime.max_iterations", kind: "number", label: "{state.t.maxIterations}" } },
-                      { type: "Setting", props: { path: "runtime.context_window_tokens", kind: "number", label: "{state.t.contextWindow}" } },
-                    ],
-                  },
-                ],
-              },
-              // ── Skills / MCP / Plugins ──────────────────────────────────
-              {
-                type: "Pane",
-                props: { direction: "row", gap: "14px", align: "start", minWidth: 0 },
-                children: [
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.skills}", desc: "{state.t.settingsSkillsDesc}" },
-                    children: [
-                      { type: "Setting", props: { path: "skills.enabled", kind: "switch", label: "{state.t.enabled}" } },
-                      { type: "ListEditor", props: { path: "skills.search_paths", placeholder: "packages/agent-skills" } },
-                    ],
-                  },
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.mcp}", desc: "{state.t.settingsMcpDesc}" },
-                    children: [
-                      { type: "Setting", props: { path: "mcp.enabled", kind: "switch", label: "{state.t.enabled}" } },
-                      { type: "McpServers" },
-                    ],
-                  },
-                  {
-                    type: "SettingCard",
-                    props: { title: "{state.t.plugins}", desc: "{state.t.settingsPluginsDesc}" },
-                    children: [
-                      { type: "Setting", props: { path: "plugins.enabled", kind: "switch", label: "{state.t.enabled}" } },
-                      { type: "ListEditor", props: { path: "plugins.search_paths", placeholder: "packages/plugins" } },
-                    ],
-                  },
-                ],
-              },
-              { type: "Notice", props: { field: "settingsError" } },
+              { type: "SettingsNav" },
+              { type: "SettingsContent" },
             ],
           },
+          { type: "Notice", props: { field: "settingsError" } },
           // 底部操作栏
           {
             type: "Pane",

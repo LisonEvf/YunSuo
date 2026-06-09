@@ -12,6 +12,8 @@ export interface ProviderPreset {
   maxOutputTokens: number;
   websiteUrl?: string;
   apiKeyUrl?: string;
+  /** 品牌色（hex），用于 UI 色块图标与激活态 */
+  color?: string;
   /** 本地部署标记，用于 UI 分组 */
   local?: boolean;
 }
@@ -24,6 +26,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://api.openai.com/v1",
     defaultModel: "gpt-4o",
     maxOutputTokens: 4096,
+    color: "#10A37F",
     websiteUrl: "https://platform.openai.com",
     apiKeyUrl: "https://platform.openai.com/api-keys",
   },
@@ -34,6 +37,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://api.deepseek.com/v1",
     defaultModel: "deepseek-chat",
     maxOutputTokens: 4096,
+    color: "#4D6B85",
     websiteUrl: "https://platform.deepseek.com",
     apiKeyUrl: "https://platform.deepseek.com/api_keys",
   },
@@ -44,6 +48,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     defaultModel: "qwen-plus",
     maxOutputTokens: 4096,
+    color: "#615CED",
     websiteUrl: "https://bailian.console.aliyun.com",
     apiKeyUrl: "https://bailian.console.aliyun.com/?apiKey=1",
   },
@@ -54,6 +59,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://api.moonshot.cn/v1",
     defaultModel: "moonshot-v1-8k",
     maxOutputTokens: 4096,
+    color: "#1D1D1F",
     websiteUrl: "https://platform.moonshot.cn",
     apiKeyUrl: "https://platform.moonshot.cn/console/api-keys",
   },
@@ -64,16 +70,18 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://open.bigmodel.cn/api/paas/v4",
     defaultModel: "glm-4-plus",
     maxOutputTokens: 4096,
+    color: "#3859FF",
     websiteUrl: "https://open.bigmodel.cn",
     apiKeyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
   },
   {
     key: "siliconflow",
-    name: "硅基流动 SiliconFlow",
+    name: "硅基流动",
     provider: "openai",
     base_url: "https://api.siliconflow.cn/v1",
     defaultModel: "deepseek-ai/DeepSeek-V3",
     maxOutputTokens: 4096,
+    color: "#FF6B35",
     websiteUrl: "https://siliconflow.cn",
     apiKeyUrl: "https://cloud.siliconflow.cn/account/ak",
   },
@@ -84,6 +92,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://openrouter.ai/api/v1",
     defaultModel: "openai/gpt-4o",
     maxOutputTokens: 4096,
+    color: "#646669",
     websiteUrl: "https://openrouter.ai",
     apiKeyUrl: "https://openrouter.ai/keys",
   },
@@ -94,6 +103,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "https://ark.cn-beijing.volces.com/api/v3",
     defaultModel: "doubao-pro-32k",
     maxOutputTokens: 4096,
+    color: "#3370FF",
     websiteUrl: "https://www.volcengine.com/product/doubao",
     apiKeyUrl: "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
   },
@@ -104,6 +114,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "http://localhost:11434/v1",
     defaultModel: "qwen2.5:7b",
     maxOutputTokens: 4096,
+    color: "#6B7280",
     websiteUrl: "https://ollama.com",
     local: true,
   },
@@ -114,6 +125,7 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "http://localhost:8080/v1",
     defaultModel: "local-model",
     maxOutputTokens: 4096,
+    color: "#8B5CF6",
     websiteUrl: "https://github.com/ggerganov/llama.cpp",
     local: true,
   },
@@ -124,5 +136,22 @@ export const providerPresets: ProviderPreset[] = [
     base_url: "",
     defaultModel: "",
     maxOutputTokens: 4096,
+    color: "#8B8F98",
   },
 ];
+
+/** 按 base_url host 匹配预设品牌色；未命中则按名称哈希到调色板 */
+export function colorForProvider(inst: { base_url?: string; name?: string; model_name?: string }): string {
+  const url = inst.base_url || "";
+  for (const p of providerPresets) {
+    if (!p.color || !p.base_url) continue;
+    try {
+      if (url.includes(new URL(p.base_url).host)) return p.color;
+    } catch {
+      // base_url 非法，跳过
+    }
+  }
+  const palette = ["#615CED", "#3859FF", "#10A37F", "#FF6B35", "#3370FF", "#8B5CF6"];
+  const seed = (inst.name || inst.model_name || "x").charCodeAt(0);
+  return palette[seed % palette.length];
+}

@@ -3,15 +3,18 @@ import { connectWebSocket, disconnectWebSocket } from "./ws-client";
 import ConsoleView from "./components/ConsoleView";
 import ChatPanel from "./components/ChatPanel";
 import StatusBar from "./components/StatusBar";
+import AirUIGallery from "./components/AirUIGallery";
 import { useStore } from "./store";
 
 export default function App() {
   const theme = useStore((s) => s.appConfig.ui.theme);
+  const isGallery = new URLSearchParams(window.location.search).get("gallery") === "airui";
 
   useEffect(() => {
+    if (isGallery) return;
     connectWebSocket();
     return () => disconnectWebSocket();
-  }, []);
+  }, [isGallery]);
 
   useEffect(() => {
     const applyTheme = () => {
@@ -38,11 +41,17 @@ export default function App() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
-      <div className="app-main" style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
-        <ChatPanel />
-        <ConsoleView />
-      </div>
-      <StatusBar />
+      {isGallery ? (
+        <AirUIGallery />
+      ) : (
+        <>
+          <div className="app-main" style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
+            <ChatPanel />
+            <ConsoleView />
+          </div>
+          <StatusBar />
+        </>
+      )}
     </div>
   );
 }

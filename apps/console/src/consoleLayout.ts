@@ -17,6 +17,7 @@ export const consoleLayout: AirUIDocument = {
     activeToolsText: "",
     chatLoading: false,
     settingsOpen: false,
+    mainVisible: true,
     settingsSaving: false,
     settingsError: "",
     saveLabel: "",
@@ -39,7 +40,7 @@ export const consoleLayout: AirUIDocument = {
       // ── 主区 ──────────────────────────────────────────────
       {
         type: "Pane",
-        props: { className: "console-content", direction: "column", grow: true, minWidth: 0, scroll: true, padding: 18 },
+        props: { className: "console-content", direction: "column", grow: true, minWidth: 0, scroll: true, padding: 18, visible: "@state.mainVisible" },
         children: [
           {
             type: "Pane",
@@ -67,77 +68,91 @@ export const consoleLayout: AirUIDocument = {
           { type: "ArtifactGallery", ref: "row-artifacts", props: { emptyText: "{state.t.renderedArtifacts}" } },
         ],
       },
-      // ── Settings Drawer ───────────────────────────────────
+      // ── 设置面板（铺满右栏，视觉同构 ChatPanel）──────────────
       {
-        type: "Drawer",
-        ref: "console:settings-drawer",
-        props: { visible: "@state.settingsOpen", title: "{state.t.settings}", width: 420 },
+        type: "Pane",
+        ref: "console:settings-panel",
+        props: { className: "settings-panel", direction: "column", grow: true, minWidth: 0, visible: "@state.settingsOpen", background: "var(--color-surface-muted)" },
         children: [
+          // 标题栏
           {
             type: "Pane",
-            props: { direction: "column", gap: "18px" },
+            props: { direction: "column", padding: "14px 16px", borderBottom: true, background: "var(--color-surface)" },
+            children: [
+              { type: "Text", props: { value: "{state.t.settings}", style: "title" } },
+              { type: "Text", props: { value: "{state.t.settingsSubtitle}", style: "caption" } },
+            ],
+          },
+          // 滚动表单区（三联排卡片）
+          {
+            type: "Pane",
+            props: { direction: "column", grow: true, scroll: true, padding: 20, gap: "14px", minWidth: 0 },
             children: [
               {
                 type: "Pane",
-                props: { direction: "column", gap: "10px" },
+                props: { direction: "row", gap: "14px", align: "start", minWidth: 0 },
                 children: [
-                  { type: "Text", props: { value: "{state.t.appearance}", style: "subtitle" } },
                   {
-                    type: "Setting",
-                    props: {
-                      path: "ui.theme", kind: "select", label: "{state.t.theme}",
-                      options: [
-                        { value: "light", label: "{state.t.light}" },
-                        { value: "dark", label: "{state.t.dark}" },
-                        { value: "graphite", label: "{state.t.graphite}" },
-                        { value: "neon", label: "{state.t.neon}" },
-                        { value: "glass", label: "{state.t.glass}" },
-                        { value: "system", label: "{state.t.system}" },
-                      ],
-                    },
+                    type: "SettingCard",
+                    props: { title: "{state.t.appearance}", desc: "{state.t.settingsAppearanceDesc}" },
+                    children: [
+                      {
+                        type: "Setting",
+                        props: {
+                          path: "ui.theme", kind: "select", label: "{state.t.theme}",
+                          options: [
+                            { value: "light", label: "{state.t.light}" },
+                            { value: "dark", label: "{state.t.dark}" },
+                            { value: "graphite", label: "{state.t.graphite}" },
+                            { value: "neon", label: "{state.t.neon}" },
+                            { value: "glass", label: "{state.t.glass}" },
+                            { value: "system", label: "{state.t.system}" },
+                          ],
+                        },
+                      },
+                      {
+                        type: "Setting",
+                        props: {
+                          path: "ui.language", kind: "select", label: "{state.t.language}",
+                          options: [
+                            { value: "zh-CN", label: "简体中文" },
+                            { value: "en-US", label: "English" },
+                          ],
+                        },
+                      },
+                    ],
                   },
                   {
-                    type: "Setting",
-                    props: {
-                      path: "ui.language", kind: "select", label: "{state.t.language}",
-                      options: [
-                        { value: "zh-CN", label: "简体中文" },
-                        { value: "en-US", label: "English" },
-                      ],
-                    },
+                    type: "SettingCard",
+                    props: { title: "{state.t.llm}", desc: "{state.t.settingsLlmDesc}" },
+                    children: [
+                      { type: "Setting", props: { path: "model.provider", kind: "text", label: "{state.t.provider}" } },
+                      { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
+                      { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },
+                      { type: "Setting", props: { path: "model.api_key", kind: "password", label: "{state.t.apiKey}" } },
+                      { type: "Setting", props: { path: "model.max_output_tokens", kind: "number", label: "{state.t.maxTokens}" } },
+                    ],
                   },
-                ],
-              },
-              {
-                type: "Pane",
-                props: { direction: "column", gap: "10px" },
-                children: [
-                  { type: "Text", props: { value: "{state.t.llm}", style: "subtitle" } },
-                  { type: "Setting", props: { path: "model.provider", kind: "text", label: "{state.t.provider}" } },
-                  { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
-                  { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },
-                  { type: "Setting", props: { path: "model.api_key", kind: "password", label: "{state.t.apiKey}" } },
-                  { type: "Setting", props: { path: "model.max_output_tokens", kind: "number", label: "{state.t.maxTokens}" } },
-                ],
-              },
-              {
-                type: "Pane",
-                props: { direction: "column", gap: "10px" },
-                children: [
-                  { type: "Text", props: { value: "Runtime", style: "subtitle" } },
-                  { type: "Setting", props: { path: "runtime.max_iterations", kind: "number", label: "{state.t.maxIterations}" } },
-                  { type: "Setting", props: { path: "runtime.context_window_tokens", kind: "number", label: "{state.t.contextWindow}" } },
+                  {
+                    type: "SettingCard",
+                    props: { title: "Runtime", desc: "{state.t.settingsRuntimeDesc}" },
+                    children: [
+                      { type: "Setting", props: { path: "runtime.max_iterations", kind: "number", label: "{state.t.maxIterations}" } },
+                      { type: "Setting", props: { path: "runtime.context_window_tokens", kind: "number", label: "{state.t.contextWindow}" } },
+                    ],
+                  },
                 ],
               },
               { type: "Notice", props: { field: "settingsError" } },
-              {
-                type: "Pane",
-                props: { direction: "row", gap: "8px", justify: "end", borderTop: true, paddingTop: "12px" },
-                children: [
-                  { type: "Button", ref: "console:cancel", props: { label: "{state.t.cancel}", variant: "secondary" } },
-                  { type: "Button", ref: "console:save", props: { label: "{state.saveLabel}", variant: "primary", disabled: "@state.settingsSaving" } },
-                ],
-              },
+            ],
+          },
+          // 底部操作栏
+          {
+            type: "Pane",
+            props: { direction: "row", gap: "8px", justify: "end", align: "center", borderTop: true, padding: "12px 16px", background: "var(--color-surface)" },
+            children: [
+              { type: "Button", ref: "console:cancel", props: { label: "{state.t.cancel}", variant: "secondary" } },
+              { type: "Button", ref: "console:save", props: { label: "{state.saveLabel}", variant: "primary", disabled: "@state.settingsSaving" } },
             ],
           },
         ],

@@ -42,6 +42,7 @@ function openSettings() {
   const cfg = useStore.getState().appConfig;
   patchConsole({
     settingsOpen: true,
+    mainVisible: false,
     settingsError: "",
     draft: {
       ui: { theme: cfg.ui.theme, language: cfg.ui.language },
@@ -52,7 +53,7 @@ function openSettings() {
 }
 
 function closeSettings() {
-  patchConsole({ settingsOpen: false });
+  patchConsole({ settingsOpen: false, mainVisible: true });
 }
 
 async function saveSettings() {
@@ -83,7 +84,7 @@ async function saveSettings() {
     const saved = payload?.config ?? next;
     useStore.getState().setAppConfig(saved);
     useStore.getState().addRunEvent({ label: t(lang, "saved"), detail: saved?.model?.name || saved?.model?.provider || "config", state: "done" });
-    patchConsole({ settingsSaving: false, settingsOpen: false });
+    patchConsole({ settingsSaving: false, settingsOpen: false, mainVisible: true });
   } catch (err) {
     patchConsole({ settingsSaving: false, settingsError: String(err) });
     useStore.getState().addRunEvent({ label: t(lang, "settingsSaveFailed"), detail: String(err), state: "error" });
@@ -205,7 +206,6 @@ export default function ConsoleView() {
     if (widgetRef === "console:settings" && interaction === "click") openSettings();
     else if (widgetRef === "console:cancel" && interaction === "click") closeSettings();
     else if (widgetRef === "console:save" && interaction === "click") void saveSettings();
-    else if (widgetRef === "console:settings-drawer" && interaction === "close") closeSettings();
     else if (widgetRef.startsWith("home:")) {
       const prompt = HOME_PROMPTS[widgetRef];
       if (prompt) void sendChat(prompt);

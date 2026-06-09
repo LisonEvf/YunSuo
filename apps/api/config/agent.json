@@ -2,14 +2,18 @@
   "runtime": {
     "max_iterations": 12,
     "retry_max_attempts": 3,
-    "context_window_tokens": 65536
+    "context_window_tokens": 131072
   },
   "model": {
     "provider": "llamacpp",
-    "name": "Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q4_K_M.gguf",
-    "base_url": "http://192.168.31.57:11232/v1",
+    "name": "qwen3-coder",
+    "base_url": "http://127.0.0.1:11232/v1",
     "api_key": "llama",
-    "max_output_tokens": 4096
+    "max_output_tokens": 131072
+  },
+  "ui": {
+    "theme": "light",
+    "language": "zh-CN"
   },
   "skills": {
     "enabled": true,

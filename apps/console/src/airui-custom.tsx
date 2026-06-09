@@ -221,6 +221,7 @@ export const homeLayout: Component = {
 // ── 自定义组�?────────────────────────────────────────────────────────
 
 const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ comp, resolvedProps }) => {
+  if (resolvedProps.visible === false) return null;
   const direction = (resolvedProps.direction as string) ?? "column";
   const grow = resolvedProps.grow === true;
   const justify = resolvedProps.justify as string | undefined;
@@ -246,6 +247,7 @@ const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
     borderBottom: resolvedProps.borderBottom ? "1px solid var(--color-border)" : undefined,
     borderLeft: resolvedProps.borderLeft ? "1px solid var(--color-border)" : undefined,
     borderTop: resolvedProps.borderTop ? "1px solid var(--color-border)" : undefined,
+    background: resolvedProps.background as string | undefined,
   };
   return (
     <div className={resolvedProps.className as string | undefined} style={style}>
@@ -398,6 +400,34 @@ const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
   );
 };
 
+// SettingCard: 设置分组的模块卡片（圆角 + 边框 + 标题栏带强调色竖条 + 描述）
+const SettingCard: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ comp, resolvedProps }) => {
+  const title = resolvedProps.title as string | undefined;
+  const desc = resolvedProps.desc as string | undefined;
+  const align = (resolvedProps.align as string) ?? "center";
+  const maxWidth = (resolvedProps.maxWidth as number | undefined) ?? 640;
+  const sectionStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 12, background: "var(--color-surface)", boxShadow: "var(--air-shadow)", overflow: "hidden", width: "100%", maxWidth };
+  if (align === "left") { sectionStyle.marginLeft = 0; sectionStyle.marginRight = "auto"; }
+  else if (align === "right") { sectionStyle.marginLeft = "auto"; sectionStyle.marginRight = 0; }
+  else { sectionStyle.marginInline = "auto"; }
+  return (
+    <section style={sectionStyle}>
+      {title && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)" }}>
+          <span style={{ width: 3, height: 16, borderRadius: 2, background: "var(--color-primary)" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, color: "var(--color-text)" }}>{title}</span>
+            {desc && <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{desc}</span>}
+          </div>
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 16 }}>
+        {comp.children?.map((child, i) => <AirUIComponent key={child.ref ?? i} comp={child} />)}
+      </div>
+    </section>
+  );
+};
+
 let registered = false;
 /** 注册 console 专用自定义组件（幂等）�?*/
 export function registerConsoleComponents() {
@@ -411,4 +441,5 @@ export function registerConsoleComponents() {
   registerComponent("ConnStatus", ConnStatus);
   registerComponent("Notice", Notice);
   registerComponent("Card", Card);
+  registerComponent("SettingCard", SettingCard);
 }

@@ -120,7 +120,7 @@ def _render_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, A
         "children": [content],
     })
 
-    _run_push(push_document(session_id, doc, title="General Agent Console"))
+    _run_push(push_document(session_id, doc, title="云梭 Yunsuo"))
     return {"status": "rendered", "ref": ref, "session_id": session_id}
 
 

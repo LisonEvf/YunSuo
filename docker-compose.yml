@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    container_name: sentiment-api
+    container_name: yunsuo-api
     restart: unless-stopped
     environment:
       PYTHONPATH: /app/apps/api

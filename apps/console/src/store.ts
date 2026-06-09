@@ -178,7 +178,7 @@ export const useStore = create<AppState>((set, get) => ({
     {
       role: "assistant",
       content:
-        "Welcome to the general agent console. Ask me to plan work, inspect a problem, draft a document, or render a structured artifact.",
+        "Welcome to Yunsuo. Ask me to plan work, inspect a problem, draft a document, or render a structured artifact.",
     },
   ],
   chatLoading: false,

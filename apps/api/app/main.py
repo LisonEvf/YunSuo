@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="General Agent Client API", version="1.0.0")
+app = FastAPI(title="Yunsuo API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +27,7 @@ app.add_middleware(
 def health():
     return {
         "status": "ok",
-        "service": "general-agent-client",
+        "service": "yunsuo",
         "capabilities": ["chat", "skills", "memory", "trajectories", "airui"],
     }
 

@@ -1,6 +1,8 @@
-# General Agent Console
+# 云梭 Yunsuo
 
-FastAPI + React + AIRUI 的通用 agent 客户端。项目采用 monorepo 结构，提供一个可扩展的 agent 操作台：聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
+> 织 agent 运行为可交互的界面 —— FastAPI + React + AIRUI 的通用 agent 操作台。
+
+采用 monorepo 结构，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
 
 ## 当前能力
 
@@ -99,7 +101,7 @@ cd apps/console && bun run build
 
 ## 文档
 
-- [docs/general-agent-console-design.md](docs/general-agent-console-design.md) — 通用 agent console 重构目标与范围
+- [docs/general-agent-console-design.md](docs/general-agent-console-design.md) — 重构历史记录（sentiment 看板 → 通用 agent console）
 - [docs/2026-06-09-airui-usage.md](docs/2026-06-09-airui-usage.md) — AIRUI 中间表示、组件清单、事件与增量更新、React 渲染 API、console 集成
 - [docs/2026-06-09-theme-system.md](docs/2026-06-09-theme-system.md) — 主题架构、内置主题、自定义风格重载
 - [docs/hermes-agent-self-evolution.md](docs/hermes-agent-self-evolution.md) — 外部参考（agent 自演进，后端多处设计借鉴来源）

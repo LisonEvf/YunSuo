@@ -1,10 +1,10 @@
-# General Agent Console — 项目分析报告
+# 云梭 Yunsuo — 项目分析报告
 
-> 分析时间：2026-06-10 ｜ 分支：`general` ｜ 仓库：`sentiment`
+> 分析时间：2026-06-10 ｜ 分支：`general` ｜ 仓库：`yunsuo`（旧代号 `sentiment`）
 
 ## 1. 项目定位
 
-仓库名 `sentiment` 是历史包袱——项目最初是一个 A 股市场情绪看板，已重构为**通用 Agent 操作台（General Agent Console）**。当前形态是 FastAPI + React + AIRUI 的 monorepo，目标是提供一个可扩展的 agent 客户端：聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
+项目代号 **云梭（Yunsuo）**——仓库最初是 A 股市场情绪看板（旧代号 `sentiment`），已重构为通用 Agent 操作台。当前形态是 FastAPI + React + AIRUI 的 monorepo，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
 
 历史股票语义已从主运行路径拆除：REST/工具/技能全部通用化，旧 SDK 保留在 [external/](external/)，旧界面已删除（README 仍提及 [archive/](archive/)，实际目录不存在，见 §11）。
 
@@ -23,7 +23,7 @@
 ## 3. Monorepo 结构
 
 ```
-sentiment/
+yunsuo/
 ├── apps/
 │   ├── api/                      FastAPI 后端
 │   │   ├── app/

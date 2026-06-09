@@ -1,4 +1,4 @@
-"""System prompt for the general agent client."""
+"""System prompt for the Yunsuo agent runtime."""
 from __future__ import annotations
 
 from datetime import date

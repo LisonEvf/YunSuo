@@ -92,3 +92,21 @@ def test_config_get_returns_merged_presets(monkeypatch, tmp_path):
     assert not any(p["key"] == "ollama" for p in presets)
     # 内置总数 = 11 - 1(ollama)
     assert len(presets) == len(BUILTIN_PROVIDER_PRESETS) - 1
+
+
+def test_memory_upsert_same_category_updates(monkeypatch, tmp_path):
+    """upsert 同 category 已有则更新，不新增重复条目。"""
+    from app.agent import memory as mem_mod
+
+    db_file = tmp_path / "memory.db"
+    monkeypatch.setattr(mem_mod, "DB_PATH", db_file)
+    mm = mem_mod.MemoryManager()  # 用新路径重建 manager
+
+    mid1 = mm.upsert("provider_preference", "激活 DeepSeek / deepseek-chat")
+    mid2 = mm.upsert("provider_preference", "激活 Groq / llama-3.3-70b")
+
+    assert mid1 == mid2  # 同 category 复用同一条
+    rows = mm.search("激活")
+    prefs = [r for r in rows if r["category"] == "provider_preference"]
+    assert len(prefs) == 1
+    assert "Groq" in prefs[0]["content"]

@@ -61,6 +61,26 @@ class MemoryManager:
         conn.commit()
         return cursor.lastrowid
 
+    def upsert(self, category: str, content: str, keywords: list[str] | None = None) -> int:
+        """同 category 下已有则更新（最新一条），否则新增。避免重复条目。"""
+        if keywords is None:
+            keywords = _extract_keywords(content)
+        now = datetime.now().isoformat()
+        conn = self._get_conn()
+        existing = conn.execute(
+            "SELECT id FROM memories WHERE category = ? ORDER BY updated_at DESC LIMIT 1",
+            (category,),
+        ).fetchall()
+        if existing:
+            mem_id = existing[0]["id"]
+            conn.execute(
+                "UPDATE memories SET content = ?, keywords = ?, updated_at = ? WHERE id = ?",
+                (content, ",".join(keywords), now, mem_id),
+            )
+            conn.commit()
+            return mem_id
+        return self.save(category, content, keywords)
+
     def recall(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         """基于关键词召回相关记忆。"""
         keywords = _extract_keywords(query)

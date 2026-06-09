@@ -54,7 +54,7 @@ class GeneralAgent:
         self.base_url = base_url or config.LLM_BASE_URL
         self.model = model or config.LLM_MODEL
         self.client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        self.tools = TOOL_DEFINITIONS
+        self.tools = _load_tools()
         self._system_prompt = build_system_prompt()
         self._context = ContextManager()
         self._guardrails = ToolGuardrails()
@@ -629,11 +629,34 @@ def get_agent() -> GeneralAgent:
     return _agent
 
 
+def _load_tools() -> list[dict]:
+    """内置工具 + MCP 工具合并。MCP 加载失败不阻断启动。"""
+    tools = list(TOOL_DEFINITIONS)
+    try:
+        from . import mcp_client
+
+        schemas, handlers = mcp_client.load_all()
+        if schemas:
+            tools.extend(schemas)
+            mcp_client.register_in_tools(handlers)
+    except Exception as exc:
+        logger.warning("MCP tool loading failed: %s", exc)
+    return tools
+
+
 def reset_agent() -> None:
     """Drop the singleton so the next request uses the latest saved config."""
     global _agent
     with _agent_lock:
         _agent = None
+    # lock 外清理 MCP 长连接 + skill 扫描缓存，下次 get_agent 用新配置重建
+    try:
+        from . import mcp_client, skills
+
+        mcp_client.shutdown_all()
+        skills.invalidate_cache()
+    except Exception as exc:
+        logger.warning("reset_agent cleanup failed: %s", exc)
 
 
 def _truncate_tool_result(result: str, max_chars: int = _MAX_TOOL_RESULT_CHARS) -> str:

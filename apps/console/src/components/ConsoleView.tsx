@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import type { Component } from "@air-ui/core";
 import { AirUIComponent, InteractionProvider, useAirUIStore } from "@air-ui/renderer-react";
-import { useStore, defaultAgentConfig } from "../store";
+import { useStore, defaultAgentConfig, type McpServerConfig } from "../store";
 import { t, messages } from "../i18n";
 import { sendInteraction } from "../ws-client";
 import { consoleLayout } from "../consoleLayout";
@@ -15,6 +15,9 @@ interface DraftShape {
   ui: { theme: string; language: string };
   model: Record<string, unknown>;
   runtime: { max_iterations: number; context_window_tokens: number };
+  skills: { enabled: boolean; search_paths: string[] };
+  mcp: { enabled: boolean; servers: McpServerConfig[] };
+  plugins: { enabled: boolean; search_paths: string[] };
 }
 
 // 从后端 artifact 影子文档提取工件面板（ref=row-artifacts 下的 Widget 列表）
@@ -48,12 +51,19 @@ function openSettings() {
       ui: { theme: cfg.ui.theme, language: cfg.ui.language },
       model: { ...cfg.model },
       runtime: { max_iterations: cfg.runtime.max_iterations, context_window_tokens: cfg.runtime.context_window_tokens },
+      skills: { enabled: cfg.skills.enabled, search_paths: [...cfg.skills.search_paths] },
+      mcp: { enabled: cfg.mcp.enabled, servers: cfg.mcp.servers.map((s) => ({ ...s })) },
+      plugins: { enabled: cfg.plugins.enabled, search_paths: [...cfg.plugins.search_paths] },
     } as DraftShape,
   });
 }
 
 function closeSettings() {
   patchConsole({ settingsOpen: false, mainVisible: true });
+}
+
+function backHome() {
+  patchConsole({ homePinned: true, artifacts: [] });
 }
 
 async function saveSettings() {
@@ -73,6 +83,9 @@ async function saveSettings() {
         max_iterations: draft.runtime.max_iterations,
         context_window_tokens: draft.runtime.context_window_tokens,
       },
+      skills: { ...current.skills, ...draft.skills },
+      mcp: { ...current.mcp, ...draft.mcp },
+      plugins: { ...current.plugins, ...draft.plugins },
     };
     const res = await fetch("/api/config", {
       method: "PUT",
@@ -203,7 +216,8 @@ export default function ConsoleView() {
   }, [language, setAppConfig]);
 
   const handleInteraction = useCallback((widgetRef: string, interaction: string, payload: Record<string, unknown>) => {
-    if (widgetRef === "console:settings" && interaction === "click") openSettings();
+    if (widgetRef === "console:home" && interaction === "click") backHome();
+    else if (widgetRef === "console:settings" && interaction === "click") openSettings();
     else if (widgetRef === "console:cancel" && interaction === "click") closeSettings();
     else if (widgetRef === "console:save" && interaction === "click") void saveSettings();
     else if (widgetRef.startsWith("home:")) {

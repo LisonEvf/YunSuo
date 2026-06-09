@@ -85,43 +85,62 @@ def _build_search_text(name: str, description: str, body: str) -> str:
     return f"{name} {description} {headings} {sample}".lower()
 
 
+def _skill_dirs() -> list[Path]:
+    """从 config.skills.search_paths 解析 skill 目录（相对 PROJECT_ROOT）。"""
+    from . import config
+
+    paths = (config.AGENT_CONFIG.get("skills", {}) or {}).get("search_paths") or []
+    dirs: list[Path] = []
+    for p in paths:
+        sp = Path(p)
+        dirs.append(sp if sp.is_absolute() else PROJECT_ROOT / sp)
+    if not dirs:
+        dirs.append(SKILLS_DIR)
+    return dirs
+
+
+def invalidate_cache() -> None:
+    """清空 skill 扫描缓存（config 改动后由 reset_agent 调用）。"""
+    global _SCAN_CACHE
+    _SCAN_CACHE = (0.0, {})
+
+
 def scan_skills() -> dict[str, dict[str, Any]]:
-    """扫描 skills 目录，返回 {"/slug": info} 映射。带 TTL 缓存。"""
+    """扫描所有 search_paths 下的 SKILL.md，返回 {"/slug": info} 映射。带 TTL 缓存。"""
     global _SCAN_CACHE
     now = time.time()
     if now - _SCAN_CACHE[0] < _SCAN_CACHE_TTL:
         return _SCAN_CACHE[1]
 
     skills: dict[str, dict[str, Any]] = {}
-    if not SKILLS_DIR.exists():
-        _SCAN_CACHE = (now, skills)
-        return skills
-
-    for skill_md in sorted(SKILLS_DIR.rglob("SKILL.md")):
-        try:
-            content = skill_md.read_text(encoding="utf-8")
-            meta, body = _parse_frontmatter(content)
-            name = meta.get("name", skill_md.parent.name)
-            slug = _normalize_slug(name)
-            if not slug:
-                continue
-            description = meta.get("description", "")
-            if not description:
-                for line in body.strip().splitlines():
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        description = line[:100]
-                        break
-            skills[f"/{slug}"] = {
-                "name": name,
-                "slug": slug,
-                "description": description,
-                "skill_dir": str(skill_md.parent),
-                "skill_md_path": str(skill_md),
-                "search_text": _build_search_text(name, description, body),
-            }
-        except Exception as exc:
-            logger.warning("Failed to load skill %s: %s", skill_md, exc)
+    for skill_dir in _skill_dirs():
+        if not skill_dir.exists():
+            continue
+        for skill_md in sorted(skill_dir.rglob("SKILL.md")):
+            try:
+                content = skill_md.read_text(encoding="utf-8")
+                meta, body = _parse_frontmatter(content)
+                name = meta.get("name", skill_md.parent.name)
+                slug = _normalize_slug(name)
+                if not slug:
+                    continue
+                description = meta.get("description", "")
+                if not description:
+                    for line in body.strip().splitlines():
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            description = line[:100]
+                            break
+                skills[f"/{slug}"] = {
+                    "name": name,
+                    "slug": slug,
+                    "description": description,
+                    "skill_dir": str(skill_md.parent),
+                    "skill_md_path": str(skill_md),
+                    "search_text": _build_search_text(name, description, body),
+                }
+            except Exception as exc:
+                logger.warning("Failed to load skill %s: %s", skill_md, exc)
 
     _SCAN_CACHE = (now, skills)
     return skills

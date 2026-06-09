@@ -27,6 +27,7 @@ export const consoleLayout: AirUIDocument = {
       runtime: { max_iterations: 12, context_window_tokens: 65536 },
     },
     artifacts: [],
+    homePinned: false,
     skills: [],
     activeSkills: [],
     runEvents: [],
@@ -58,6 +59,7 @@ export const consoleLayout: AirUIDocument = {
                 type: "Pane",
                 props: { direction: "row", gap: "8px", align: "center" },
                 children: [
+                  { type: "Button", ref: "console:home", props: { label: "{state.t.backHome}", variant: "secondary" } },
                   { type: "Button", ref: "console:settings", props: { label: "{state.t.settings}", variant: "secondary" } },
                   { type: "ConnStatus" },
                   { type: "Text", props: { value: "{state.activeToolsText}", style: "caption" } },
@@ -139,6 +141,37 @@ export const consoleLayout: AirUIDocument = {
                     children: [
                       { type: "Setting", props: { path: "runtime.max_iterations", kind: "number", label: "{state.t.maxIterations}" } },
                       { type: "Setting", props: { path: "runtime.context_window_tokens", kind: "number", label: "{state.t.contextWindow}" } },
+                    ],
+                  },
+                ],
+              },
+              // ── Skills / MCP / Plugins ──────────────────────────────────
+              {
+                type: "Pane",
+                props: { direction: "row", gap: "14px", align: "start", minWidth: 0 },
+                children: [
+                  {
+                    type: "SettingCard",
+                    props: { title: "{state.t.skills}", desc: "{state.t.settingsSkillsDesc}" },
+                    children: [
+                      { type: "Setting", props: { path: "skills.enabled", kind: "switch", label: "{state.t.enabled}" } },
+                      { type: "ListEditor", props: { path: "skills.search_paths", placeholder: "packages/agent-skills" } },
+                    ],
+                  },
+                  {
+                    type: "SettingCard",
+                    props: { title: "{state.t.mcp}", desc: "{state.t.settingsMcpDesc}" },
+                    children: [
+                      { type: "Setting", props: { path: "mcp.enabled", kind: "switch", label: "{state.t.enabled}" } },
+                      { type: "McpServers" },
+                    ],
+                  },
+                  {
+                    type: "SettingCard",
+                    props: { title: "{state.t.plugins}", desc: "{state.t.settingsPluginsDesc}" },
+                    children: [
+                      { type: "Setting", props: { path: "plugins.enabled", kind: "switch", label: "{state.t.enabled}" } },
+                      { type: "ListEditor", props: { path: "plugins.search_paths", placeholder: "packages/plugins" } },
                     ],
                   },
                 ],

@@ -26,14 +26,18 @@ DEFAULT_AGENT_CONFIG: dict = {
     },
     "skills": {
         "enabled": True,
+        # search_paths: 扫描 SKILL.md 的目录列表（相对项目根）
         "search_paths": ["packages/agent-skills"],
     },
     "mcp": {
         "enabled": True,
+        # servers: 每项结构见 agent/mcp_client.py 文档
+        #   {name, enabled, command+args(+env) | url(+transport?, headers?)}
         "servers": [],
     },
     "plugins": {
         "enabled": True,
+        # search_paths: plugin 目录列表（发现层，执行系统待实现）
         "search_paths": [],
     },
 }

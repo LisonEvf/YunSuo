@@ -26,6 +26,19 @@ export interface RunEvent {
 export type ThemeMode = "light" | "dark" | "graphite" | "neon" | "glass" | "system";
 export type LanguageCode = "zh-CN" | "en-US";
 
+export interface McpServerConfig {
+  name: string;
+  enabled: boolean;
+  /** stdio transport */
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  /** http / sse transport */
+  url?: string;
+  transport?: "http" | "sse";
+  headers?: Record<string, string>;
+}
+
 export interface AgentConfig {
   runtime: {
     max_iterations: number;
@@ -49,7 +62,7 @@ export interface AgentConfig {
   };
   mcp: {
     enabled: boolean;
-    servers: unknown[];
+    servers: McpServerConfig[];
   };
   plugins: {
     enabled: boolean;

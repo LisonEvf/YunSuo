@@ -9,3 +9,4 @@ numpy>=2.0.0
 click>=8.1.7
 openai>=1.30.0
 jsonpatch>=1.33
+mcp>=1.8.0

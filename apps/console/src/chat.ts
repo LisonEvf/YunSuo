@@ -1,4 +1,5 @@
 import { useStore, type ToolStatus } from "./store";
+import { useAirUIStore } from "@air-ui/renderer-react";
 
 /**
  * 共享的聊天发送逻辑（流式）。ChatPanel 的输入框与主页 starter 卡片共用。
@@ -8,6 +9,12 @@ export async function sendChat(text: string) {
   const trimmed = text.trim();
   const store = useStore.getState();
   if (!trimmed || store.chatLoading) return;
+
+  // 新对话开始：解除首页 pin，让后续 artifact 正常进画廊
+  const airuiState = useAirUIStore.getState();
+  if (airuiState.doc && (airuiState.doc.state as Record<string, unknown>).homePinned) {
+    airuiState.applyPatch([{ op: "update-state", stateDelta: { homePinned: false } }]);
+  }
 
   const messages = store.chatMessages;
   store.addChatMessage({ role: "user", content: trimmed });

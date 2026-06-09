@@ -259,7 +259,8 @@ const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
 const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
   const artifacts = ((doc?.state?.artifacts as ArtifactPanel[]) ?? []);
-  if (!artifacts.length) {
+  const homePinned = (doc?.state?.homePinned as boolean) ?? false;
+  if (!artifacts.length || homePinned) {
     return <AirUIComponent comp={homeLayout} />;
   }
   return (
@@ -336,6 +337,8 @@ const RunTimeline: FC<{ comp: Component; resolvedProps: Record<string, unknown> 
 
 const fieldStyle: CSSProperties = { width: "100%", height: 34, borderRadius: 8, border: "1px solid var(--color-border-strong)", background: "var(--color-surface)", color: "var(--color-text)", padding: "0 10px", outline: "none", fontSize: 13 };
 const fieldLabelStyle: CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-text)" };
+const delBtnStyle: CSSProperties = { flexShrink: 0, width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", fontSize: 16, lineHeight: 1 };
+const addBtnStyle: CSSProperties = { alignSelf: "flex-start", height: 30, padding: "0 12px", borderRadius: 8, border: "1px dashed var(--color-border-strong)", background: "transparent", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
 
 const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
@@ -355,7 +358,9 @@ const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> =
   return (
     <label style={fieldLabelStyle}>
       {label}
-      {kind === "select" ? (
+      {kind === "switch" ? (
+        <input type="checkbox" checked={Boolean(value)} onChange={(e) => update(e.target.checked)} style={{ width: 16, height: 16 }} />
+      ) : kind === "select" ? (
         <select value={String(value ?? "")} onChange={(e) => update(e.target.value)} style={fieldStyle}>
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
@@ -428,6 +433,122 @@ const SettingCard: FC<{ comp: Component; resolvedProps: Record<string, unknown> 
   );
 };
 
+// ListEditor: 编辑 draft 上的 string[]（如 search_paths），每行一项 + 增删
+const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const path = `draft.${resolvedProps.path as string}`;
+  const raw = doc ? getByPath(doc.state, path) : [];
+  const items: string[] = Array.isArray(raw) ? raw.map((x) => String(x)) : [];
+  const placeholder = (resolvedProps.placeholder as string) || "";
+
+  const update = (next: string[]) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ display: "flex", gap: 6 }}>
+          <input
+            value={item}
+            placeholder={placeholder}
+            onChange={(e) => update(items.map((x, j) => (j === i ? e.target.value : x)))}
+            style={fieldStyle}
+          />
+          <button onClick={() => update(items.filter((_, j) => j !== i))} style={delBtnStyle}>×</button>
+        </div>
+      ))}
+      <button onClick={() => update([...items, ""])} style={addBtnStyle}>+ 添加</button>
+    </div>
+  );
+};
+
+// McpServers: 编辑 draft.mcp.servers，每 server 一卡片（name/enabled/transport/命令或 url）
+const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const path = "draft.mcp.servers";
+  const raw = doc ? getByPath(doc.state, path) : [];
+  const servers: Array<Record<string, unknown>> = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : [];
+
+  const update = (next: Array<Record<string, unknown>>) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+  };
+  const patch = (i: number, delta: Record<string, unknown>) =>
+    update(servers.map((s, j) => (j === i ? { ...s, ...delta } : s)));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {servers.map((srv, i) => {
+        const isStdio = Boolean(srv.command);
+        const mode = isStdio ? "stdio" : ((srv.transport as string) || "http");
+        return (
+          <div key={i} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input
+                value={String(srv.name || "")}
+                placeholder="name"
+                onChange={(e) => patch(i, { name: e.target.value })}
+                style={{ ...fieldStyle, flex: 1 }}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--color-text)", whiteSpace: "nowrap" }}>
+                <input type="checkbox" checked={srv.enabled !== false} onChange={(e) => patch(i, { enabled: e.target.checked })} />
+                on
+              </label>
+              <button onClick={() => update(servers.filter((_, j) => j !== i))} style={delBtnStyle}>×</button>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <select
+                value={mode}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "stdio") patch(i, { command: String(srv.command || ""), url: undefined, transport: undefined });
+                  else patch(i, { url: String(srv.url || ""), command: undefined, args: undefined, transport: v === "sse" ? "sse" : undefined });
+                }}
+                style={{ ...fieldStyle, width: 90, flex: "none" }}
+              >
+                <option value="stdio">stdio</option>
+                <option value="http">http</option>
+                <option value="sse">sse</option>
+              </select>
+              {isStdio ? (
+                <>
+                  <input
+                    value={String(srv.command || "")}
+                    placeholder="command"
+                    onChange={(e) => patch(i, { command: e.target.value })}
+                    style={{ ...fieldStyle, flex: 1 }}
+                  />
+                  <input
+                    value={Array.isArray(srv.args) ? (srv.args as string[]).join(" ") : ""}
+                    placeholder="args (空格分隔)"
+                    onChange={(e) => patch(i, { args: e.target.value.split(/\s+/).filter(Boolean) })}
+                    style={{ ...fieldStyle, flex: 1 }}
+                  />
+                </>
+              ) : (
+                <input
+                  value={String(srv.url || "")}
+                  placeholder="https://host/mcp"
+                  onChange={(e) => patch(i, { url: e.target.value })}
+                  style={{ ...fieldStyle, flex: 1 }}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <button
+        onClick={() => update([...servers, { name: "", enabled: true, command: "", args: [] }])}
+        style={addBtnStyle}
+      >+ 添加 server</button>
+    </div>
+  );
+};
+
 let registered = false;
 /** 注册 console 专用自定义组件（幂等）�?*/
 export function registerConsoleComponents() {
@@ -442,4 +563,6 @@ export function registerConsoleComponents() {
   registerComponent("Notice", Notice);
   registerComponent("Card", Card);
   registerComponent("SettingCard", SettingCard);
+  registerComponent("ListEditor", ListEditor);
+  registerComponent("McpServers", McpServers);
 }

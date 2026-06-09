@@ -647,6 +647,7 @@ function SettingsDrawer({
               >
                 <option value="light">{t(language, "light")}</option>
                 <option value="dark">{t(language, "dark")}</option>
+                <option value="graphite">{t(language, "graphite")}</option>
                 <option value="system">{t(language, "system")}</option>
               </select>
             </label>

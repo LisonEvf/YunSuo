@@ -23,7 +23,7 @@ export interface RunEvent {
   time: string;
 }
 
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = "light" | "dark" | "graphite" | "system";
 export type LanguageCode = "zh-CN" | "en-US";
 
 export interface AgentConfig {

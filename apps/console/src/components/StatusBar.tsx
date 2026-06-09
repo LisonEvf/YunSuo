@@ -1,5 +1,6 @@
 import { useStore } from "../store";
 import { t } from "../i18n";
+import ThemeSwitcher from "./ThemeSwitcher";
 
 export default function StatusBar() {
   const language = useStore((s) => s.appConfig.ui.language);
@@ -34,6 +35,7 @@ export default function StatusBar() {
       <span>{t(language, "mode")}: {mode}</span>
       <span>{t(language, "run")}: {loading ? t(language, "activeRun") : t(language, "idle")}</span>
       <span>{t(language, "tools")}: {activeTools.length}</span>
+      <ThemeSwitcher />
     </footer>
   );
 }

@@ -3,18 +3,16 @@ import { connectWebSocket, disconnectWebSocket } from "./ws-client";
 import ConsoleView from "./components/ConsoleView";
 import ChatPanel from "./components/ChatPanel";
 import StatusBar from "./components/StatusBar";
-import AirUIGallery from "./components/AirUIGallery";
 import { useStore } from "./store";
+import { CUSTOM_THEMES_KEY, loadCustomThemes, applyCustomThemes } from "./themes";
 
 export default function App() {
   const theme = useStore((s) => s.appConfig.ui.theme);
-  const isGallery = new URLSearchParams(window.location.search).get("gallery") === "airui";
 
   useEffect(() => {
-    if (isGallery) return;
     connectWebSocket();
     return () => disconnectWebSocket();
-  }, [isGallery]);
+  }, []);
 
   useEffect(() => {
     const applyTheme = () => {
@@ -27,6 +25,15 @@ export default function App() {
     media.addEventListener("change", applyTheme);
     return () => media.removeEventListener("change", applyTheme);
   }, [theme]);
+
+  useEffect(() => {
+    applyCustomThemes(loadCustomThemes());
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === CUSTOM_THEMES_KEY) applyCustomThemes(loadCustomThemes());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   return (
     <div
@@ -41,17 +48,11 @@ export default function App() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
-      {isGallery ? (
-        <AirUIGallery />
-      ) : (
-        <>
-          <div className="app-main" style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
-            <ChatPanel />
-            <ConsoleView />
-          </div>
-          <StatusBar />
-        </>
-      )}
+      <div className="app-main" style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
+        <ChatPanel />
+        <ConsoleView />
+      </div>
+      <StatusBar />
     </div>
   );
 }

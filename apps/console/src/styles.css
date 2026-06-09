@@ -7,43 +7,7 @@ body {
   letter-spacing: -0.011em;
 }
 
-:root {
-  --color-app-bg: #f6f9fc;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f4f6fa;
-  --color-border: #e3e8ee;
-  --color-border-strong: #c1c9d2;
-  --color-text: #0a2540;
-  --color-muted: #425466;
-  --color-primary: #635bff;
-  --color-primary-strong: #533afd;
-  --color-primary-soft: #edecff;
-  --color-primary-border: #c9c5ff;
-  --color-primary-text: #ffffff;
-  --color-danger: #df1b41;
-  --color-success: #1a8245;
-  --color-info: #0554f7;
-  --shadow-panel: 0 2px 5px rgba(50, 50, 93, 0.1), 0 1px 2px rgba(0, 0, 0, 0.08);
-  --air-surface: var(--color-surface);
-  --air-surfaceAlt: var(--color-surface-muted);
-  --air-border: var(--color-border);
-  --air-borderLight: #eef1f6;
-  --air-text: var(--color-text);
-  --air-textSecondary: #525f7f;
-  --air-textMuted: var(--color-muted);
-  --air-accent: var(--color-primary);
-  --air-accentHover: var(--color-primary-strong);
-  --air-accentSubtle: var(--color-primary-soft);
-  --air-success: var(--color-success);
-  --air-successBg: rgba(26, 130, 69, 0.1);
-  --air-danger: var(--color-danger);
-  --air-dangerBg: rgba(223, 27, 65, 0.1);
-  --air-warning: #b78400;
-  --air-warningBg: rgba(183, 132, 0, 0.12);
-  --air-overlay: rgba(10, 37, 64, 0.5);
-  --air-shadow: 0 2px 5px rgba(50, 50, 93, 0.1), 0 1px 2px rgba(0, 0, 0, 0.08);
-  --air-shadowHover: 0 13px 27px -5px rgba(50, 50, 93, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.3);
-}
+/* light 默认主题由 @air-ui/renderer-react/theme.css 提供（包内基线）。此处仅保留本项目特色主题。 */
 
 :root[data-theme="dark"] {
   --color-app-bg: #06182e;
@@ -101,6 +65,72 @@ body {
   --air-shadowHover: 0 13px 27px -5px rgba(50, 50, 93, 0.2), 0 8px 16px -8px rgba(0, 0, 0, 0.25);
 }
 
+:root[data-theme="neon"] {
+  --color-app-bg: #06070f;
+  --color-surface: #0d0f1c;
+  --color-surface-muted: #141628;
+  --color-border: rgba(0, 229, 255, 0.18);
+  --color-border-strong: rgba(0, 229, 255, 0.35);
+  --color-text: #e8f4ff;
+  --color-muted: #7a8aab;
+  --color-primary: #00d9ff;
+  --color-primary-strong: #5ee8ff;
+  --color-primary-soft: rgba(0, 217, 255, 0.16);
+  --color-primary-border: rgba(0, 217, 255, 0.5);
+  --color-primary-text: #06070f;
+  --color-danger: #ff2d75;
+  --color-success: #00ff9d;
+  --color-info: #b14dff;
+  --shadow-panel: 0 0 0 1px rgba(0, 229, 255, 0.08), 0 0 22px rgba(0, 217, 255, 0.12);
+  --air-borderLight: rgba(255, 255, 255, 0.05);
+  --air-textSecondary: #9fb0d0;
+  --air-successBg: rgba(0, 255, 157, 0.12);
+  --air-dangerBg: rgba(255, 45, 117, 0.14);
+  --air-warning: #ffb800;
+  --air-warningBg: rgba(255, 184, 0, 0.14);
+  --air-overlay: rgba(0, 0, 0, 0.7);
+  --air-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08), 0 0 22px rgba(0, 217, 255, 0.12);
+  --air-shadowHover: 0 0 0 1px rgba(0, 217, 255, 0.3), 0 0 32px rgba(0, 217, 255, 0.3);
+}
+
+:root[data-theme="glass"] {
+  --color-app-bg: #dde6f5;
+  --color-surface: rgba(255, 255, 255, 0.55);
+  --color-surface-muted: rgba(255, 255, 255, 0.35);
+  --color-border: rgba(255, 255, 255, 0.6);
+  --color-border-strong: rgba(120, 140, 180, 0.5);
+  --color-text: #1a2540;
+  --color-muted: #4a5878;
+  --color-primary: #635bff;
+  --color-primary-strong: #533afd;
+  --color-primary-soft: rgba(99, 91, 255, 0.16);
+  --color-primary-border: rgba(99, 91, 255, 0.4);
+  --color-primary-text: #ffffff;
+  --color-danger: #df1b41;
+  --color-success: #1a8245;
+  --color-info: #0554f7;
+  --shadow-panel: 0 8px 32px rgba(31, 38, 80, 0.12);
+  --air-borderLight: rgba(255, 255, 255, 0.4);
+  --air-textSecondary: #5a688a;
+  --air-successBg: rgba(26, 130, 69, 0.15);
+  --air-dangerBg: rgba(223, 27, 65, 0.12);
+  --air-warning: #b78400;
+  --air-warningBg: rgba(183, 132, 0, 0.15);
+  --air-overlay: rgba(20, 30, 60, 0.4);
+  --air-shadow: 0 8px 32px rgba(31, 38, 80, 0.12);
+  --air-shadowHover: 0 12px 40px rgba(31, 38, 80, 0.2);
+}
+
+:root[data-theme="glass"] body {
+  background: linear-gradient(135deg, #c9d6ff 0%, #e0d4ff 45%, #ffd9ec 100%);
+}
+
+:root[data-theme="glass"] .console-content,
+:root[data-theme="glass"] .inspector-panel {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
 html,
 body,
 #root {
@@ -123,145 +153,6 @@ input,
 textarea,
 select {
   color-scheme: light;
-}
-
-.airui-gallery-page {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  background: var(--color-app-bg);
-  color: var(--color-text);
-}
-
-.airui-gallery-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 24px;
-  padding: 28px 32px 22px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.airui-gallery-kicker {
-  color: var(--color-primary-strong);
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.airui-gallery-hero h1 {
-  margin: 5px 0 4px;
-  font-size: 28px;
-  line-height: 1.15;
-  letter-spacing: 0;
-}
-
-.airui-gallery-hero p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-.airui-gallery-hero aside {
-  display: grid;
-  gap: 2px;
-  min-width: 150px;
-  padding: 14px;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface-muted);
-}
-
-.airui-gallery-hero aside strong {
-  font-size: 30px;
-  line-height: 1;
-}
-
-.airui-gallery-hero aside span {
-  color: var(--color-muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.airui-gallery-section {
-  padding: 24px 32px 30px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.airui-gallery-section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 14px;
-}
-
-.airui-gallery-section-heading h2 {
-  margin: 0;
-  font-size: 18px;
-  letter-spacing: 0;
-}
-
-.airui-gallery-section-heading p {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: 13px;
-  text-align: right;
-}
-
-.airui-gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-}
-
-.airui-gallery-card {
-  min-width: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  overflow: hidden;
-  box-shadow: var(--shadow-panel);
-}
-
-.airui-gallery-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 34px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 12px;
-}
-
-.airui-gallery-render {
-  min-height: 96px;
-  padding: 12px;
-  overflow: auto;
-}
-
-.airui-gallery-events {
-  position: sticky;
-  bottom: 0;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  min-height: 42px;
-  padding: 8px 32px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-muted);
-  font-size: 12px;
-  overflow-x: auto;
-}
-
-.airui-gallery-events strong {
-  color: var(--color-text);
-  white-space: nowrap;
 }
 
 :root[data-theme="dark"] button,

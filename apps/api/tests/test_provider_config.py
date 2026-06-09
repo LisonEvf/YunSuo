@@ -110,3 +110,69 @@ def test_memory_upsert_same_category_updates(monkeypatch, tmp_path):
     prefs = [r for r in rows if r["category"] == "provider_preference"]
     assert len(prefs) == 1
     assert "Groq" in prefs[0]["content"]
+
+
+def test_get_provider_config_masks_api_key(monkeypatch, tmp_path):
+    """get_provider_config 返回的 providers 中 api_key 被掩码。"""
+    cfg_file = tmp_path / "agent.json"
+    cfg_file.write_text(
+        '{"model": {"provider":"openai","name":"x","base_url":"http://x/v1",'
+        '"api_key":"sk-secret123456","max_output_tokens":4096,"display_name":""},'
+        '"providers":[{"id":"p1","name":"A","provider":"openai","base_url":"http://a/v1",'
+        '"api_key":"sk-secret123456","model_name":"m","max_output_tokens":4096}],'
+        '"active_provider_id":"p1","provider_presets":[]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", cfg_file)
+    config.reload_config()
+
+    from app.agent.tools import _get_provider_config
+    out = _get_provider_config({})
+    p = out["providers"][0]
+    assert p["api_key"] != "sk-secret123456"
+    assert "secret" not in p["api_key"]
+    assert len(out["provider_presets"]) == len(BUILTIN_PROVIDER_PRESETS)
+    assert "openai" in out["builtin_preset_keys"]
+
+
+def test_update_provider_presets_rejects_invalid(monkeypatch, tmp_path):
+    cfg_file = tmp_path / "agent.json"
+    cfg_file.write_text(
+        '{"model":{"provider":"openai","name":"x","base_url":"http://x/v1",'
+        '"api_key":"k","max_output_tokens":4096,"display_name":""},"provider_presets":[]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", cfg_file)
+    config.reload_config()
+
+    from app.agent.tools import _update_provider_presets
+    # 缺 key
+    assert "key" in _update_provider_presets({"presets": [{"name": "X"}]})["message"]
+    # provider 非 openai
+    r = _update_provider_presets({"presets": [{"key": "x", "name": "X", "provider": "anthropic",
+        "base_url": "http://x/v1", "defaultModel": "m"}]})
+    assert "openai" in r["message"]
+    # 非法 base_url
+    r = _update_provider_presets({"presets": [{"key": "x", "name": "X", "provider": "openai",
+        "base_url": "not-a-url", "defaultModel": "m"}]})
+    assert "base_url" in r["message"]
+
+
+def test_update_provider_presets_writes_and_merges(monkeypatch, tmp_path):
+    cfg_file = tmp_path / "agent.json"
+    cfg_file.write_text(
+        '{"model":{"provider":"openai","name":"x","base_url":"http://x/v1",'
+        '"api_key":"k","max_output_tokens":4096,"display_name":""},"provider_presets":[]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", cfg_file)
+    config.reload_config()
+
+    from app.agent.tools import _update_provider_presets
+    out = _update_provider_presets({"presets": [
+        {"key": "groq", "name": "Groq", "provider": "openai",
+         "base_url": "https://api.groq.com/openai/v1", "defaultModel": "llama-3.3-70b",
+         "maxOutputTokens": 4096},
+    ]})
+    assert out["status"] == "ok"
+    assert any(p["key"] == "groq" for p in out["provider_presets"])

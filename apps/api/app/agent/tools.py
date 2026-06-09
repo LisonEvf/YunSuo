@@ -60,6 +60,28 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_provider_config",
+            "description": "Read current LLM provider preset templates (merged builtin + user overlay), saved provider instances (api_key masked), and the active provider id. Use this before modifying provider config.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_provider_presets",
+            "description": "Replace the user provider-preset overlay (full list). Each entry: {key, name, provider, base_url, defaultModel, maxOutputTokens, ...}; add hidden:true to hide a builtin entry. Builtin defaults remain restorable by clearing the overlay. api_key is NOT allowed in presets.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "presets": {"type": "array", "description": "Full overlay list replacing the previous one."},
+                },
+                "required": ["presets"],
+            },
+        },
+    },
 ]
 
 
@@ -136,10 +158,84 @@ def _patch_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, An
     return {"status": "patched", "patchCount": len(patches), "session_id": session_id}
 
 
+def _mask_api_key(key: str) -> str:
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return "***"
+    return f"{key[:3]}***{key[-4:]}"
+
+
+def _mask_provider(p: dict) -> dict:
+    out = dict(p)
+    if "api_key" in out:
+        out["api_key"] = _mask_api_key(str(out.get("api_key") or ""))
+    return out
+
+
+def _validate_presets(presets) -> str | None:
+    """校验覆盖层；返回错误信息或 None。"""
+    if not isinstance(presets, list):
+        return "presets must be a list"
+    from urllib.parse import urlparse
+
+    seen: set[str] = set()
+    for p in presets:
+        if not isinstance(p, dict) or not p.get("key"):
+            return "each preset must have a 'key'"
+        key = str(p["key"])
+        if key in seen:
+            return f"duplicate preset key: {key}"
+        seen.add(key)
+        if p.get("hidden"):
+            continue
+        for field in ("name", "base_url", "defaultModel"):
+            if not p.get(field):
+                return f"preset {key} missing required field: {field}"
+        if p.get("provider") != "openai":
+            return f"preset {key}: provider must be 'openai' (only OpenAI-compatible)"
+        try:
+            u = urlparse(str(p["base_url"]))
+            if u.scheme not in ("http", "https") or not u.netloc:
+                return f"preset {key}: invalid base_url"
+        except Exception:
+            return f"preset {key}: invalid base_url"
+    return None
+
+
+def _get_provider_config(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    from .config import load_agent_config, get_merged_presets
+    from .provider_presets import BUILTIN_PROVIDER_PRESETS
+
+    cfg = load_agent_config()
+    providers = cfg.get("providers") or []
+    return {
+        "provider_presets": get_merged_presets(cfg),
+        "builtin_preset_keys": [p["key"] for p in BUILTIN_PROVIDER_PRESETS],
+        "providers": [_mask_provider(p) for p in providers],
+        "active_provider_id": cfg.get("active_provider_id"),
+    }
+
+
+def _update_provider_presets(args: dict, snapshot: dict | None = None) -> dict[str, Any]:
+    from .config import load_agent_config, save_agent_config, get_merged_presets
+
+    presets = args.get("presets")
+    err = _validate_presets(presets)
+    if err:
+        return {"status": "error", "message": err}
+    cfg = load_agent_config()
+    cfg["provider_presets"] = presets
+    save_agent_config(cfg)
+    return {"status": "ok", "provider_presets": get_merged_presets(cfg)}
+
+
 _HANDLERS: dict[str, Callable[[dict, dict | None], Any]] = {
     "get_agent_runtime_status": _runtime_status,
     "render_airui_panel": _render_airui_panel,
     "patch_airui_panel": _patch_airui_panel,
+    "get_provider_config": _get_provider_config,
+    "update_provider_presets": _update_provider_presets,
 }
 
 

@@ -56,3 +56,17 @@ def test_merge_restore_default():
     merged = merge_presets(BUILTIN_PROVIDER_PRESETS, [])
     assert len(merged) == len(BUILTIN_PROVIDER_PRESETS)
     assert [p["key"] for p in merged] == [p["key"] for p in BUILTIN_PROVIDER_PRESETS]
+
+
+def test_get_merged_presets_uses_overlay():
+    """get_merged_presets 从给定 cfg 的覆盖层合并。"""
+    cfg = {"provider_presets": [{"key": "deepseek", "defaultModel": "deepseek-v3"}]}
+    merged = config.get_merged_presets(cfg)
+    ds = next(p for p in merged if p["key"] == "deepseek")
+    assert ds["defaultModel"] == "deepseek-v3"
+
+
+def test_get_merged_presets_empty_overlay():
+    cfg = {"provider_presets": []}
+    merged = config.get_merged_presets(cfg)
+    assert len(merged) == len(BUILTIN_PROVIDER_PRESETS)

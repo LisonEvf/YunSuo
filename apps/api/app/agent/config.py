@@ -27,6 +27,9 @@ DEFAULT_AGENT_CONFIG: dict = {
     # active_provider_id 命中时，其实例字段同步到 model（运行时实际读取 model）
     "providers": [],
     "active_provider_id": None,
+    # provider_presets: 用户覆盖层（与内置 BUILTIN_PROVIDER_PRESETS 合并后展示）。
+    # 每项结构同内置预设，额外允许 hidden:true 表示隐藏同名内置项。
+    "provider_presets": [],
     "ui": {
         "theme": "light",
         "language": "zh-CN",
@@ -156,6 +159,14 @@ def reload_config() -> dict:
     globals()["RETRY_MAX_ATTEMPTS"] = int(runtime.get("retry_max_attempts", 3))
     globals()["CONTEXT_WINDOW_TOKENS"] = int(runtime.get("context_window_tokens", 65536))
     return cfg
+
+
+def get_merged_presets(cfg: dict | None = None) -> list[dict]:
+    """返回内置预设与 cfg 覆盖层合并后的完整列表（供 /api/config 与工具共用）。"""
+    from .provider_presets import BUILTIN_PROVIDER_PRESETS, merge_presets
+    if cfg is None:
+        cfg = AGENT_CONFIG
+    return merge_presets(BUILTIN_PROVIDER_PRESETS, cfg.get("provider_presets") or [])
 
 
 AGENT_CONFIG = reload_config()

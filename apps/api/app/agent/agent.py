@@ -38,6 +38,9 @@ from .trajectory import trajectory_recorder
 _MAX_TOOL_RESULT_CHARS = 6000
 logger = logging.getLogger(__name__)
 
+# 触发 config_changed 事件推送的配置类工具
+_CONFIG_TOOLS = {"update_provider_presets", "update_providers", "activate_provider"}
+
 
 class GeneralAgent:
     """General-purpose agent runtime."""
@@ -500,6 +503,11 @@ class GeneralAgent:
                         content = fn_args.get("content", {})
                         if content:
                             yield {"type": "airui", "data": content}
+                    # 配置类工具成功后，推送合并后的完整 config 让前端实时刷新
+                    if fn_name in _CONFIG_TOOLS and "error" not in event:
+                        _cfg = config.load_agent_config()
+                        _cfg["provider_presets"] = config.get_merged_presets(_cfg)
+                        yield {"type": "config_changed", "config": _cfg}
                     api_messages.append({
                         "role": "tool",
                         "tool_call_id": tc_id,

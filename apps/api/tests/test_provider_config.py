@@ -70,3 +70,25 @@ def test_get_merged_presets_empty_overlay():
     cfg = {"provider_presets": []}
     merged = config.get_merged_presets(cfg)
     assert len(merged) == len(BUILTIN_PROVIDER_PRESETS)
+
+
+def test_config_get_returns_merged_presets(monkeypatch, tmp_path):
+    """/api/config 返回的 provider_presets 是合并后的完整列表。"""
+    cfg_file = tmp_path / "agent.json"
+    cfg_file.write_text(
+        '{"model": {"provider": "openai", "name": "x", "base_url": "http://x/v1", '
+        '"api_key": "k", "max_output_tokens": 4096, "display_name": ""}, '
+        '"provider_presets": [{"key": "ollama", "hidden": true}]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(config, "CONFIG_PATH", cfg_file)
+    config.reload_config()
+
+    # 直接调用路由函数（无参数，返回 dict），避免引入 TestClient/httpx 依赖
+    from app.main import get_config
+    out = get_config()
+    presets = out["config"]["provider_presets"]
+    # ollama 被 hidden，不应出现
+    assert not any(p["key"] == "ollama" for p in presets)
+    # 内置总数 = 11 - 1(ollama)
+    assert len(presets) == len(BUILTIN_PROVIDER_PRESETS) - 1

@@ -74,9 +74,12 @@ async def chat(req: ChatRequest):
 
 @app.get("/api/config")
 def get_config():
-    from .agent.config import load_agent_config
+    from .agent.config import load_agent_config, get_merged_presets
 
-    return {"config": load_agent_config()}
+    cfg = load_agent_config()
+    # 返回给前端的 presets 用合并后的完整列表（覆盖原始覆盖层）
+    cfg["provider_presets"] = get_merged_presets(cfg)
+    return {"config": cfg}
 
 
 @app.put("/api/config")

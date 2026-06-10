@@ -315,6 +315,7 @@ def status() -> list[dict]:
             {
                 "name": getattr(t, "name", ""),
                 "description": getattr(t, "description", "") or "",
+                "inputSchema": getattr(t, "inputSchema", None) or {"type": "object", "properties": {}},
             }
             for t in server.tools
         ]

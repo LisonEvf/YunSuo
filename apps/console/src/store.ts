@@ -111,6 +111,14 @@ export interface ChatMessage {
   toolStatus?: ToolStatus[];
 }
 
+/** MCP 工具参数表单状态（有 required 参数时弹出） */
+export interface McpToolFormState {
+  prefixedName: string;
+  toolName: string;
+  properties: Record<string, { type?: string; description?: string }>;
+  required: string[];
+}
+
 export const defaultAgentConfig: AgentConfig = {
   runtime: {
     max_iterations: 12,
@@ -158,6 +166,7 @@ interface AppState {
   activeTools: ToolStatus[];
   activeSkills: ActiveSkill[];
   runEvents: RunEvent[];
+  mcpToolForm: McpToolFormState | null;
 
   setDoc: (doc: AirUIDocument) => void;
   applyPatch: (patches: Patch[]) => void;
@@ -170,6 +179,7 @@ interface AppState {
   setActiveTools: (tools: ToolStatus[]) => void;
   setActiveSkills: (skills: ActiveSkill[]) => void;
   addRunEvent: (event: Omit<RunEvent, "id" | "time">) => void;
+  setMcpToolForm: (form: McpToolFormState | null) => void;
 }
 
 function nowLabel() {
@@ -200,8 +210,10 @@ export const useStore = create<AppState>((set, get) => ({
       time: nowLabel(),
     },
   ],
+  mcpToolForm: null,
 
   setDoc: (doc) => set({ doc }),
+  setMcpToolForm: (mcpToolForm) => set({ mcpToolForm }),
   applyPatch: (patches) => {
     const { doc } = get();
     if (!doc) return;

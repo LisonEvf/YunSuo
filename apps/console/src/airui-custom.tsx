@@ -4,6 +4,7 @@ import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore, registerComponent } from "@air-ui/renderer-react";
 import { useStore, type ProviderInstance, type MarketplaceSource } from "./store";
 import { colorForProvider } from "./providerPresets";
+import { sendChat } from "./chat";
 
 // ── gap / align helpers（与包内 layout.tsx 对齐）──────────────────────
 
@@ -265,6 +266,30 @@ const capRowStyle: CSSProperties = { display: "flex", justifyContent: "space-bet
 const capNameStyle: CSSProperties = { fontWeight: 600, color: "var(--color-text)" };
 const capDescStyle: CSSProperties = { color: "var(--color-muted)", fontSize: 11, textAlign: "right" as const };
 
+type McpToolLite = { name?: string; description?: string; inputSchema?: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } };
+type McpServerLite = { name?: string; connected?: boolean; tools?: McpToolLite[] };
+
+/** MCP 工具点击：无 required 参数直接发 chat 调用；有 required 弹参数表单。 */
+async function handleMcpToolClick(srvIdx: number, toolIdx: number) {
+  const state = (useAirUIStore.getState().doc?.state ?? {}) as Record<string, unknown>;
+  const servers = (state.mcpServers as McpServerLite[]) ?? [];
+  const srv = servers[srvIdx];
+  const tool = srv?.tools?.[toolIdx];
+  if (!srv?.name || !tool?.name) return;
+  const prefixedName = `mcp_${srv.name}_${tool.name}`;
+  const required = tool.inputSchema?.required ?? [];
+  if (required.length === 0) {
+    void sendChat(`请调用工具 ${prefixedName}`);
+  } else {
+    useStore.getState().setMcpToolForm({
+      prefixedName,
+      toolName: tool.name,
+      properties: tool.inputSchema?.properties ?? {},
+      required,
+    });
+  }
+}
+
 // CapabilityHome：根据 skills/mcp/plugins 实际加载状态展示能力清单；全无则引导去设置
 const CapabilityHome: FC = () => {
   const doc = useAirUIStore((s) => s.doc);
@@ -308,12 +333,27 @@ const CapabilityHome: FC = () => {
                 <span style={capNameStyle}>{srv.name}</span>
                 <span style={capDescStyle}>{srv.connected ? `connected · ${(srv.tools || []).length} tools` : "disconnected"}</span>
               </div>
-              {(srv.tools || []).map((tool, j) => (
-                <div key={j} style={{ ...capRowStyle, borderBottom: "none", paddingLeft: 16 }}>
-                  <span style={{ ...capNameStyle, fontWeight: 400 }}>↳ {tool.name}</span>
-                  <span style={capDescStyle}>{tool.description}</span>
-                </div>
-              ))}
+              {(srv.tools || []).map((tool, j) => {
+                const required = ((tool as McpToolLite).inputSchema?.required) ?? [];
+                const hasParams = required.length > 0;
+                return (
+                  <button
+                    key={j}
+                    onClick={() => { void handleMcpToolClick(i, j); }}
+                    style={{
+                      ...capRowStyle, borderBottom: "none", paddingLeft: 16, marginBottom: 4,
+                      cursor: "pointer", textAlign: "left", width: "100%",
+                      background: hasParams ? "var(--color-surface-muted)" : "var(--color-primary-soft)",
+                      border: hasParams ? "1px solid var(--color-border)" : "1px solid var(--color-primary)",
+                      borderRadius: 6,
+                    }}
+                    title={hasParams ? `${tool.name}（需参数）` : `${tool.name}（一键执行）`}
+                  >
+                    <span style={{ ...capNameStyle, fontWeight: 400 }}>↳ {tool.name}{hasParams ? " · 参数" : " ▶"}</span>
+                    <span style={capDescStyle}>{tool.description}</span>
+                  </button>
+                );
+              })}
             </div>
           ))}
         </div>

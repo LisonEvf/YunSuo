@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { connectWebSocket, disconnectWebSocket } from "./ws-client";
 import ConsoleView from "./components/ConsoleView";
 import ChatPanel from "./components/ChatPanel";
+import McpToolForm from "./components/McpToolForm";
 import StatusBar from "./components/StatusBar";
 import { useStore } from "./store";
 import { CUSTOM_THEMES_KEY, loadCustomThemes, applyCustomThemes } from "./themes";
@@ -52,6 +53,7 @@ export default function App() {
         <ConsoleView />
       </div>
       <StatusBar />
+      <McpToolForm />
     </div>
   );
 }

@@ -62,6 +62,9 @@ function ToolStrip({ tools }: { tools: ToolStatus[] }) {
 export default function ChatPanel() {
   const [input, setInput] = useState("");
   const language = useStore((s) => s.appConfig.ui.language);
+  const appConfig = useStore((s) => s.appConfig);
+  const setAppConfig = useStore((s) => s.setAppConfig);
+  const collapsed = appConfig.ui.chatCollapsed ?? false;
   const messages = useStore((s) => s.chatMessages);
   const loading = useStore((s) => s.chatLoading);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -79,6 +82,49 @@ export default function ChatPanel() {
     void sendChat(text);
   }
 
+  async function toggleCollapse() {
+    const next = !collapsed;
+    const newUi = { ...appConfig.ui, chatCollapsed: next };
+    setAppConfig({ ui: newUi });
+    try {
+      await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: { ...appConfig, ui: newUi } }),
+      });
+    } catch {
+      // 持久化失败不阻塞 UI 折叠
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <aside
+        className="chat-panel"
+        style={{
+          width: 40, minWidth: 40, height: "100%",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          gap: 12, paddingTop: 12,
+          background: "var(--color-surface-muted)",
+          borderRight: "1px solid var(--color-border)",
+        }}
+      >
+        <button
+          onClick={toggleCollapse}
+          title={t(language, "expandChat")}
+          style={{
+            width: 28, height: 28, borderRadius: 6,
+            border: "1px solid var(--color-border)", background: "var(--color-surface)",
+            color: "var(--color-text)", cursor: "pointer", fontSize: 16, lineHeight: 1,
+          }}
+        >›</button>
+        <span style={{ writingMode: "vertical-rl", fontSize: 12, color: "var(--color-muted)", letterSpacing: 2 }}>
+          {t(language, "chat")}
+        </span>
+      </aside>
+    );
+  }
+
   return (
     <aside
       className="chat-panel"
@@ -92,9 +138,20 @@ export default function ChatPanel() {
         borderRight: "1px solid var(--color-border)",
       }}
     >
-      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: "var(--color-text)" }}>{t(language, "chat")}</div>
-        <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 2 }}>{t(language, "chatSubtitle")}</div>
+      <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--color-text)" }}>{t(language, "chat")}</div>
+          <div style={{ fontSize: 12, color: "var(--color-muted)", marginTop: 2 }}>{t(language, "chatSubtitle")}</div>
+        </div>
+        <button
+          onClick={toggleCollapse}
+          title={t(language, "collapseChat")}
+          style={{
+            width: 28, height: 28, borderRadius: 6, flexShrink: 0,
+            border: "1px solid var(--color-border)", background: "var(--color-surface)",
+            color: "var(--color-text)", cursor: "pointer", fontSize: 16, lineHeight: 1,
+          }}
+        >‹</button>
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflow: "auto", padding: 14 }}>

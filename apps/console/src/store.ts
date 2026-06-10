@@ -77,6 +77,8 @@ export interface AgentConfig {
   ui: {
     theme: ThemeMode;
     language: LanguageCode;
+    /** 左侧聊天面板是否折叠（收成窄条） */
+    chatCollapsed?: boolean;
   };
   skills: {
     enabled: boolean;
@@ -129,6 +131,7 @@ export const defaultAgentConfig: AgentConfig = {
   ui: {
     theme: "light",
     language: "zh-CN",
+    chatCollapsed: false,
   },
   skills: {
     enabled: true,

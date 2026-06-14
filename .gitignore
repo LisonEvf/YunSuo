@@ -24,3 +24,11 @@ data/skill_usage.json
 apps/api/static/airui/
 
 apps/desktop/src-tauri/target/
+
+# Testing artifacts
+apps/console/dev-err.log
+apps/console/dev-out.log
+eval-screenshots/
+eval-shots/
+screenshot_*.png
+take_screenshots.py

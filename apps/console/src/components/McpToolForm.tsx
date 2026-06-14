@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useStore } from "../store";
 import { sendChat } from "../chat";
+import { t } from "../i18n";
+import Icon from "./Icon";
 
 /** MCP 工具参数表单浮层（toast 风格）：有 required 参数的工具点击后弹出。 */
 export default function McpToolForm() {
   const form = useStore((s) => s.mcpToolForm);
   const setForm = useStore((s) => s.setMcpToolForm);
+  const language = useStore((s) => s.appConfig.ui.language);
   const [values, setValues] = useState<Record<string, string>>({});
 
   if (!form) return null;
@@ -61,9 +64,9 @@ export default function McpToolForm() {
             </label>
           );
         })}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
-          <button onClick={cancel} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", cursor: "pointer", fontSize: 12 }}>取消</button>
-          <button onClick={submit} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "var(--color-primary)", color: "var(--color-primary-text)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>调用</button>
+       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+          <button onClick={cancel} style={{ padding: "8px 16px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)", cursor: "pointer", fontSize: 12 }}>{t(language, "cancel")}</button>
+          <button onClick={submit} style={{ padding: "8px 16px", borderRadius: 6, border: "none", background: "var(--color-primary)", color: "var(--color-primary-text)", cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}><Icon name="bolt" size={12} />{t(language, "invoke")}</button>
         </div>
       </div>
     </div>

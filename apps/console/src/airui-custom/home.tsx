@@ -1,9 +1,12 @@
-import { type FC, type CSSProperties, useState, useEffect } from "react";
+﻿import { type FC, type CSSProperties, useState, useEffect } from "react";
 import type { Component } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { useStore, type ProviderInstance } from "../store";
 import { sendChat } from "../chat";
-import { type McpToolLite, type McpServerLite, addBtnStyle } from "./helpers";
+import { type McpToolLite, type McpServerLite, type ArtifactPanel, addBtnStyle } from "./helpers";
+import { removeNodeByRef, savePreset, listPresets, deletePreset, type UIPreset } from "./presets";
+import Icon from "../components/Icon";
+import { showToast } from "../components/Toast";
 
 function grow(child: Component): Component {
   return { type: "Pane", props: { direction: "column", grow: true }, children: [child] };
@@ -30,11 +33,12 @@ export const homeLayout: Component = {
   type: "Pane",
   props: { className: "home-view", direction: "column", gap: "large" },
   children: [
-    // (1) Hero
+    // (1) Hero with gradient backdrop
     {
       type: "Pane",
-      props: { direction: "column", gap: "8px" },
+      props: { className: "home-hero-section", direction: "column", gap: "10px" },
       children: [
+        { type: "Pane", props: { className: "home-hero-glow" } },
         { type: "Text", props: { value: "{state.t.homeWelcome}", style: "title" } },
         { type: "Text", props: { value: "{state.t.homeSubtitle}", style: "body" } },
         { type: "Button", ref: "home:start", props: { label: "{state.t.homeStart}", variant: "primary" } },
@@ -142,17 +146,35 @@ async function handleMcpToolClick(srvIdx: number, toolIdx: number) {
 
 export const CapabilityHome: FC = () => {
   const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
   const t = (state.t as Record<string, string>) || {};
   const skills = (state.skills as Array<{ name?: string; description?: string }>) ?? [];
   const mcpServers = (state.mcpServers as Array<{ name?: string; connected?: boolean; tools?: Array<{ name?: string; description?: string }> }>) ?? [];
   const plugins = (state.plugins as Array<{ name?: string; path?: string }>) ?? [];
-  const hasAny = skills.length > 0 || mcpServers.length > 0 || plugins.length > 0;
+  const [presets, setPresets] = useState<UIPreset[]>(() => listPresets());
+  useEffect(() => {
+    const handler = () => setPresets(listPresets());
+    window.addEventListener("presets-changed", handler);
+    return () => window.removeEventListener("presets-changed", handler);
+  }, []);
+  const hasAny = skills.length > 0 || mcpServers.length > 0 || plugins.length > 0 || presets.length > 0;
+
+  const insertPreset = (preset: UIPreset) => {
+    if (!doc) return;
+    const artifacts = ((state.artifacts as ArtifactPanel[]) ?? []);
+    const newArtifact: ArtifactPanel = {
+      ref: `preset-${Date.now()}`,
+      title: preset.title || preset.name,
+      component: preset.component,
+    };
+    setDoc({ ...doc, state: { ...state, artifacts: [...artifacts, newArtifact], homePinned: false } });
+  };
 
   if (!hasAny) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", padding: "56px 24px", textAlign: "center" }}>
-        <div style={{ fontSize: 40 }}>🧩</div>
+        <Icon name="puzzle" size={40} className="home-empty-icon" />
         <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.noCapabilityTitle}", style: "title" } }} />
         <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.noCapabilityDesc}", style: "body" } }} />
         <AirUIComponent comp={{ type: "Button", ref: "console:settings", props: { label: "{state.t.openSettings}", variant: "primary" } }} />
@@ -196,9 +218,13 @@ export const CapabilityHome: FC = () => {
                       border: hasParams ? "1px solid var(--color-border)" : "1px solid var(--color-primary)",
                       borderRadius: 6,
                     }}
-                    title={hasParams ? `${tool.name}（需参数）` : `${tool.name}（一键执行）`}
+                   title={hasParams ? `${tool.name}（需参数）` : `${tool.name}（一键执行）`}
+                   aria-label={tool.name}
                   >
-                    <span style={{ ...capNameStyle, fontWeight: 400 }}>↳ {tool.name}{hasParams ? " · 参数" : " ▶"}</span>
+                    <span style={{ ...capNameStyle, fontWeight: 400, display: "flex", alignItems: "center", gap: 4 }}>
+                      <Icon name="chevronRight" size={11} />
+                      {tool.name}{hasParams ? ` · ${t.toolParams || "参数"}` : <Icon name="bolt" size={11} />}
+                    </span>
                     <span style={capDescStyle}>{tool.description}</span>
                   </button>
                 );
@@ -214,6 +240,20 @@ export const CapabilityHome: FC = () => {
             <div key={i} style={capRowStyle}>
               <span style={capNameStyle}>{p.name}</span>
               <span style={capDescStyle}>{p.path}</span>
+            </div>
+          ))}
+        </div>
+      )}
+     {presets.length > 0 && (
+        <div style={capCardStyle}>
+          <div style={capLabelStyle}>{t.myPresets}</div>
+          {presets.map((p) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid var(--color-border)" }}>
+              <button onClick={() => insertPreset(p)} style={{ ...capRowStyle, flex: 1, borderBottom: "none", cursor: "pointer", padding: 0 }}>
+                <span style={capNameStyle}>{p.name}</span>
+                <span style={capDescStyle}>{p.title || ""}</span>
+              </button>
+              <button onClick={() => deletePreset(p.id)} title={t.deletePreset} aria-label={t.deletePreset} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="close" size={12} /></button>
             </div>
           ))}
         </div>
@@ -337,57 +377,36 @@ export const WikiHome: FC = () => {
 export const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ comp, resolvedProps }) => {
   const title = resolvedProps.title as string | undefined;
   const ref = resolvedProps.ref as string | undefined;
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string>) || {};
 
-  // 添加删除和保存为预设功能
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleDelete = () => {
     if (!ref) return;
-    setIsDragging(true);
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDragOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
-    });
+    const currentDoc = useAirUIStore.getState().doc;
+    if (!currentDoc?.root) return;
+    showToast(t.cardDeleted, "info");
+    setDoc({ ...currentDoc, root: removeNodeByRef(currentDoc.root, ref) });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging || !ref) return;
-    // 这里可以实现拖拽逻辑，但需要在父组件中处理
+  const handleSaveAsPreset = () => {
+    const name = window.prompt(t.savePresetName, title || ref || "card");
+    if (!name) return;
+    showToast(t.presetSaved, "success");
+    savePreset({ name, component: comp, title });
   };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  useEffect(() => {
-    if (isDragging) {
-      window.addEventListener('mousemove', handleMouseMove);
-      window.addEventListener('mouseup', handleMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging]);
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--color-border)",
-        borderRadius: 14,
-        background: "var(--color-surface)",
-        boxShadow: "var(--air-shadow)",
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        overflow: "hidden",
-        cursor: ref ? "move" : "default"
-      }}
-      onMouseDown={handleMouseDown}
-    >
+    <div style={{
+      border: "1px solid var(--color-border)",
+      borderRadius: 14,
+      background: "var(--color-surface)",
+      boxShadow: "var(--air-shadow)",
+      display: "flex",
+      flexDirection: "column",
+      height: "100%",
+      overflow: "hidden",
+    }}>
       {title && (
         <div style={{
           padding: "10px 14px",
@@ -402,33 +421,31 @@ export const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> 
           <span>{title}</span>
           <div style={{ display: "flex", gap: 4 }}>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // 删除卡片的逻辑
-                if (ref) {
-                  const doc = useAirUIStore.getState().doc;
-                  if (doc) {
-                    // 这里需要实现删除逻辑，但实际删除需要在父组件中处理
-                    console.log(`Delete card with ref: ${ref}`);
-                  }
-                }
-              }}
+              onClick={handleSaveAsPreset}
+              title={t.saveAsPreset}
+              aria-label={t.saveAsPreset}
               style={{
-                width: 20,
-                height: 20,
-                borderRadius: 4,
+                width: 20, height: 20, borderRadius: 4,
+                border: "1px solid var(--color-border)",
+                background: "var(--color-surface-muted)",
+                color: "var(--color-text)",
+                cursor: "pointer", fontSize: 11,
+                display: "flex", alignItems: "center", justifyContent: "center"
+              }}
+            ><Icon name="save" size={11} /></button>
+            <button
+              onClick={handleDelete}
+              title={t.delete || "删除"}
+              aria-label={t.delete || "删除"}
+              style={{
+                width: 20, height: 20, borderRadius: 4,
                 border: "1px solid var(--color-border)",
                 background: "var(--color-surface-muted)",
                 color: "var(--color-danger)",
-                cursor: "pointer",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center"
+                cursor: "pointer", fontSize: 12,
+                display: "flex", alignItems: "center", justifyContent: "center"
               }}
-            >
-              ×
-            </button>
+            ><Icon name="close" size={11} /></button>
           </div>
         </div>
       )}

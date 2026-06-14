@@ -17,19 +17,17 @@ export default defineConfig({
   build: {
     outDir: "../api/static/airui",
     emptyOutDir: true,
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          if (id.includes("react-markdown") || id.includes("remark-gfm") || id.includes("micromark") || id.includes("mdast")) {
-            return "markdown";
-          }
+          // Charts: separate lazy-loaded chunk (only loaded when a Chart renders)
           if (id.includes("echarts") || id.includes("zrender")) {
             return "charts";
           }
-          if (id.includes("react") || id.includes("scheduler") || id.includes("zustand")) {
-            return "react";
-          }
+          // All other node_modules go into vendor (react, markdown, zustand, etc.)
+          // Merging react into vendor avoids circular chunk dependencies
           return "vendor";
         },
       },

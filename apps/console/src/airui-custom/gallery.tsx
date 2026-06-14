@@ -3,6 +3,7 @@ import type { Component } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import type { ArtifactPanel } from "./helpers";
 import { CapabilityHome, WikiHome } from "./home";
+import { savePreset } from "./presets";
 
 export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
@@ -56,9 +57,12 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
     setDragOverItem(null);
   };
 
-  // TODO: 保存 artifact 为可复用预设（需定义预设格式 + 存储位置 + 应用方式）
   const handleSaveAsPreset = (artifactRef: string) => {
-    console.log(`Save artifact ${artifactRef} as preset`);
+    const artifact = artifacts.find(a => a.ref === artifactRef);
+    if (!artifact) return;
+    const name = window.prompt("预设名称", artifact.title || artifactRef);
+    if (!name) return;
+    savePreset({ name, component: artifact.component, title: artifact.title });
   };
 
   return (

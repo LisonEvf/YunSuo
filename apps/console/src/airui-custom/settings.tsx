@@ -1,4 +1,5 @@
 import { type FC, type CSSProperties, useState } from "react";
+import Icon from "../components/Icon";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
@@ -14,12 +15,13 @@ export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknow
   const label = resolvedProps.label as string | undefined;
   const options = (resolvedProps.options as Array<{ value: string; label: string }>) ?? [];
 
+  const txt = (((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {});
+
   const update = (next: unknown) => {
     if (!doc) return;
     setDoc({ ...doc, state: setByPath(doc.state, path, next) });
   };
 
-  // 添加密码显示/隐藏功能
   const [showPassword, setShowPassword] = useState(kind === "password" ? false : undefined);
 
   return (
@@ -45,9 +47,10 @@ export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknow
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               style={toggleBtnStyle}
-              title={showPassword ? "隐藏密码" : "显示密码"}
+              title={showPassword ? txt.hidePassword : txt.showPassword}
+              aria-label={showPassword ? txt.hidePassword : txt.showPassword}
             >
-              {showPassword ? "👁️" : "🔒"}
+              <Icon name={showPassword ? "eyeOff" : "eye"} size={14} />
             </button>
           )}
         </div>
@@ -115,7 +118,7 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
           <button onClick={() => update(items.filter((_, j) => j !== i))} style={delBtnStyle}>×</button>
         </div>
       ))}
-      <button onClick={() => update([...items, ""])} style={addBtnStyle}>+ 添加</button>
+      <button onClick={() => update([...items, ""])} style={addBtnStyle}>+ {txt("addItem")}</button>
       {quickPaths.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
           <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("quickPaths")}</span>

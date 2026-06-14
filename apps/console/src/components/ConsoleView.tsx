@@ -229,7 +229,7 @@ export default function ConsoleView() {
       }
     }
     loadInspector();
-    const timer = window.setInterval(loadInspector, 15000);
+    const timer = window.setInterval(loadInspector, 45000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [language, setAppConfig]);
 

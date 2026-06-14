@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { AirUIDocument, Component, Patch } from "@air-ui/core";
 import type { ProviderPreset } from "./providerPresets";
 import { applyPatches } from "@air-ui/core";
+import { loadSessions, saveSessions, loadActiveSessionId, saveActiveSessionId, createSession, deriveTitle, type ChatSession } from "./chatHistory";
 
 export interface ToolStatus {
   name: string;
@@ -30,25 +31,20 @@ export type LanguageCode = "zh-CN" | "en-US";
 export interface McpServerConfig {
   name: string;
   enabled: boolean;
-  /** stdio transport */
   command?: string;
   args?: string[];
   env?: Record<string, string>;
-  /** http / sse transport */
   url?: string;
   transport?: "http" | "sse";
   headers?: Record<string, string>;
 }
 
-/** 已配置的 provider 实例（书签集合），id 唯一；active_provider_id 指向当前激活项 */
 export interface ProviderInstance {
   id: string;
-  /** 显示名（列表展示用），与 model.display_name 双向同步 */
   name: string;
   provider: string;
   base_url: string;
   api_key: string;
-  /** 模型标识，与 model.name 双向同步 */
   model_name: string;
   max_output_tokens: number;
 }
@@ -65,38 +61,22 @@ export interface AgentConfig {
     base_url: string;
     api_key: string;
     max_output_tokens: number;
-    /** 仅 UI 展示用，运行时不读 */
     display_name: string;
   };
-  /** 已配置 provider 实例列表 */
   providers: ProviderInstance[];
-  /** 当前激活的 provider 实例 id（null 表示未激活，走 model 字段） */
   active_provider_id: string | null;
-  /** 合并后的 provider 预设模板列表（后端 /api/config 返回，前端只读展示） */
   provider_presets: ProviderPreset[];
   ui: {
     theme: ThemeMode;
     language: LanguageCode;
-    /** 左侧聊天面板是否折叠（收成窄条） */
     chatCollapsed?: boolean;
+    chatWidth?: number;
   };
-  skills: {
-    enabled: boolean;
-    search_paths: string[];
-  };
-  mcp: {
-    enabled: boolean;
-    servers: McpServerConfig[];
-  };
-  plugins: {
-    enabled: boolean;
-    search_paths: string[];
-    /** 用户配置的 marketplace 源清单 */
-    marketplaces: MarketplaceSource[];
-  };
+  skills: { enabled: boolean; search_paths: string[] };
+  mcp: { enabled: boolean; servers: McpServerConfig[] };
+  plugins: { enabled: boolean; search_paths: string[]; marketplaces: MarketplaceSource[] };
 }
 
-/** marketplace 源：返回 {name, plugins:[...]} 的 JSON URL */
 export interface MarketplaceSource {
   id: string;
   name: string;
@@ -111,7 +91,6 @@ export interface ChatMessage {
   toolStatus?: ToolStatus[];
 }
 
-/** MCP 工具参数表单状态（有 required 参数时弹出） */
 export interface McpToolFormState {
   prefixedName: string;
   toolName: string;
@@ -120,41 +99,29 @@ export interface McpToolFormState {
 }
 
 export const defaultAgentConfig: AgentConfig = {
-  runtime: {
-    max_iterations: 12,
-    retry_max_attempts: 3,
-    context_window_tokens: 65536,
-  },
-  model: {
-    provider: "llamacpp",
-    name: "",
-    base_url: "",
-    api_key: "",
-    max_output_tokens: 4096,
-    display_name: "",
-  },
+  runtime: { max_iterations: 12, retry_max_attempts: 3, context_window_tokens: 65536 },
+  model: { provider: "llamacpp", name: "", base_url: "", api_key: "", max_output_tokens: 4096, display_name: "" },
   providers: [],
   active_provider_id: null,
   provider_presets: [],
-  ui: {
-    theme: "light",
-    language: "zh-CN",
-    chatCollapsed: false,
-  },
-  skills: {
-    enabled: true,
-    search_paths: ["packages/agent-skills"],
-  },
-  mcp: {
-    enabled: true,
-    servers: [],
-  },
-  plugins: {
-    enabled: true,
-    search_paths: [],
-    marketplaces: [],
-  },
+  ui: { theme: "light", language: "zh-CN", chatCollapsed: false, chatWidth: 360 },
+  skills: { enabled: true, search_paths: ["packages/agent-skills"] },
+  mcp: { enabled: true, servers: [] },
+  plugins: { enabled: true, search_paths: [], marketplaces: [] },
 };
+
+const WELCOME_MESSAGES: Record<LanguageCode, string> = {
+  "zh-CN": "欢迎使用云锁。让我帮你规划任务、排查问题、起草文档，或渲染一个结构化界面。",
+  "en-US": "Welcome to Yunsuo. Ask me to plan work, inspect a problem, draft a document, or render a structured artifact.",
+};
+
+function getWelcomeMessage(lang: LanguageCode = "zh-CN"): ChatMessage {
+  return { role: "assistant", content: WELCOME_MESSAGES[lang] ?? WELCOME_MESSAGES["zh-CN"] };
+}
+
+function nowLabel() {
+  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
 
 interface AppState {
   doc: AirUIDocument | null;
@@ -167,6 +134,15 @@ interface AppState {
   activeSkills: ActiveSkill[];
   runEvents: RunEvent[];
   mcpToolForm: McpToolFormState | null;
+
+  // Chat history
+  chatSessions: ChatSession[];
+  activeChatSessionId: string | null;
+  initChatHistory: () => void;
+  switchChatSession: (id: string) => void;
+  newChatSession: () => void;
+  deleteChatSession: (id: string) => void;
+  persistCurrentSession: () => void;
 
   setDoc: (doc: AirUIDocument) => void;
   applyPatch: (patches: Patch[]) => void;
@@ -182,35 +158,94 @@ interface AppState {
   setMcpToolForm: (form: McpToolFormState | null) => void;
 }
 
-function nowLabel() {
-  return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-}
-
 export const useStore = create<AppState>((set, get) => ({
   doc: null,
   connected: false,
   sessionId: "default",
   appConfig: defaultAgentConfig,
-  chatMessages: [
-    {
-      role: "assistant",
-      content:
-        "Welcome to Yunsuo. Ask me to plan work, inspect a problem, draft a document, or render a structured artifact.",
-    },
-  ],
+  chatMessages: [getWelcomeMessage()],
   chatLoading: false,
   activeTools: [],
   activeSkills: [],
   runEvents: [
-    {
-      id: "initial",
-      label: "Console ready",
-      detail: "Send a message to start an agent run.",
-      state: "idle",
-      time: nowLabel(),
-    },
+    { id: "initial", label: "Console ready", detail: "Send a message to start an agent run.", state: "idle", time: nowLabel() },
   ],
   mcpToolForm: null,
+
+  chatSessions: [],
+  activeChatSessionId: null,
+
+  initChatHistory: () => {
+    const sessions = loadSessions();
+    const activeId = loadActiveSessionId();
+    if (sessions.length > 0 && activeId) {
+      const active = sessions.find((s) => s.id === activeId);
+      if (active) {
+        set({ chatSessions: sessions, activeChatSessionId: activeId, chatMessages: active.messages });
+        return;
+      }
+    }
+    if (sessions.length > 0) {
+      const last = sessions[sessions.length - 1];
+      set({ chatSessions: sessions, activeChatSessionId: last.id, chatMessages: last.messages });
+      saveActiveSessionId(last.id);
+      return;
+    }
+    // Create initial session
+    const session = createSession(getWelcomeMessage(get().appConfig.ui.language));
+    const next = [session];
+    saveSessions(next);
+    saveActiveSessionId(session.id);
+    set({ chatSessions: next, activeChatSessionId: session.id });
+  },
+
+  switchChatSession: (id) => {
+    const sessions = get().chatSessions;
+    const target = sessions.find((s) => s.id === id);
+    if (!target) return;
+    saveActiveSessionId(id);
+    set({ activeChatSessionId: id, chatMessages: target.messages });
+  },
+
+  newChatSession: () => {
+    // Persist current session first
+    get().persistCurrentSession();
+    const session = createSession(getWelcomeMessage(get().appConfig.ui.language));
+    const next = [...get().chatSessions, session];
+    saveSessions(next);
+    saveActiveSessionId(session.id);
+    set({ chatSessions: next, activeChatSessionId: session.id, chatMessages: session.messages });
+  },
+
+  deleteChatSession: (id) => {
+    const sessions = get().chatSessions.filter((s) => s.id !== id);
+    saveSessions(sessions);
+    if (sessions.length === 0) {
+      const fresh = createSession(getWelcomeMessage(get().appConfig.ui.language));
+      saveSessions([fresh]);
+      saveActiveSessionId(fresh.id);
+      set({ chatSessions: [fresh], activeChatSessionId: fresh.id, chatMessages: fresh.messages });
+    } else {
+      const activeId = get().activeChatSessionId === id ? sessions[sessions.length - 1].id : get().activeChatSessionId;
+      saveActiveSessionId(activeId!);
+      const messages = activeId === get().activeChatSessionId && get().activeChatSessionId !== id
+        ? get().chatMessages
+        : sessions.find((s) => s.id === activeId)?.messages ?? [getWelcomeMessage(get().appConfig.ui.language)];
+      set({ chatSessions: sessions, activeChatSessionId: activeId, chatMessages: messages });
+    }
+  },
+
+  persistCurrentSession: () => {
+    const { chatSessions, activeChatSessionId, chatMessages } = get();
+    if (!activeChatSessionId) return;
+    const updated = chatSessions.map((s) =>
+      s.id === activeChatSessionId
+        ? { ...s, messages: chatMessages, title: deriveTitle(chatMessages), updatedAt: Date.now() }
+        : s
+    );
+    saveSessions(updated);
+    set({ chatSessions: updated });
+  },
 
   setDoc: (doc) => set({ doc }),
   setMcpToolForm: (mcpToolForm) => set({ mcpToolForm }),
@@ -238,28 +273,34 @@ export const useStore = create<AppState>((set, get) => ({
         plugins: { ...defaultAgentConfig.plugins, ...s.appConfig.plugins, ...config.plugins },
       },
     })),
-  addChatMessage: (msg) =>
-    set((s) => ({ chatMessages: [...s.chatMessages, msg] })),
-  updateLastMessage: (patch) =>
+  addChatMessage: (msg) => {
+    set((s) => ({ chatMessages: [...s.chatMessages, msg] }));
+    // Debounced persist - schedule after current call stack
+    setTimeout(() => get().persistCurrentSession(), 0);
+  },
+  updateLastMessage: (patch) => {
     set((s) => {
       const chatMessages = [...s.chatMessages];
       const last = chatMessages[chatMessages.length - 1];
       if (!last) return { chatMessages };
       chatMessages[chatMessages.length - 1] = { ...last, ...patch };
       return { chatMessages };
-    }),
-  setChatLoading: (chatLoading) => set({ chatLoading }),
+    });
+  },
+  setChatLoading: (chatLoading) => {
+    set({ chatLoading });
+    // Persist when loading finishes
+    if (!chatLoading) {
+      setTimeout(() => get().persistCurrentSession(), 0);
+    }
+  },
   setActiveTools: (activeTools) => set({ activeTools }),
   setActiveSkills: (activeSkills) => set({ activeSkills }),
   addRunEvent: (event) =>
     set((s) => ({
       runEvents: [
         ...s.runEvents.slice(-19),
-        {
-          ...event,
-          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          time: nowLabel(),
-        },
+        { ...event, id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, time: nowLabel() },
       ],
     })),
 }));

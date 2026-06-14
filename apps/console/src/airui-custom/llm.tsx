@@ -175,8 +175,8 @@ export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unk
       <button
         onClick={() => update([...servers, { name: "", enabled: true, command: "", args: [] }])}
         style={addBtnStyle}
-      >+ 添加 server</button>
-    </div>
+      >+ {txt("addServer")}</button>
+     </div>
   );
 };
 
@@ -377,6 +377,8 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
   const state = (doc?.state ?? {}) as Record<string, unknown>;
   const draft = (state.draft ?? {}) as Record<string, unknown>;
   const model = (draft.model ?? {}) as Record<string, unknown>;
+  const t = (state.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
 
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
@@ -390,9 +392,9 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
     });
   };
 
-  const fetchAvailableModels = async () => {
+ const fetchAvailableModels = async () => {
     if (!model.base_url || !model.api_key) {
-      setModelFetchError("请先填写基础URL和API Key");
+      setModelFetchError(txt("modelFetchHint"));
       return;
     }
     setFetchingModels(true);
@@ -411,7 +413,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
       const data = await response.json();
       setAvailableModels(data.models || []);
     } catch {
-      setModelFetchError("获取模型列表失败，请检查URL和API Key");
+      setModelFetchError(txt("modelFetchFailed"));
     } finally {
       setFetchingModels(false);
     }
@@ -424,7 +426,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
         disabled={fetchingModels}
         style={modelFetchBtnStyle}
       >
-        {fetchingModels ? "获取中..." : "获取可用模型"}
+        {fetchingModels ? txt("fetchingModels") : txt("fetchModels")}
       </button>
 
       {modelFetchError && (
@@ -433,7 +435,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
 
       {availableModels.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>可用模型（点击选用）</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("availableModels")}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {availableModels.map((m) => {
               const active = m === model.name;

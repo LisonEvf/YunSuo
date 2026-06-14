@@ -17,6 +17,13 @@ from . import config
 # 插件名只允许安全字符，防路径遍历
 _NAME_RE = re.compile(r"[A-Za-z0-9_\-]+")
 
+# 仅允许 https/http 协议的 git 源，拒绝 file:// / ssh:// / git:// 等
+_ALLOWED_SOURCE_SCHEMES = ("https://", "http://")
+
+
+def _is_safe_source(source: str) -> bool:
+    return source.startswith(_ALLOWED_SOURCE_SCHEMES)
+
 
 def _project_root() -> Path:
     return Path(__file__).resolve().parents[4]
@@ -96,6 +103,8 @@ def install(source: str, name: str) -> dict:
         return {"ok": False, "error": "source and name required"}
     if not _NAME_RE.fullmatch(name):
         return {"ok": False, "error": "invalid plugin name (only A-Z 0-9 _ - allowed)"}
+    if not _is_safe_source(source):
+        return {"ok": False, "error": "source must be a public https/http git URL"}
     base = _resolve_install_base()
     if base is None:
         return {"ok": False, "error": "plugins.search_paths 未配置"}

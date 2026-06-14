@@ -104,6 +104,10 @@ class MemoryManager:
         conn.commit()
         return [dict(row) for row in rows]
 
+    def recent(self, limit: int) -> list[dict[str, Any]]:
+        """最近 N 条记忆（公开接口，供路由层使用）。"""
+        return self._recent(limit)
+
     def _recent(self, limit: int) -> list[dict[str, Any]]:
         conn = self._get_conn()
         rows = conn.execute(
@@ -159,10 +163,13 @@ class MemoryManager:
         for pattern in pref_patterns:
             for match in re.findall(pattern, user_msg):
                 text = match.strip()
-                if len(text) >= 4 and text not in seen:
-                    seen.add(text)
-                    sid = self.save("user_preference", text, _extract_keywords(text))
-                    saved_ids.append(sid)
+                if len(text) < 4 or text in seen:
+                    continue
+                if _is_negated(text):
+                    continue
+                seen.add(text)
+                sid = self.save("user_preference", text, _extract_keywords(text))
+                saved_ids.append(sid)
         if saved_ids:
             logger.info("Auto-saved %d memory entries", len(saved_ids))
         return saved_ids
@@ -185,6 +192,14 @@ _STOPWORDS = frozenset({
     "他", "她", "它", "着", "也", "对", "要", "会", "那", "吗", "吧",
     "呢", "啊", "把", "被", "让", "给", "比", "从", "向", "过",
 })
+
+_NEGATION_PREFIXES = ("不", "别", "勿", "没", "无", "讨厌", "反感", "排斥", "拒绝")
+
+
+def _is_negated(text: str) -> bool:
+    """检测偏好陈述是否被否定（"我不喜欢X"不应作为正向偏好保存）。"""
+    head = text[:6]
+    return any(neg in head for neg in _NEGATION_PREFIXES)
 
 
 def _extract_keywords(text: str) -> list[str]:

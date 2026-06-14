@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
@@ -10,17 +12,44 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .airui.renderer import render_console
+from .airui.session import session_manager
+from .airui.ws_bridge import register_ws_routes
+
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Yunsuo API", version="1.0.0")
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    sess = session_manager.get_or_create("default")
+    if not sess.doc:
+        sess.doc = render_console()
+    yield
+
+
+app = FastAPI(title="Yunsuo API", version="1.0.0", lifespan=lifespan)
+
+_allowed_env = os.environ.get("ALLOWED_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _allowed_env.split(",") if o.strip()] or [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+register_ws_routes(app)
+
+_static_dir = Path(__file__).resolve().parent.parent / "static" / "airui"
+if _static_dir.exists():
+    app.mount("/console", StaticFiles(directory=str(_static_dir), html=True), name="console-static")
 
 
 @app.get("/health")
@@ -77,7 +106,6 @@ def get_config():
     from .agent.config import load_agent_config, get_merged_presets
 
     cfg = load_agent_config()
-    # 返回给前端的 presets 用合并后的完整列表（覆盖原始覆盖层）
     cfg["provider_presets"] = get_merged_presets(cfg)
     return {"config": cfg}
 
@@ -114,7 +142,7 @@ def mcp_reconnect():
     try:
         get_agent()
     except Exception as exc:
-        logging.warning("mcp reconnect: agent rebuild failed: %s", exc)
+        logger.warning("mcp reconnect: agent rebuild failed: %s", exc)
     return {"servers": _status()}
 
 
@@ -183,7 +211,7 @@ def list_memory(
 
     if keyword:
         return {"memories": memory_manager.search(keyword, limit=limit)}
-    return {"memories": memory_manager._recent(limit)}
+    return {"memories": memory_manager.recent(limit)}
 
 
 @app.get("/api/memory/stats")
@@ -217,22 +245,3 @@ def trajectory_summary():
     from .agent.trajectory import summarize_trajectories
 
     return summarize_trajectories()
-
-
-from .airui.renderer import render_console
-from .airui.session import session_manager
-from .airui.ws_bridge import register_ws_routes
-
-register_ws_routes(app)
-
-_static_dir = Path(__file__).resolve().parent.parent / "static" / "airui"
-if _static_dir.exists():
-    app.mount("/console", StaticFiles(directory=str(_static_dir), html=True), name="console-static")
-
-
-@app.on_event("startup")
-async def _airui_console_init():
-    """Initialize the default AIRUI session with a generic operations console."""
-    sess = session_manager.get_or_create("default")
-    if not sess.doc:
-        sess.doc = render_console()

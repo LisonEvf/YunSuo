@@ -483,7 +483,13 @@ const WikiHome: FC = () => {
 
 const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
+
+  // Hooks 必须在条件 return 之前
+  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+
   if (state.wikiOpen === true) {
     return <WikiHome />;
   }
@@ -492,13 +498,101 @@ const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unkno
   if (!artifacts.length || homePinned) {
     return <CapabilityHome />;
   }
+
+  const handleDragStart = (e: React.DragEvent, ref: string) => {
+    e.dataTransfer.setData('text/plain', ref);
+    setDraggedItem(ref);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, ref: string) => {
+    e.preventDefault();
+    if (ref !== draggedItem) {
+      setDragOverItem(ref);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverItem(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetRef: string) => {
+    e.preventDefault();
+    const draggedRef = e.dataTransfer.getData('text/plain');
+    if (draggedRef && draggedRef !== targetRef && doc) {
+      const fromIdx = artifacts.findIndex(a => a.ref === draggedRef);
+      const toIdx = artifacts.findIndex(a => a.ref === targetRef);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        const next = [...artifacts];
+        const [moved] = next.splice(fromIdx, 1);
+        next.splice(toIdx, 0, moved);
+        setDoc({ ...doc, state: { ...state, artifacts: next } });
+      }
+    }
+    setDraggedItem(null);
+    setDragOverItem(null);
+  };
+
+  // TODO: 保存 artifact 为可复用预设（需定义预设格式 + 存储位置 + 应用方式）
+  const handleSaveAsPreset = (artifactRef: string) => {
+    console.log(`Save artifact ${artifactRef} as preset`);
+  };
+
   return (
     <div style={{ display: "grid", gap: 12 }}>
       {artifacts.map((artifact) => (
-        <div key={artifact.ref} style={{ border: "1px solid var(--color-border)", borderRadius: 8, background: "var(--color-surface)", overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 12px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)", fontSize: 13, fontWeight: 700, color: "var(--color-text)" }}>
+        <div
+          key={artifact.ref}
+          draggable
+          onDragStart={(e) => handleDragStart(e, artifact.ref)}
+          onDragOver={(e) => handleDragOver(e, artifact.ref)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, artifact.ref)}
+          style={{
+            border: "1px solid var(--color-border)",
+            borderRadius: 8,
+            background: "var(--color-surface)",
+            overflow: "hidden",
+            cursor: "move",
+            position: "relative"
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              padding: "10px 12px",
+              borderBottom: "1px solid var(--color-border)",
+              background: "var(--color-surface-muted)",
+              fontSize: 13,
+              fontWeight: 700,
+              color: "var(--color-text)"
+            }}
+          >
             <span>{artifact.title}</span>
-            <span style={{ fontSize: 12, color: "var(--color-muted)", fontWeight: 500 }}>{artifact.ref}</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button
+                onClick={() => handleSaveAsPreset(artifact.ref)}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                  border: "1px solid var(--color-border)",
+                  background: "var(--color-surface-muted)",
+                  color: "var(--color-text)",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
+                title="保存为预设"
+              >
+                📦
+              </button>
+              <span style={{ fontSize: 12, color: "var(--color-muted)", fontWeight: 500 }}>{artifact.ref}</span>
+            </div>
           </div>
           <div className="airui-gallery-card" style={{ padding: 12 }}>
             <AirUIComponent comp={artifact.component} />
@@ -568,6 +662,7 @@ const fieldStyle: CSSProperties = { width: "100%", height: 34, borderRadius: 8, 
 const fieldLabelStyle: CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-text)" };
 const delBtnStyle: CSSProperties = { flexShrink: 0, width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", fontSize: 16, lineHeight: 1 };
 const addBtnStyle: CSSProperties = { alignSelf: "flex-start", height: 30, padding: "0 12px", borderRadius: 8, border: "1px dashed var(--color-border-strong)", background: "transparent", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
+const toggleBtnStyle: CSSProperties = { position: "absolute", right: 10, top: 10, width: 24, height: 24, borderRadius: 6, border: "none", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
 
 const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
@@ -584,6 +679,9 @@ const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> =
     setDoc({ ...doc, state: setByPath(doc.state, path, next) });
   };
 
+  // 添加密码显示/隐藏功能
+  const [showPassword, setShowPassword] = useState(kind === "password" ? false : undefined);
+
   return (
     <label style={fieldLabelStyle}>
       {label}
@@ -594,13 +692,25 @@ const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> =
           {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
       ) : (
-        <input
-          type={kind === "password" ? "password" : kind === "number" ? "number" : "text"}
-          value={kind === "number" ? Number(value ?? 0) : String(value ?? "")}
-          min={kind === "number" ? 1 : undefined}
-          onChange={(e) => update(kind === "number" ? Number(e.target.value || 1) : e.target.value)}
-          style={fieldStyle}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type={kind === "password" && showPassword ? "text" : kind === "password" ? "password" : kind === "number" ? "number" : "text"}
+            value={kind === "number" ? Number(value ?? 0) : String(value ?? "")}
+            min={kind === "number" ? 1 : undefined}
+            onChange={(e) => update(kind === "number" ? Number(e.target.value || 1) : e.target.value)}
+            style={fieldStyle}
+          />
+          {kind === "password" && (
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={toggleBtnStyle}
+              title={showPassword ? "隐藏密码" : "显示密码"}
+            >
+              {showPassword ? "👁️" : "🔒"}
+            </button>
+          )}
+        </div>
       )}
     </label>
   );
@@ -626,10 +736,105 @@ const Notice: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = 
 // so {state.t.xxx} in its title would render literally). Used by the homepage preset.
 const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ comp, resolvedProps }) => {
   const title = resolvedProps.title as string | undefined;
+  const ref = resolvedProps.ref as string | undefined;
+
+  // 添加删除和保存为预设功能
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!ref) return;
+    setIsDragging(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging || !ref) return;
+    // 这里可以实现拖拽逻辑，但需要在父组件中处理
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
   return (
-    <div style={{ border: "1px solid var(--color-border)", borderRadius: 14, background: "var(--color-surface)", boxShadow: "var(--air-shadow)", display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {title && <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border)", fontWeight: 700, fontSize: 13, color: "var(--color-text)" }}>{title}</div>}
-      <div style={{ flex: 1, padding: 12 }}>{comp.children?.map((child, i) => <AirUIComponent key={child.ref ?? i} comp={child} />)}</div>
+    <div
+      style={{
+        border: "1px solid var(--color-border)",
+        borderRadius: 14,
+        background: "var(--color-surface)",
+        boxShadow: "var(--air-shadow)",
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+        cursor: ref ? "move" : "default"
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      {title && (
+        <div style={{
+          padding: "10px 14px",
+          borderBottom: "1px solid var(--color-border)",
+          fontWeight: 700,
+          fontSize: 13,
+          color: "var(--color-text)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <span>{title}</span>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // 删除卡片的逻辑
+                if (ref) {
+                  const doc = useAirUIStore.getState().doc;
+                  if (doc) {
+                    // 这里需要实现删除逻辑，但实际删除需要在父组件中处理
+                    console.log(`Delete card with ref: ${ref}`);
+                  }
+                }
+              }}
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 4,
+                border: "1px solid var(--color-border)",
+                background: "var(--color-surface-muted)",
+                color: "var(--color-danger)",
+                cursor: "pointer",
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      <div style={{ flex: 1, padding: 12 }}>
+        {comp.children?.map((child, i) => <AirUIComponent key={child.ref ?? i} comp={child} />)}
+      </div>
     </div>
   );
 };
@@ -875,6 +1080,7 @@ const presetBtnStyle: CSSProperties = { display: "flex", alignItems: "center", g
 const iconBlockStyle = (color: string): CSSProperties => ({ flexShrink: 0, width: 36, height: 36, borderRadius: 10, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, letterSpacing: 0 });
 const cardBase: CSSProperties = { display: "flex", alignItems: "center", gap: 12, borderRadius: 12, padding: "12px 14px", transition: "border-color .15s" };
 const activateBtnStyle: CSSProperties = { flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "1px solid var(--color-primary)", background: "var(--color-primary)", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 700 };
+const modelFetchBtnStyle: CSSProperties = { height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
 
 const initialOf = (name?: string) => {
   const s = (name || "").trim();
@@ -1094,6 +1300,7 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
         { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
         { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },
         { type: "Setting", props: { path: "model.api_key", kind: "password", label: "{state.t.apiKey}" } },
+        { type: "ModelFetcher" },
         { type: "Setting", props: { path: "model.max_output_tokens", kind: "number", label: "{state.t.maxTokens}" } },
       ],
     },
@@ -1431,6 +1638,98 @@ const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<string, un
   );
 };
 
+// ModelFetcher: 调 /api/models 列出可用模型，点击选用写入 draft.model.name
+const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const draft = (state.draft ?? {}) as Record<string, unknown>;
+  const model = (draft.model ?? {}) as Record<string, unknown>;
+
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelFetchError, setModelFetchError] = useState("");
+
+  const setModelName = (name: string) => {
+    if (!doc) return;
+    setDoc({
+      ...doc,
+      state: { ...state, draft: { ...draft, model: { ...model, name } } },
+    });
+  };
+
+  const fetchAvailableModels = async () => {
+    if (!model.base_url || !model.api_key) {
+      setModelFetchError("请先填写基础URL和API Key");
+      return;
+    }
+    setFetchingModels(true);
+    setModelFetchError("");
+    try {
+      const response = await fetch("/api/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base_url: model.base_url,
+          api_key: model.api_key,
+          provider: model.provider || "openai",
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      setAvailableModels(data.models || []);
+    } catch {
+      setModelFetchError("获取模型列表失败，请检查URL和API Key");
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <button
+        onClick={fetchAvailableModels}
+        disabled={fetchingModels}
+        style={modelFetchBtnStyle}
+      >
+        {fetchingModels ? "获取中..." : "获取可用模型"}
+      </button>
+
+      {modelFetchError && (
+        <div style={{ fontSize: 11, color: "var(--color-danger)" }}>{modelFetchError}</div>
+      )}
+
+      {availableModels.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>可用模型（点击选用）</span>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {availableModels.map((m) => {
+              const active = m === model.name;
+              return (
+                <button
+                  key={m}
+                  onClick={() => setModelName(m)}
+                  style={{
+                    fontSize: 11,
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    background: active ? "var(--color-primary)" : "var(--color-surface-muted)",
+                    border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
+                    color: active ? "#fff" : "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 let registered = false;
 /** 注册 console 专用自定义组件（幂等）�?*/
 export function registerConsoleComponents() {
@@ -1452,6 +1751,7 @@ export function registerConsoleComponents() {
   registerComponent("PluginsRoster", PluginsRoster);
   registerComponent("MarketplaceSources", MarketplaceSources);
   registerComponent("MarketplaceBrowser", MarketplaceBrowser);
+  registerComponent("ModelFetcher", ModelFetcher);
   registerComponent("SettingsNav", SettingsNav);
   registerComponent("SettingsContent", SettingsContent);
 }

@@ -87,17 +87,19 @@ bun run build:console
 
 ## 测试
 
-后端：
+后端（[apps/api/tests](apps/api/tests)，当前覆盖核心 agent loop / MCP / skills / memory 等关键路径中的部分纯函数与归一化逻辑，agent.py 主循环尚未覆盖）：
 
 ```bash
 bun run test:api
 ```
 
-前端类型检查（dev 模式 vite 不做类型检查，改完需手动跑）：
+前端无单测；类型检查 + 构建一体（dev 模式 vite 不做类型检查，改完需手动跑）：
 
 ```bash
 cd apps/console && bun run build
 ```
+
+生产部署时，前端构建产物 `apps/api/static/airui/` 已加入 `.gitignore`，部署前需运行 `bun run build:console` 生成。
 
 ## 文档
 
@@ -112,4 +114,6 @@ cd apps/console && bun run build
 - `packages/airui/` 是子模块；首次 checkout 后需要确保子模块已初始化。
 - 默认 AIRUI session 是 `default`；新建非 `default` session 只会收到 session id。
 - 股票市场 REST API 与运行时工具已从主应用路径拆除；历史 SDK 保留在 `external/`。
-- `apps/api/config/agent.json` 是运行时实际读取的配置；项目根的 `config/agent.json` 为历史残留，不被后端使用。
+- `apps/api/config/agent.json` 是运行时实际读取的配置；项目根 `config/agent.json` 已删除（旧残留）。
+- SQLite 数据库（`data/*.db`）与前端构建产物（`apps/api/static/airui/`）已加入 `.gitignore`，不入 git。
+- 生产部署需通过环境变量 `ALLOWED_ORIGINS`（逗号分隔）收紧 CORS 白名单；未设置时仅允许本地 5173/8000。

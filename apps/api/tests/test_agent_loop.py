@@ -194,3 +194,170 @@ async def test_chat_guardrail_blocks_repeated_non_idempotent_tool(mock_agent, mo
     # 迭代2: dup=1 < 2 → 执行 → record
     # 迭代3: dup=2 >= 2 → guardrail 阻断, 不执行
     assert call_count["n"] == 2
+
+
+# ── chat_stream() 流式 ────────────────────────────────────────
+
+
+class _FakeStream:
+    """模拟 OpenAI stream（async iterator of chunks）。"""
+
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+        self._idx = 0
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._idx >= len(self._chunks):
+            raise StopAsyncIteration
+        chunk = self._chunks[self._idx]
+        self._idx += 1
+        return chunk
+
+
+def _make_stream_chunk(content=None, tool_calls=None):
+    delta = MagicMock()
+    delta.content = content
+    delta.tool_calls = tool_calls
+    choice = MagicMock()
+    choice.delta = delta
+    chunk = MagicMock()
+    chunk.choices = [choice]
+    return chunk
+
+
+def _make_tool_call_delta(index=0, call_id="call_1", name="fn", arguments="{}"):
+    tc = MagicMock()
+    tc.index = index
+    tc.id = call_id
+    tc.function = MagicMock()
+    tc.function.name = name
+    tc.function.arguments = arguments
+    return tc
+
+
+async def _collect(agen):
+    out = []
+    async for event in agen:
+        out.append(event)
+    return out
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_skills_event_emitted_first(mock_agent):
+    mock_agent.client.chat.completions.create = AsyncMock(
+        return_value=_FakeStream([_make_stream_chunk(content="hi")])
+    )
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "hi"}]))
+    assert events[0]["type"] == "skills"
+    assert isinstance(events[0]["skills"], list)
+    assert events[-1]["type"] == "done"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_delta_concatenates(mock_agent):
+    chunks = [_make_stream_chunk(content="hello"), _make_stream_chunk(content=" world")]
+    mock_agent.client.chat.completions.create = AsyncMock(return_value=_FakeStream(chunks))
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "hi"}]))
+    deltas = [e["content"] for e in events if e["type"] == "delta"]
+    assert "".join(deltas) == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_with_tool_calls(mock_agent, monkeypatch):
+    tc_delta = _make_tool_call_delta(name="get_agent_runtime_status", arguments="{}")
+    first = _FakeStream([_make_stream_chunk(tool_calls=[tc_delta])])
+    second = _FakeStream([_make_stream_chunk(content="done")])
+    mock_agent.client.chat.completions.create = AsyncMock(side_effect=[first, second])
+
+    async def fake_execute(name, args, *, snapshot=None):
+        return '{"status": "ok"}'
+
+    monkeypatch.setattr(agent_module, "execute_tool", fake_execute)
+
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "status?"}]))
+    types = [e["type"] for e in events]
+    assert "tool_start" in types
+    assert "tool_result" in types
+    assert types[-1] == "done"
+    tool_start = next(e for e in events if e["type"] == "tool_start")
+    assert tool_start["tools"][0]["name"] == "get_agent_runtime_status"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_airui_inline_event(mock_agent, monkeypatch):
+    airui_content = {"type": "table", "props": {"headers": ["a"]}}
+    tc_delta = _make_tool_call_delta(
+        name="render_airui_panel",
+        arguments=json.dumps({"content": airui_content}),
+    )
+    first = _FakeStream([_make_stream_chunk(tool_calls=[tc_delta])])
+    second = _FakeStream([_make_stream_chunk(content="rendered")])
+    mock_agent.client.chat.completions.create = AsyncMock(side_effect=[first, second])
+
+    async def fake_execute(name, args, *, snapshot=None):
+        return '{"ok": true, "ref": "row-artifacts"}'
+
+    monkeypatch.setattr(agent_module, "execute_tool", fake_execute)
+
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "render"}]))
+    airui_events = [e for e in events if e["type"] == "airui"]
+    assert len(airui_events) >= 1
+    assert airui_events[0]["data"] == airui_content
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_config_changed_event(mock_agent, monkeypatch):
+    tc_delta = _make_tool_call_delta(
+        name="activate_provider",
+        arguments=json.dumps({"provider_id": "p1"}),
+    )
+    first = _FakeStream([_make_stream_chunk(tool_calls=[tc_delta])])
+    second = _FakeStream([_make_stream_chunk(content="switched")])
+    mock_agent.client.chat.completions.create = AsyncMock(side_effect=[first, second])
+
+    async def fake_execute(name, args, *, snapshot=None):
+        return '{"ok": true}'
+
+    monkeypatch.setattr(agent_module, "execute_tool", fake_execute)
+    monkeypatch.setattr("app.agent.config.load_agent_config", lambda: {"model": {}})
+    monkeypatch.setattr("app.agent.config.get_merged_presets", lambda cfg: [])
+
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "switch"}]))
+    cfg_events = [e for e in events if e["type"] == "config_changed"]
+    assert len(cfg_events) >= 1
+    assert "config" in cfg_events[0]
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_llm_error_yields_delta_and_done(mock_agent):
+    mock_agent.client.chat.completions.create = AsyncMock(
+        side_effect=_make_status_error(429, "rate limited")
+    )
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "hi"}]))
+    types = [e["type"] for e in events]
+    assert "delta" in types
+    assert types[-1] == "done"
+    delta_text = "".join(e.get("content", "") for e in events if e["type"] == "delta")
+    assert "429" in delta_text
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_max_iterations_reached(mock_agent, monkeypatch):
+    def make_looping(**kw):
+        tc_delta = _make_tool_call_delta(name="get_agent_runtime_status", arguments="{}")
+        return _FakeStream([_make_stream_chunk(tool_calls=[tc_delta])])
+
+    mock_agent.client.chat.completions.create = AsyncMock(side_effect=make_looping)
+
+    async def fake_execute(name, args, *, snapshot=None):
+        return '{"status": "ok"}'
+
+    monkeypatch.setattr(agent_module, "execute_tool", fake_execute)
+
+    events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "loop"}]))
+    types = [e["type"] for e in events]
+    assert types[-1] == "done"
+    assert any("最大迭代次数" in e.get("content", "") for e in events if e["type"] == "delta")

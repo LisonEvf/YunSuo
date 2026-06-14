@@ -120,6 +120,25 @@ def update_config(req: ConfigRequest):
     return {"ok": True, "config": config}
 
 
+class ModelListRequest(BaseModel):
+    base_url: str
+    api_key: str
+    provider: str = "openai"
+
+
+@app.post("/api/models")
+async def list_models(req: ModelListRequest):
+    """列出 provider 的可用模型（OpenAI 兼容 GET /v1/models）。"""
+    from openai import AsyncOpenAI
+
+    try:
+        client = AsyncOpenAI(api_key=req.api_key, base_url=req.base_url)
+        resp = await client.models.list()
+        return {"models": sorted(m.id for m in resp.data)}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"获取模型列表失败：{exc}") from exc
+
+
 @app.get("/api/mcp/status")
 def mcp_status():
     """实际连上的 MCP server + 发现的工具清单（能力感知）。"""

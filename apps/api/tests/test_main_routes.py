@@ -80,3 +80,44 @@ def test_cors_header_present(client):
 def test_memory_delete_404_for_missing(client):
     r = client.delete("/api/memory/99999")
     assert r.status_code == 404
+
+
+def test_list_models_success(client, monkeypatch):
+    class _FakeModel:
+        def __init__(self, mid):
+            self.id = mid
+
+    class _FakeResp:
+        data = [_FakeModel("gpt-b"), _FakeModel("gpt-a")]
+
+    class _FakeClient:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        class models:
+            @staticmethod
+            async def list():
+                return _FakeResp()
+
+    monkeypatch.setattr("openai.AsyncOpenAI", _FakeClient)
+
+    r = client.post("/api/models", json={"base_url": "http://x/v1", "api_key": "k"})
+    assert r.status_code == 200
+    assert r.json()["models"] == ["gpt-a", "gpt-b"]
+
+
+def test_list_models_provider_error_returns_502(client, monkeypatch):
+    class _FailingClient:
+        def __init__(self, **kwargs):
+            pass
+
+        class models:
+            @staticmethod
+            async def list():
+                raise RuntimeError("connection refused")
+
+    monkeypatch.setattr("openai.AsyncOpenAI", _FailingClient)
+
+    r = client.post("/api/models", json={"base_url": "http://x/v1", "api_key": "k"})
+    assert r.status_code == 502
+    assert "connection refused" in r.json()["detail"]

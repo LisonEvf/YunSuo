@@ -13,7 +13,7 @@ export const ConnStatus: FC<{ comp: Component; resolvedProps: Record<string, unk
   const doc = useAirUIStore((s) => s.doc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
   const connected = state.connected === true;
-  return <span style={{ color: connected ? "var(--color-success)" : "var(--color-danger)", fontWeight: 700, fontSize: 12 }}>{String(state.connText ?? "")}</span>;
+  return <span style={{ color: connected ? "var(--color-success)" : "var(--color-danger)", fontWeight: 600, fontSize: 12 }}>{String(state.connText ?? "")}</span>;
 };
 
 export const Notice: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
@@ -22,15 +22,15 @@ export const Notice: FC<{ comp: Component; resolvedProps: Record<string, unknown
   const field = (resolvedProps.field as string) ?? "settingsError";
   const message = String(state[field] ?? "");
   if (!message) return null;
-  return <div style={{ color: "var(--color-danger)", fontSize: 12, fontWeight: 700 }}>{message}</div>;
+  return <div style={{ color: "var(--color-danger)", fontSize: 12, fontWeight: 600 }}>{message}</div>;
 };
 
 // Card: like Widget but reads resolvedProps (Widget is engine-special-cased to raw comp.props,
 // so {state.t.xxx} in its title would render literally). Used by the homepage preset.
 
-const mcpBadgeStyle = (connected: boolean): CSSProperties => ({ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: connected ? "var(--color-success)" : "var(--color-surface-muted)", color: connected ? "#fff" : "var(--color-muted)", border: connected ? "none" : "1px solid var(--color-border)" });
-const mcpExpandBtnStyle: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
-const mcpToolItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 1, padding: "6px 10px", borderRadius: 6, background: "var(--color-surface-muted)", fontSize: 11, border: "1px solid var(--color-border)" };
+const mcpBadgeStyle = (connected: boolean): CSSProperties => ({ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 8, background: connected ? "var(--color-success)" : "var(--color-surface-muted)", color: connected ? "#fff" : "var(--color-muted)", border: connected ? "none" : "1px solid var(--color-border)" });
+const mcpExpandBtnStyle: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11, transition: "background .15s, border-color .15s" };
+const mcpToolItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 1, padding: "6px 10px", borderRadius: 8, background: "var(--color-surface-muted)", fontSize: 11, border: "1px solid var(--color-border)" };
 
 export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
   const doc = useAirUIStore((s) => s.doc);
@@ -163,7 +163,7 @@ export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unk
               <div style={{ display: "flex", flexDirection: "column", gap: 4, paddingTop: 2 }}>
                 {tools.map((tool, ti) => (
                   <div key={ti} style={mcpToolItemStyle}>
-                    <span style={{ fontWeight: 700, color: "var(--color-text)" }}>{tool.name}</span>
+                    <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{tool.name}</span>
                     {tool.description && <span style={{ color: "var(--color-muted)" }}>{tool.description}</span>}
                   </div>
                 ))}
@@ -183,10 +183,10 @@ export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unk
 // LlmProviderPanel: 预设网格一键回填 + 已保存 provider 卡片列表（切换/删除/保存为 provider）
 // 设计借鉴 cc-switch ProviderCard（圆角卡片 + 品牌色块图标 + 激活态强调），
 // 渲染层用 AIRUI 设计 token（CSS 变量）+ inline style，与 McpServers/Card 风格一致
-const presetBtnStyle: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--color-text)", textAlign: "left", transition: "border-color .15s, background .15s" };
-const iconBlockStyle = (color: string): CSSProperties => ({ flexShrink: 0, width: 36, height: 36, borderRadius: 10, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 15, letterSpacing: 0 });
-const cardBase: CSSProperties = { display: "flex", alignItems: "center", gap: 12, borderRadius: 12, padding: "12px 14px", transition: "border-color .15s" };
-const modelFetchBtnStyle: CSSProperties = { height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
+const presetBtnStyle: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--color-text)", textAlign: "left", letterSpacing: "-0.005em", transition: "border-color .15s, background .15s" };
+const iconBlockStyle = (color: string): CSSProperties => ({ flexShrink: 0, width: 34, height: 34, borderRadius: 8, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" });
+const cardBase: CSSProperties = { display: "flex", alignItems: "center", gap: 12, borderRadius: 10, padding: "12px 14px", transition: "border-color .15s" };
+const modelFetchBtnStyle: CSSProperties = { height: 32, padding: "0 12px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
 
 const initialOf = (name?: string) => {
   const s = (name || "").trim();
@@ -300,7 +300,7 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
       {/* 预设网格 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("providerPresets")}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("providerPresets")}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("providerPresetsHint")}</span>
             <button onClick={restoreDefaultPresets} style={{ fontSize: 11, color: "var(--color-primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>{txt("restoreDefault")}</button>
@@ -325,12 +325,12 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
       {/* 已保存 provider 卡片列表 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("savedProviders")}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("savedProviders")}</span>
           <button onClick={saveAsProvider} style={addBtnStyle}>+ {txt("saveAsProvider")}</button>
         </div>
         {providers.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "18px 14px", borderRadius: 12, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)", textAlign: "center" }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("noSavedProvidersTitle")}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "18px 14px", borderRadius: 10, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)", textAlign: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("noSavedProvidersTitle")}</span>
             <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("noSavedProviders")}</span>
           </div>
         ) : providers.map((p) => {
@@ -349,8 +349,8 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
               <span style={iconBlockStyle(color)}>{initialOf(p.name || p.model_name)}</span>
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || p.model_name || "(unnamed)"}</span>
-                  {active && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 6, background: color, color: "#fff" }}>{txt("currentProvider")}</span>}
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || p.model_name || "(unnamed)"}</span>
+                  {active && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 8, background: color, color: "#fff" }}>{txt("currentProvider")}</span>}
                 </div>
                 <span style={{ fontSize: 11, color: "var(--color-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.model_name || "—"} · {p.base_url || "—"}</span>
               </div>
@@ -435,7 +435,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
 
       {availableModels.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("availableModels")}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("availableModels")}</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {availableModels.map((m) => {
               const active = m === model.name;
@@ -446,7 +446,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
                   style={{
                     fontSize: 11,
                     padding: "4px 8px",
-                    borderRadius: 6,
+                    borderRadius: 8,
                     background: active ? "var(--color-primary)" : "var(--color-surface-muted)",
                     border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
                     color: active ? "#fff" : "var(--color-text)",

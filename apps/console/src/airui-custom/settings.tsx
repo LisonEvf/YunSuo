@@ -65,22 +65,22 @@ export const SettingCard: FC<{ comp: Component; resolvedProps: Record<string, un
   const desc = resolvedProps.desc as string | undefined;
   const align = (resolvedProps.align as string) ?? "center";
   const maxWidth = (resolvedProps.maxWidth as string | number | undefined) ?? 640;
-  const sectionStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 14, background: "var(--color-surface)", boxShadow: "var(--air-shadow)", overflow: "hidden", width: "100%", maxWidth };
+  const sectionStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 12, background: "var(--color-surface)", boxShadow: "var(--air-shadow)", overflow: "hidden", width: "100%", maxWidth };
   if (align === "left") { sectionStyle.marginLeft = 0; sectionStyle.marginRight = "auto"; }
   else if (align === "right") { sectionStyle.marginLeft = "auto"; sectionStyle.marginRight = 0; }
   else { sectionStyle.marginInline = "auto"; }
   return (
     <section style={sectionStyle}>
       {title && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)" }}>
-          <span style={{ width: 3, height: 18, borderRadius: 2, background: "var(--color-primary)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)" }}>
+          <span style={{ width: 3, height: 16, borderRadius: 2, background: "var(--color-primary)" }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: "var(--color-text)" }}>{title}</span>
+            <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", letterSpacing: "-0.015em" }}>{title}</span>
             {desc && <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{desc}</span>}
           </div>
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: 20 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: 18 }}>
         {comp.children?.map((child, i) => <AirUIComponent key={child.ref ?? i} comp={child} />)}
       </div>
     </section>
@@ -98,7 +98,7 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
   const quickPaths = (resolvedProps.quickPaths as string[] | undefined) ?? [];
   const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {};
   const txt = (k: string) => t[k] ?? k;
-  const quickChipStyle = (used: boolean): CSSProperties => ({ height: 26, padding: "0 10px", borderRadius: 8, border: `1px solid ${used ? "var(--color-border)" : "var(--color-border-strong)"}`, background: "transparent", color: used ? "var(--color-muted)" : "var(--color-text)", cursor: used ? "default" : "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 });
+  const quickChipStyle = (used: boolean): CSSProperties => ({ height: 28, padding: "0 10px", borderRadius: 10, border: `1px solid ${used ? "var(--color-border)" : "var(--color-border-strong)"}`, background: "transparent", color: used ? "var(--color-muted)" : "var(--color-text)", cursor: used ? "default" : "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 });
 
   const update = (next: string[]) => {
     if (!doc) return;
@@ -239,8 +239,8 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   },
 ];
 
-const navItemBase: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: 8, cursor: "pointer", fontSize: 13, textAlign: "left", border: "none", width: "100%", transition: "background .15s, color .15s" };
-const navItemActive: CSSProperties = { ...navItemBase, background: "var(--color-surface-muted)", color: "var(--color-primary)", fontWeight: 700, boxShadow: "inset 2px 0 0 var(--color-primary)" };
+const navItemBase: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, cursor: "pointer", fontSize: 13, textAlign: "left", border: "none", width: "100%", transition: "background .15s, color .15s" };
+const navItemActive: CSSProperties = { ...navItemBase, background: "var(--color-surface-muted)", color: "var(--color-primary)", fontWeight: 600, boxShadow: "inset 2px 0 0 var(--color-primary)" };
 const navItemIdle: CSSProperties = { ...navItemBase, background: "transparent", color: "var(--color-text)", fontWeight: 500 };
 
 // SettingsNav: 左侧分类菜单，active 项主题色左边框 + 浅背景；点击写 state.settingsSection
@@ -258,7 +258,7 @@ export const SettingsNav: FC<{ comp: Component; resolvedProps: Record<string, un
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "12px 10px", width: 168, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "10px 8px", width: 160, flexShrink: 0, borderRight: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
       {SETTINGS_SECTIONS.map((s) => {
         const active = s.key === current;
         return (
@@ -286,7 +286,7 @@ export const SettingsContent: FC<{ comp: Component; resolvedProps: Record<string
   // maxWidth: "none" 让 SettingCard 占满右侧，不再居中受限
   const card: Component = { ...section.card, props: { ...section.card.props, maxWidth: "none" } };
   return (
-    <div style={{ flex: 1, minWidth: 0, overflow: "auto", padding: 18, background: "var(--color-surface-muted)" }}>
+    <div style={{ flex: 1, minWidth: 0, overflow: "auto", padding: 16, background: "var(--color-surface-muted)" }}>
       <AirUIComponent comp={card} />
     </div>
   );

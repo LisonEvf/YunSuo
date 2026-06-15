@@ -25,7 +25,7 @@ export const MarketplaceSources: FC<{ comp: Component; resolvedProps: Record<str
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("marketplaceSources")}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("marketplaceSources")}</span>
         <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{txt("marketplaceHint")}</div>
       </div>
       {sources.map((src, i) => (
@@ -63,8 +63,8 @@ interface MarketData {
   marketplaces: Array<{ id: string; name: string; url: string; ok: boolean; error?: string }>;
   plugins: MarketPlugin[];
 }
-const mpCardStyle = (installed: boolean): CSSProperties => ({ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 12, border: `1px solid ${installed ? "var(--color-success)" : "var(--color-border)"}`, background: "var(--color-surface)" });
-const mpIconStyle = (color: string): CSSProperties => ({ width: 34, height: 34, borderRadius: 9, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, flexShrink: 0 });
+const mpCardStyle = (installed: boolean): CSSProperties => ({ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)", border: `1px solid ${installed ? "var(--color-success)" : "var(--color-border)"}`, background: "var(--color-surface)" });
+const mpIconStyle = (color: string): CSSProperties => ({ width: 34, height: 34, borderRadius: 8, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em", flexShrink: 0 });
 
 // MarketplaceBrowser: 拉取清单 → 网格展示 → 安装(git clone)/卸载，安装后同步刷新已发现清单
 export const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
@@ -143,7 +143,7 @@ export const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<str
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text)" }}>{txt("marketplace")} · {data.plugins.length}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("marketplace")} · {data.plugins.length}</span>
         <button onClick={() => void refresh()} disabled={loading} style={{ ...activateBtnStyle, opacity: loading ? 0.6 : 1 }}>{loading ? txt("loading") : txt("refresh")}</button>
       </div>
       {failedCount > 0 && <div style={{ fontSize: 11, color: "var(--color-danger)" }}>{failedCount} {txt("sourceFailed")}</div>}
@@ -157,7 +157,7 @@ export const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<str
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <span style={mpIconStyle(p.iconColor || "#8B8F98")}>{(p.name || "?").charAt(0).toUpperCase()}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                   <div style={{ fontSize: 10, color: "var(--color-muted)" }}>{[p.author, p.version].filter(Boolean).join(" · ")}</div>
                 </div>
               </div>

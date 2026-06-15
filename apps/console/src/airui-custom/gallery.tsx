@@ -77,10 +77,11 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
           onDrop={(e) => handleDrop(e, artifact.ref)}
           style={{
             border: "1px solid var(--color-border)",
-            borderRadius: 8,
+            borderRadius: 10,
             background: "var(--color-surface)",
             overflow: "hidden",
             cursor: "move",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)",
             position: "relative"
           }}
         >
@@ -93,7 +94,8 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
               borderBottom: "1px solid var(--color-border)",
               background: "var(--color-surface-muted)",
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
               color: "var(--color-text)"
             }}
           >
@@ -102,9 +104,9 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
               <button
                 onClick={() => handleSaveAsPreset(artifact.ref)}
                 style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 4,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
                   border: "1px solid var(--color-border)",
                   background: "var(--color-surface-muted)",
                   color: "var(--color-text)",

@@ -99,16 +99,16 @@ export interface ArtifactPanel {
 
 // ── 共享表单 style（Setting / ListEditor / McpServers / LlmProviderPanel / MarketplaceSources 共用）──
 
-export const fieldStyle: CSSProperties = { width: "100%", height: 34, borderRadius: 8, border: "1px solid var(--color-border-strong)", background: "var(--color-surface)", color: "var(--color-text)", padding: "0 10px", outline: "none", fontSize: 13 };
-export const fieldLabelStyle: CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--color-text)" };
-export const delBtnStyle: CSSProperties = { flexShrink: 0, width: 34, height: 34, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", fontSize: 16, lineHeight: 1 };
-export const addBtnStyle: CSSProperties = { alignSelf: "flex-start", height: 30, padding: "0 12px", borderRadius: 8, border: "1px dashed var(--color-border-strong)", background: "transparent", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
-export const toggleBtnStyle: CSSProperties = { position: "absolute", right: 10, top: 10, width: 24, height: 24, borderRadius: 6, border: "none", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
+export const fieldStyle: CSSProperties = { width: "100%", height: 36, borderRadius: 10, border: "1px solid var(--color-border-strong)", background: "var(--color-surface)", color: "var(--color-text)", padding: "0 12px", outline: "none", fontSize: 13, letterSpacing: "-0.005em", transition: "border-color 0.2s, box-shadow 0.2s" };
+export const fieldLabelStyle: CSSProperties = { display: "grid", gap: 6, fontSize: 12, fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.005em" };
+export const delBtnStyle: CSSProperties = { flexShrink: 0, width: 36, height: 36, borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", fontSize: 16, lineHeight: 1 };
+export const addBtnStyle: CSSProperties = { alignSelf: "flex-start", height: 32, padding: "0 14px", borderRadius: 10, border: "1px dashed var(--color-border-strong)", background: "transparent", color: "var(--color-text)", cursor: "pointer", fontSize: 12, letterSpacing: "-0.005em" };
+export const toggleBtnStyle: CSSProperties = { position: "absolute", right: 10, top: 11, width: 24, height: 24, borderRadius: 8, border: "none", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 12 };
 
 // ── MCP 类型（home.tsx CapabilityHome + llm.tsx McpServers 共用）──
 export type McpToolLite = { name?: string; description?: string; inputSchema?: { properties?: Record<string, { type?: string; description?: string }>; required?: string[] } };
 export type McpServerLite = { name?: string; connected?: boolean; tools?: McpToolLite[] };
 
 // ── 跨文件共享 style（llm + roster + marketplace）──
-export const activateBtnStyle: CSSProperties = { flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "1px solid var(--color-primary)", background: "var(--color-primary)", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 700 };
-export const rosterEmptyStyle: CSSProperties = { fontSize: 11, color: "var(--color-muted)", padding: "10px 12px", borderRadius: 8, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)" };
+export const activateBtnStyle: CSSProperties = { flexShrink: 0, height: 32, padding: "0 14px", borderRadius: 10, border: "1px solid var(--color-primary)", background: "var(--color-primary)", color: "#fff", cursor: "pointer", fontSize: 11, fontWeight: 600, letterSpacing: "-0.005em" };
+export const rosterEmptyStyle: CSSProperties = { fontSize: 11, color: "var(--color-muted)", padding: "10px 12px", borderRadius: 10, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)" };

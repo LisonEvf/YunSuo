@@ -116,8 +116,8 @@ export const homeLayout: Component = {
 // ── 自定义组�?────────────────────────────────────────────────────────
 
 
-const capCardStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 12, background: "var(--color-surface)", padding: 14, display: "flex", flexDirection: "column", gap: 6 };
-const capLabelStyle: CSSProperties = { fontSize: 13, fontWeight: 700, color: "var(--color-text)", marginBottom: 4 };
+const capCardStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 10, background: "var(--color-surface)", padding: 14, display: "flex", flexDirection: "column", gap: 6 };
+const capLabelStyle: CSSProperties = { fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 };
 const capRowStyle: CSSProperties = { display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 0", borderBottom: "1px solid var(--color-border)", fontSize: 12 };
 const capNameStyle: CSSProperties = { fontWeight: 600, color: "var(--color-text)" };
 const capDescStyle: CSSProperties = { color: "var(--color-muted)", fontSize: 11, textAlign: "right" as const };
@@ -344,8 +344,8 @@ export const WikiHome: FC = () => {
         <AirUIComponent comp={{ type: "Text", props: { value: "{state.t.wikiSubtitle}", style: "caption" } }} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {WIKI_CATEGORIES.map((cat) => (
-            <div key={cat.key} onClick={() => setCategory(cat.key)} style={{ border: "1px solid var(--color-border)", borderRadius: 12, padding: 16, background: "var(--color-surface)", cursor: "pointer" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text)" }}>{t[cat.labelKey] || cat.key}</div>
+            <div key={cat.key} onClick={() => setCategory(cat.key)} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 16, background: "var(--color-surface)", cursor: "pointer" }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", letterSpacing: "-0.005em" }}>{t[cat.labelKey] || cat.key}</div>
               <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 4 }}>{cat.components.length} 个组件</div>
             </div>
           ))}
@@ -399,7 +399,7 @@ export const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> 
   return (
     <div style={{
       border: "1px solid var(--color-border)",
-      borderRadius: 14,
+      borderRadius: 12,
       background: "var(--color-surface)",
       boxShadow: "var(--air-shadow)",
       display: "flex",
@@ -411,8 +411,9 @@ export const Card: FC<{ comp: Component; resolvedProps: Record<string, unknown> 
         <div style={{
           padding: "10px 14px",
           borderBottom: "1px solid var(--color-border)",
-          fontWeight: 700,
+          fontWeight: 600,
           fontSize: 13,
+          letterSpacing: "-0.005em",
           color: "var(--color-text)",
           display: "flex",
           justifyContent: "space-between",

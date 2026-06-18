@@ -2042,6 +2042,26 @@ button:not(:disabled):active,
 .artifact-gallery-grid > *:has(table) {
   grid-column: 1 / -1;
 }
+/* Explicit Bento span hints from the panel descriptor take priority over the
+   :has() heuristic. colSpan >= 8 means "full width" in the auto-fill grid. */
+.artifact-gallery-grid > *[data-col-span="12"],
+.artifact-gallery-grid > *[data-col-span="11"],
+.artifact-gallery-grid > *[data-col-span="10"],
+.artifact-gallery-grid > *[data-col-span="9"],
+.artifact-gallery-grid > *[data-col-span="8"] {
+  grid-column: 1 / -1;
+}
+/* Half-width panels share a row. */
+.artifact-gallery-grid > *[data-col-span="6"],
+.artifact-gallery-grid > *[data-col-span="5"],
+.artifact-gallery-grid > *[data-col-span="4"] {
+  grid-column: span 1;
+}
+/* Tall panels grow downward. */
+.artifact-gallery-grid > *[data-row-span="2"],
+.artifact-gallery-grid > *[data-row-span="3"] {
+  grid-row: span 2;
+}
 
 .airui-gallery-card {
   min-width: 0;

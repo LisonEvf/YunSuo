@@ -98,6 +98,9 @@ export interface ArtifactPanel {
   title: string;
   component: Component;
   actions?: SuggestedAction[];
+  /** Optional Bento size hints (1-12 grid). When omitted the card auto-sizes. */
+  colSpan?: number;
+  rowSpan?: number;
 }
 
 // -- Homepage preset skeleton (rendered when artifacts is empty) --

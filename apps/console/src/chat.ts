@@ -1,4 +1,5 @@
-import { useStore, type ToolStatus } from "./store";
+import { useStore, type ToolStatus, type ChatArtifactPanel } from "./store";
+import type { Component } from "@air-ui/core";
 import { useAirUIStore } from "@air-ui/renderer-react";
 
 /**
@@ -27,6 +28,9 @@ export async function sendChat(text: string) {
   let assistantContent = "";
   let toolStatuses: ToolStatus[] = [];
   let autoCollapsedThisSession = false;
+  // Accumulate every AIRUI panel emitted this turn so the gallery can render
+  // multiple Bento cards from a single response (one per render_airui_panel call).
+  let airuiPanels: ChatArtifactPanel[] = [];
 
   try {
     const res = await fetch("/api/chat", {
@@ -99,7 +103,27 @@ export async function sendChat(text: string) {
         }
 
         if (evt.type === "airui" && evt.data) {
-          useStore.getState().updateLastMessage({ content: assistantContent, airui: evt.data, toolStatus: toolStatuses });
+          // Support two payload shapes: the enriched descriptor
+          // { ref, title, col_span, row_span, actions, content } and the legacy
+          // raw AIRUI component tree (where the whole object IS the component).
+          const d = evt.data as Record<string, unknown>;
+          const isDescriptor = "content" in d || "ref" in d || "title" in d;
+          const component = (isDescriptor ? d.content : d) as Component;
+          const panel: ChatArtifactPanel = {
+            ref: String((isDescriptor ? d.ref : "") || `chat-card-${airuiPanels.length + 1}`),
+            title: String((isDescriptor ? d.title : "") || ""),
+            colSpan: isDescriptor ? (d.col_span as number) ?? (d.colSpan as number) : undefined,
+            rowSpan: isDescriptor ? (d.row_span as number) ?? (d.rowSpan as number) : undefined,
+            actions: Array.isArray(d.actions) ? (d.actions as ChatArtifactPanel["actions"]) : undefined,
+            component,
+          };
+          airuiPanels = [...airuiPanels, panel];
+          useStore.getState().updateLastMessage({
+            content: assistantContent,
+            airui: component, // legacy field, kept for "has artifact" detection
+            airuiPanels,
+            toolStatus: toolStatuses,
+          });
           if (!autoCollapsedThisSession) {
             autoCollapsedThisSession = true;
             const cfg = useStore.getState().appConfig;

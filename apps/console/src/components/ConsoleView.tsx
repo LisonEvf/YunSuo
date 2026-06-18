@@ -173,20 +173,42 @@ export default function ConsoleView() {
   }, [activeSkills, runEvents, applyPatch]);
 
   // 最近一条带 airui 的消息（稳定引用：流式 delta 期间不变化，避免每 token 重渲染）
-  const lastAiruiComp = useMemo(
-    () => [...chatMessages].reverse().find((m) => m.airui)?.airui,
+  // Most recent assistant turn that produced AIRUI panels. A turn may carry
+  // several panels (airuiPanels) -> each becomes its own Bento card. Falls back
+  // to the legacy single-component `airui` field for older persisted sessions.
+  const lastAiruiMsg = useMemo(
+    () => [...chatMessages].reverse().find((m) => (m.airuiPanels?.length ?? 0) > 0 || m.airui),
     [chatMessages]
   );
+
+  const chatArtifacts = useMemo<ArtifactPanel[]>(() => {
+    const msg = lastAiruiMsg;
+    if (msg?.airuiPanels?.length) {
+      return msg.airuiPanels.map((p, i) => ({
+        ref: p.ref || `chat-card-${i}`,
+        title: p.title || t(language, "latestArtifact"),
+        component: normalizeAirUIComponent(p.component),
+        actions: p.actions,
+        colSpan: p.colSpan,
+        rowSpan: p.rowSpan,
+      }));
+    }
+    if (msg?.airui) {
+      return [{ ref: "chat-artifact", title: t(language, "latestArtifact"), component: normalizeAirUIComponent(msg.airui) }];
+    }
+    return [];
+  }, [lastAiruiMsg, language]);
 
   // artifacts 同步：合并后端影子文档面板 + 最近一条聊天 airui（starter 走 chat 通道时由此上主区）
   useEffect(() => {
     if (!useAirUIStore.getState().doc) return;
     const wsPanels = collectArtifactPanels(artifactDoc?.root);
-    const chatPanel = lastAiruiComp
-      ? [{ ref: "chat-artifact", title: t(language, "latestArtifact"), component: normalizeAirUIComponent(lastAiruiComp) }]
-      : [];
-    applyPatch([{ op: "update-state", stateDelta: { artifacts: [...wsPanels, ...chatPanel] } }]);
-  }, [artifactDoc, lastAiruiComp, language, applyPatch]);
+    // Dedupe by ref: a panel pushed via WebSocket AND via the airui SSE event
+    // should render only once. Chat panels fill in when the WS doc is absent.
+    const wsRefs = new Set(wsPanels.map((p) => p.ref));
+    const merged = [...wsPanels, ...chatArtifacts.filter((p) => !wsRefs.has(p.ref))];
+    applyPatch([{ op: "update-state", stateDelta: { artifacts: merged } }]);
+  }, [artifactDoc, chatArtifacts, applyPatch]);
 
   // loadInspector 函数定义
   const loadInspector = useCallback(async () => {

@@ -137,11 +137,11 @@ export const CapabilityHome: FC = () => {
 
       {/* (3) Capability body: skills / MCP */}
       <div className="bento-grid">
-        {skills.length > 0 && (
-          <div className={halfCol(mcpServers.length > 0)}>
-            <div style={cardTitleStyle}><span style={accentBar} />{t.skills}</div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {skills.slice(0, 6).map((s, i) => (
+       {skills.length > 0 && (
+         <div className={halfCol(mcpServers.length > 0)}>
+            <div style={cardTitleStyle}><span style={accentBar} />{t.skills}{skills.length > 6 && <span className="m-card-count">{skills.length}</span>}</div>
+            <div className="m-card-list">
+              {skills.map((s, i) => (
                 <div key={i} style={rowStyle}>
                   <span style={rowNameStyle}>{s.name}</span>
                   <span style={rowDescStyle}>{s.description}</span>
@@ -152,37 +152,39 @@ export const CapabilityHome: FC = () => {
         )}
         {mcpServers.length > 0 && (
           <div className={halfCol(skills.length > 0)}>
-            <div style={cardTitleStyle}><span style={accentBar} />{t.mcp}</div>
-            {mcpServers.map((srv, i) => {
-              const tools = srv.tools || [];
-              return (
-                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <div style={rowStyle}>
-                    <span style={rowNameStyle}>{srv.name}</span>
-                    <span style={rowDescStyle}>{srv.connected ? `${t.connected} 路 ${tools.length} ${t.tools || ""}` : t.disconnected}</span>
+            <div style={cardTitleStyle}><span style={accentBar} />{t.mcp}{(() => { const toolTotal = mcpServers.reduce((n, s) => n + (s.tools?.length || 0), 0); return toolTotal > 0 ? <span className="m-card-count">{toolTotal}</span> : null; })()}</div>
+            <div className="m-card-list">
+              {mcpServers.map((srv, i) => {
+                const tools = srv.tools || [];
+                return (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <div style={rowStyle}>
+                      <span style={rowNameStyle}>{srv.name}</span>
+                      <span style={rowDescStyle}>{srv.connected ? `${t.connected} 路 ${tools.length} ${t.tools || ""}` : t.disconnected}</span>
+                    </div>
+                    {tools.map((tool, j) => {
+                      const required = ((tool as McpToolLite).inputSchema?.required) ?? [];
+                      const hasParams = required.length > 0;
+                      return (
+                        <button
+                          key={j}
+                          onClick={() => { void handleMcpToolClick(i, j); }}
+                          className={`m-tool-btn${hasParams ? "" : " m-tool-btn-quick"}`}
+                          title={hasParams ? `${tool.name}（需参数）` : `${tool.name}（一键执行）`}
+                          aria-label={tool.name}
+                        >
+                          <span style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 500 }}>
+                            <Icon name="chevronRight" size={11} />
+                            {tool.name}{hasParams ? ` 路 ${t.toolParams || "参数"}` : <Icon name="bolt" size={11} />}
+                          </span>
+                          <span style={rowDescStyle}>{tool.description}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  {tools.map((tool, j) => {
-                    const required = ((tool as McpToolLite).inputSchema?.required) ?? [];
-                    const hasParams = required.length > 0;
-                    return (
-                      <button
-                        key={j}
-                        onClick={() => { void handleMcpToolClick(i, j); }}
-                        className={`m-tool-btn${hasParams ? "" : " m-tool-btn-quick"}`}
-                        title={hasParams ? `${tool.name}（需参数）` : `${tool.name}（一键执行）`}
-                        aria-label={tool.name}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 500 }}>
-                          <Icon name="chevronRight" size={11} />
-                          {tool.name}{hasParams ? ` 路 ${t.toolParams || "参数"}` : <Icon name="bolt" size={11} />}
-                        </span>
-                        <span style={rowDescStyle}>{tool.description}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -190,10 +192,10 @@ export const CapabilityHome: FC = () => {
       {/* (4) Plugins + presets */}
       {(plugins.length > 0 || presets.length > 0) && (
         <div className="bento-grid">
-          {plugins.length > 0 && (
-            <div className={halfCol(presets.length > 0)}>
-              <div style={cardTitleStyle}><span style={accentBar} />{t.plugins}</div>
-              <div style={{ display: "flex", flexDirection: "column" }}>
+         {plugins.length > 0 && (
+           <div className={halfCol(presets.length > 0)}>
+              <div style={cardTitleStyle}><span style={accentBar} />{t.plugins}{plugins.length > 6 && <span className="m-card-count">{plugins.length}</span>}</div>
+              <div className="m-card-list">
                 {plugins.map((p, i) => (
                   <div key={i} style={rowStyle}>
                     <span style={rowNameStyle}>{p.name}</span>
@@ -206,15 +208,17 @@ export const CapabilityHome: FC = () => {
           {presets.length > 0 && (
             <div className={halfCol(plugins.length > 0)}>
               <div style={cardTitleStyle}><span style={accentBar} />{t.myPresets}</div>
-              {presets.map((p) => (
-                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--air-borderLight)" }}>
-                  <button onClick={() => insertPreset(p)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", justifyContent: "space-between", gap: 10, textAlign: "left" }}>
-                    <span style={rowNameStyle}>{p.name}</span>
-                    <span style={rowDescStyle}>{p.title || ""}</span>
-                  </button>
-                  <button onClick={() => deletePreset(p.id)} title={t.deletePreset} aria-label={t.deletePreset} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="close" size={12} /></button>
-                </div>
-              ))}
+              <div className="m-card-list">
+                {presets.map((p) => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid var(--air-borderLight)" }}>
+                    <button onClick={() => insertPreset(p)} style={{ flex: 1, background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", justifyContent: "space-between", gap: 10, textAlign: "left" }}>
+                      <span style={rowNameStyle}>{p.name}</span>
+                      <span style={rowDescStyle}>{p.title || ""}</span>
+                    </button>
+                    <button onClick={() => deletePreset(p.id)} title={t.deletePreset} aria-label={t.deletePreset} style={{ flexShrink: 0, width: 24, height: 24, borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-danger)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon name="close" size={12} /></button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

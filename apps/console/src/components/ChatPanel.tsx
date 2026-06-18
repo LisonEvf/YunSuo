@@ -129,10 +129,11 @@ export default function ChatPanel() {
     }
   }, [messages, loading]);
 
-  useEffect(() => {
-    (window as any).__focusChatInput = () => inputRef.current?.focus();
-    return () => { delete (window as any).__focusChatInput; };
-  }, []);
+ useEffect(() => {
+   (window as any).__focusChatInput = () => inputRef.current?.focus();
+   (window as any).__sendChat = (text: string) => { void sendChat(text); };
+   return () => { delete (window as any).__focusChatInput; delete (window as any).__sendChat; };
+ }, []);
 
   // Persist on unmount / page close
   useEffect(() => {

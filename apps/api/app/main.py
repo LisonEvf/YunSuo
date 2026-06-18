@@ -79,6 +79,11 @@ class ConfigRequest(BaseModel):
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     """General agent chat endpoint with optional streaming and skill activation."""
+    # DEV-ONLY deterministic multi-card stream (YUNSUO_DEMO_CHAT=1). Emits the
+    # enriched `airui` events the real agent produces, so the frontend
+    # multi-card pipeline can be verified without a configured LLM.
+    if os.environ.get("YUNSUO_DEMO_CHAT") == "1" and req.stream:
+        return _demo_multi_card_stream()
     from .agent import get_agent
 
     try:
@@ -98,7 +103,11 @@ async def chat(req: ChatRequest):
             },
         )
 
+
     return await agent.chat(messages, skills=req.skills)
+
+
+
 
 
 @app.get("/api/config")
@@ -200,6 +209,67 @@ def plugins_uninstall(name: str):
     from .agent.plugins import uninstall
 
     return uninstall(name)
+
+
+
+def _demo_multi_card_stream():
+    """DEV-ONLY: stream three enriched airui panels (KPI row, sales table, trend chart)."""
+    import json
+
+    panels = [
+        {
+            "ref": "artifact-kpi", "title": "核心指标", "col_span": 12, "row_span": 1,
+            "actions": [{"label": "详情", "prompt": "展开 KPI 详情", "variant": "primary"},
+                        {"label": "导出", "prompt": "导出核心 KPI 数据"}],
+            "content": {"type": "Row", "children": [
+                {"type": "KPI", "props": {"label": "月度营收", "value": "¥1.28亿", "trend": "+12.4%"}},
+                {"type": "KPI", "props": {"label": "活跃用户", "value": "86,420", "trend": "+5.1%"}},
+                {"type": "KPI", "props": {"label": "新增订单", "value": "23,901", "trend": "+8.7%"}},
+                {"type": "KPI", "props": {"label": "转化率", "value": "34.2%", "trend": "-1.2%"}},
+            ]},
+        },
+        {
+            "ref": "artifact-sales-table", "title": "区域销售明细", "col_span": 12, "row_span": 1,
+            "actions": [{"label": "排序", "prompt": "按销售额降序排列"}, {"label": "筛选", "prompt": "筛选前十区域"}],
+            "content": {"type": "Table", "props": {
+                "columns": [{"key": "region", "label": "地区"}, {"key": "product", "label": "产品"},
+                            {"key": "qty", "label": "销量"}, {"key": "revenue", "label": "营收(万)"},
+                            {"key": "growth", "label": "增长"}],
+                "data": [
+                    {"region": "华东", "product": "云索 Pro", "qty": 4120, "revenue": 824, "growth": "+15%"},
+                    {"region": "华北", "product": "云索 Lite", "qty": 3380, "revenue": 507, "growth": "+9%"},
+                    {"region": "华南", "product": "数据中台", "qty": 1240, "revenue": 372, "growth": "+22%"},
+                    {"region": "西南", "product": "云索 Pro", "qty": 980, "revenue": 196, "growth": "-3%"},
+                    {"region": "华中", "product": "数据中台", "qty": 1560, "revenue": 468, "growth": "+11%"},
+                ],
+            }},
+        },
+        {
+            "ref": "artifact-trend-chart", "title": "营收趋势", "col_span": 12, "row_span": 1,
+            "actions": [{"label": "查看详情", "prompt": "展开月度趋势分析"}],
+            "content": {"type": "Chart", "props": {"option": {
+                "tooltip": {"trigger": "axis"}, "legend": {"data": ["营收"]},
+                "xAxis": {"type": "category", "data": ["1月", "2月", "3月", "4月", "5月", "6月"]},
+                "yAxis": {"type": "value", "name": "万元"},
+                "series": [{"name": "营收", "type": "line", "smooth": True,
+                            "data": [1820, 2010, 1980, 2240, 2380, 2510],
+                            "areaStyle": {"opacity": 0.15}, "lineStyle": {"width": 3}}],
+            }}},
+        },
+    ]
+
+    async def _stream():
+        yield "data: " + json.dumps({"type": "skills", "skills": []}) + "\n"
+        yield "data: " + json.dumps({"type": "delta", "content": "已为您生成包含核心指标、区域销售明细和营收趋势的运营概览面板。"}) + "\n"
+        yield "data: " + json.dumps({"type": "tool_start", "tools": [{"name": "render_airui_panel"} for _ in panels]}) + "\n"
+        for p in panels:
+            yield "data: " + json.dumps({"type": "tool_result", "name": "render_airui_panel",
+                                         "result": json.dumps({"status": "rendered", "ref": p["ref"]})}) + "\n"
+            yield "data: " + json.dumps({"type": "airui", "data": p}, ensure_ascii=False) + "\n"
+        yield "data: " + json.dumps({"type": "done"}) + "\n"
+
+    return StreamingResponse(_stream(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 async def _sse_stream(agent, messages: list[dict], skills: list[str] | None = None):

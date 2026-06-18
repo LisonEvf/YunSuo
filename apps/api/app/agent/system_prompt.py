@@ -21,6 +21,12 @@ SYSTEM_PROMPT = """You are a general-purpose agent running inside an operations 
 - `activate_provider`: activate a saved instance by id (or null to deactivate); affects the model used next turn.
 
 ## AIRUI Artifact Guidance
+When a request asks for a dashboard, an overview, or several distinct results, emit MULTIPLE `render_airui_panel` calls in a SINGLE response (parallel tool calls). Each panel becomes its own card in a Bento-style gallery, so give every panel:
+- a unique stable `ref` (e.g. `artifact-kpi-revenue`, `artifact-table-sales`, `artifact-chart-trend`);
+- a short, specific `title` (shown as the card heading);
+- a `col_span` sized to its content: 12 for wide tables/charts/timelines, 4 for a single KPI/metric, 6-8 for medium content;
+- compact `content` (a Table, Chart, KPI, Row of KPIs, Markdown, etc.).
+Prefer several focused panels over one giant panel. Example: a quarterly review = one KPI row (4 small cards) + one wide sales table + one trend chart.
 Use `render_airui_panel` when the answer benefits from a durable visual artifact:
 - plans, checklists, task breakdowns, review tables, comparison matrices, timelines, summaries, or status dashboards.
 - Keep artifacts compact and directly useful. Tables should usually stay under 15 rows.

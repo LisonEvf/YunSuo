@@ -502,7 +502,19 @@ class GeneralAgent:
                     if fn_name == "render_airui_panel" and "error" not in event:
                         content = fn_args.get("content", {})
                         if content:
-                            yield {"type": "airui", "data": content}
+                            # Inline AIRUI panel event: full descriptor so the
+                            # frontend can render several cards from one response.
+                            yield {
+                                "type": "airui",
+                                "data": {
+                                    "ref": fn_args.get("ref", ""),
+                                    "title": fn_args.get("title", ""),
+                                    "col_span": fn_args.get("col_span", 12),
+                                    "row_span": fn_args.get("row_span", 1),
+                                    "actions": fn_args.get("actions"),
+                                    "content": content,
+                                },
+                            }
                     # 配置类工具成功后，推送合并后的完整 config 让前端实时刷新
                     if fn_name in _CONFIG_TOOLS and "error" not in event:
                         _cfg = config.load_agent_config()

@@ -69,7 +69,7 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
   };
 
   return (
-    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+    <div className="artifact-gallery-grid">
       {artifacts.map((artifact) => (
         <div
           key={artifact.ref}
@@ -87,45 +87,21 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
             boxShadow: "var(--air-shadow)",
             position: "relative"
           }}
+          data-col-span={artifact.colSpan ?? ""}
+          data-row-span={artifact.rowSpan ?? ""}
         >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 12,
-              padding: "12px 14px",
-              borderBottom: "1px solid var(--color-border)",
-              background: "var(--color-surface-muted)",
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
-              color: "var(--color-text)"
-            }}
+          {/* Headless card: no title bar. Save-as-preset floats top-right,
+              faint by default and strengthens on hover, so the artifact
+              content stays the visual focus. */}
+          <button
+            onClick={() => handleSaveAsPreset(artifact.ref)}
+            className="gallery-save-btn"
+            title="保存为预设"
+            aria-label="保存为预设"
           >
-            <span>{artifact.title}</span>
-            <div style={{ display: "flex", gap: 4 }}>
-              <button
-                onClick={() => handleSaveAsPreset(artifact.ref)}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "var(--radius-xs)",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface-muted)",
-                  color: "var(--color-text)",
-                  cursor: "pointer",
-                  fontSize: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
-                }}
-                title="保存为预设"
-              >
-                📦
-              </button>
-              <span style={{ fontSize: 12, color: "var(--color-muted)", fontWeight: 500 }}>{artifact.ref}</span>
-            </div>
-          </div>
+            📦
+          </button>
+          <span className="gallery-ref-tag">{artifact.ref}</span>
           <div className="airui-gallery-card" style={{ padding: 12 }}>
             <AirUIComponent comp={artifact.component} />
           </div>
@@ -158,4 +134,3 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
     </div>
   );
 };
-

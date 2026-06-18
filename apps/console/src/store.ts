@@ -84,10 +84,24 @@ export interface MarketplaceSource {
   enabled: boolean;
 }
 
+/** A single AIRUI panel produced by one render_airui_panel tool call during chat.
+ *  A chat turn may produce several of these; each renders as its own Bento card. */
+export interface ChatArtifactPanel {
+  ref: string;
+  title: string;
+  colSpan?: number;
+  rowSpan?: number;
+  actions?: { label: string; prompt: string; variant?: string }[];
+  component: Component;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
   content: string;
+  /** Legacy: last component emitted this turn (backward-compat detection). */
   airui?: Component;
+  /** All panels produced this turn; rendered as multiple Bento cards when present. */
+  airuiPanels?: ChatArtifactPanel[];
   toolStatus?: ToolStatus[];
   id?: string;
 }

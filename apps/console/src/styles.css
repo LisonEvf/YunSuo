@@ -2,127 +2,173 @@
   box-sizing: border-box;
 }
 
-body {
-  font-family: "Sohne", "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  letter-spacing: -0.005em;
+/* ════════════════════════════════════════════════════════════════
+   莫兰迪极简卡片风 — Morandi Minimal Card System
+   ─ 奶油白背景 / 浅灰卡片 / 薰衣草紫主强调色 / 大圆角 / 弥散阴影
+   ─ Bento Grid 便当盒布局 / 充足留白 / 极简图标
+   覆盖 @air-ui/renderer-react 默认主题（:root），不修改 submodule。
+   所有 AIRUI 内置组件均消费以下 CSS 变量，故在此一处统一全站风格。
+   ════════════════════════════════════════════════════════════════ */
+:root {
+  /* ── 莫兰迪色系：低饱和度、柔和克制 ────────────────────── */
+  --color-app-bg: #f6f4f0;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f0ede7;
+  --color-border: #e6e2db;
+  --color-border-strong: #d7d2c8;
+  --color-text: #33302b;
+  --color-muted: #9b948a;
+  --color-primary: #8b7ec8;
+  --color-primary-strong: #7869b8;
+  --color-primary-soft: rgba(139, 126, 200, 0.12);
+  --color-primary-border: rgba(139, 126, 200, 0.32);
+  --color-primary-text: #ffffff;
+  --color-danger: #c77b7b;
+  --color-success: #8faa8b;
+  --color-info: #8b7ec8;
+
+  /* ── 弥散阴影：面积大、极浅，营造轻微悬浮的轻盈立体感 ── */
+  --shadow-panel: 0 2px 14px rgba(60, 52, 40, 0.05), 0 1px 3px rgba(60, 52, 40, 0.03);
+  --air-shadow: 0 4px 24px rgba(60, 52, 40, 0.06), 0 1px 3px rgba(60, 52, 40, 0.04);
+  --air-shadowHover: 0 10px 36px rgba(60, 52, 40, 0.09), 0 3px 10px rgba(60, 52, 40, 0.05);
+
+  --air-borderLight: #f1ede6;
+  --air-textSecondary: #7d776b;
+  --air-overlay: rgba(60, 52, 40, 0.22);
+  --air-successBg: rgba(143, 170, 139, 0.14);
+  --air-dangerBg: rgba(199, 123, 123, 0.13);
+  --air-warning: #c4a35a;
+  --air-warningBg: rgba(196, 163, 90, 0.14);
+
+  /* ── 圆角 token：大圆角卡片 + 胶囊按钮 ── */
+ --radius-sm: 8px;
+ --radius-md: 10px;
+ --radius-input: 12px;
+ --radius-xs: 6px;
+ --radius-card: 18px;
+ --radius-card-lg: 22px;
+ --radius-pill: 999px;
+
+  /* ── 间距 token（留白尺度）── */
+  --space-xs: 6px;
+  --space-sm: 10px;
+  --space-md: 16px;
+  --space-lg: 22px;
+  --space-xl: 32px;
 }
 
-/* Theme definitions (light is provided by @air-ui/renderer-react/theme.css) */
-
 :root[data-theme="dark"] {
-  --color-app-bg: #000000;
-  --color-surface: #1c1c1e;
-  --color-surface-muted: #2c2c2e;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.15);
-  --color-text: #ffffff;
-  --color-muted: #8e8e93;
-  --color-primary: #0a84ff;
-  --color-primary-strong: #409cff;
-  --color-primary-soft: rgba(10, 132, 255, 0.2);
-  --color-primary-border: rgba(10, 132, 255, 0.5);
+  --color-app-bg: #191713;
+  --color-surface: #232019;
+  --color-surface-muted: #2c2820;
+  --color-border: rgba(255, 255, 255, 0.07);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
+  --color-text: #ece7dd;
+  --color-muted: #9b948a;
+  --color-primary: #a89bd8;
+  --color-primary-strong: #9689cc;
+  --color-primary-soft: rgba(168, 155, 216, 0.16);
+  --color-primary-border: rgba(168, 155, 216, 0.36);
   --color-primary-text: #ffffff;
-  --color-danger: #ff453a;
-  --color-success: #30d158;
-  --color-info: #0a84ff;
-  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --air-borderLight: rgba(255, 255, 255, 0.06);
-  --air-textSecondary: #aeaeb2;
-  --air-successBg: rgba(48, 209, 88, 0.15);
-  --air-dangerBg: rgba(255, 69, 58, 0.15);
-  --air-warning: #ff9f0a;
-  --air-warningBg: rgba(255, 159, 10, 0.15);
-  --air-overlay: rgba(0, 0, 0, 0.6);
-  --air-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4);
-  --air-shadowHover: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --color-danger: #d68a8a;
+  --color-success: #9abf96;
+  --color-info: #a89bd8;
+  --shadow-panel: 0 2px 14px rgba(0, 0, 0, 0.22), 0 1px 3px rgba(0, 0, 0, 0.16);
+  --air-shadow: 0 4px 24px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.16);
+  --air-shadowHover: 0 10px 36px rgba(0, 0, 0, 0.34), 0 3px 10px rgba(0, 0, 0, 0.2);
+  --air-borderLight: rgba(255, 255, 255, 0.05);
+  --air-textSecondary: #aea89c;
+  --air-overlay: rgba(0, 0, 0, 0.55);
+  --air-successBg: rgba(154, 191, 150, 0.14);
+  --air-dangerBg: rgba(214, 138, 138, 0.14);
 }
 
 :root[data-theme="graphite"] {
-  --color-app-bg: #e5e5ea;
+  --color-app-bg: #ecebe6;
   --color-surface: #ffffff;
-  --color-surface-muted: #ececf1;
-  --color-border: #d1d1d6;
-  --color-border-strong: #b0b0b5;
-  --color-text: #1c1c1e;
-  --color-muted: #8e8e93;
-  --color-primary: #3a3a3c;
-  --color-primary-strong: #2c2c2e;
-  --color-primary-soft: rgba(58, 58, 60, 0.1);
-  --color-primary-border: rgba(58, 58, 60, 0.3);
+  --color-surface-muted: #f4f2ed;
+  --color-border: #e0ddd6;
+  --color-border-strong: #d0ccc4;
+  --color-text: #33302b;
+  --color-muted: #9b948a;
+  --color-primary: #8b7ec8;
+  --color-primary-strong: #7869b8;
+  --color-primary-soft: rgba(139, 126, 200, 0.12);
+  --color-primary-border: rgba(139, 126, 200, 0.3);
   --color-primary-text: #ffffff;
-  --color-danger: #ff3b30;
-  --color-success: #34c759;
-  --color-info: #007aff;
-  --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --air-borderLight: #e0e0e5;
-  --air-textSecondary: #636366;
-  --air-successBg: rgba(52, 199, 89, 0.1);
-  --air-dangerBg: rgba(255, 59, 48, 0.1);
-  --air-warning: #ff9500;
-  --air-warningBg: rgba(255, 149, 0, 0.1);
-  --air-overlay: rgba(0, 0, 0, 0.3);
-  --air-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
-  --air-shadowHover: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --color-danger: #c77b7b;
+  --color-success: #8faa8b;
+  --color-info: #8b7ec8;
+  --shadow-panel: 0 2px 16px rgba(60, 52, 40, 0.05), 0 1px 4px rgba(60, 52, 40, 0.03);
+  --air-borderLight: #efece5;
+  --air-textSecondary: #7d776b;
+  --air-successBg: rgba(143, 170, 139, 0.12);
+  --air-dangerBg: rgba(199, 123, 123, 0.12);
+  --air-warning: #c4a35a;
+  --air-warningBg: rgba(196, 163, 90, 0.12);
+  --air-overlay: rgba(60, 52, 40, 0.22);
+  --air-shadow: 0 4px 24px rgba(60, 52, 40, 0.06), 0 1px 4px rgba(60, 52, 40, 0.04);
+  --air-shadowHover: 0 10px 36px rgba(60, 52, 40, 0.09), 0 3px 10px rgba(60, 52, 40, 0.05);
 }
 
 :root[data-theme="neon"] {
-  --color-app-bg: #0a0a0f;
-  --color-surface: #16161e;
-  --color-surface-muted: #1e1e2a;
-  --color-border: rgba(0, 229, 255, 0.12);
-  --color-border-strong: rgba(0, 229, 255, 0.25);
-  --color-text: #e8eaf0;
-  --color-muted: #6a7080;
-  --color-primary: #00d9ff;
-  --color-primary-strong: #5ee8ff;
-  --color-primary-soft: rgba(0, 217, 255, 0.16);
-  --color-primary-border: rgba(0, 217, 255, 0.5);
-  --color-primary-text: #06070f;
-  --color-danger: #ff2d75;
-  --color-success: #00ff9d;
-  --color-info: #b14dff;
-  --shadow-panel: 0 0 0 1px rgba(0, 229, 255, 0.06), 0 0 16px rgba(0, 217, 255, 0.08);
-  --air-borderLight: rgba(255, 255, 255, 0.04);
-  --air-textSecondary: #8a90a8;
-  --air-successBg: rgba(0, 255, 157, 0.1);
-  --air-dangerBg: rgba(255, 45, 117, 0.12);
-  --air-warning: #ffb800;
-  --air-warningBg: rgba(255, 184, 0, 0.14);
-  --air-overlay: rgba(0, 0, 0, 0.7);
-  --air-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08), 0 0 22px rgba(0, 217, 255, 0.12);
-  --air-shadowHover: 0 0 0 1px rgba(0, 229, 255, 0.15), 0 0 20px rgba(0, 217, 255, 0.15);
+  --color-app-bg: #1e1b22;
+  --color-surface: #2a262f;
+  --color-surface-muted: #34303a;
+  --color-border: rgba(168, 155, 216, 0.1);
+  --color-border-strong: rgba(168, 155, 216, 0.2);
+  --color-text: #e8e4ee;
+  --color-muted: #9088a0;
+  --color-primary: #a89bd8;
+  --color-primary-strong: #b8a8e8;
+  --color-primary-soft: rgba(168, 155, 216, 0.14);
+  --color-primary-border: rgba(168, 155, 216, 0.35);
+  --color-primary-text: #1e1b22;
+  --color-danger: #d68a8a;
+  --color-success: #9abf96;
+  --color-info: #a89bd8;
+  --shadow-panel: 0 2px 16px rgba(0, 0, 0, 0.2), 0 1px 4px rgba(0, 0, 0, 0.15);
+  --air-borderLight: rgba(168, 155, 216, 0.06);
+  --air-textSecondary: #a8a0b8;
+  --air-successBg: rgba(154, 191, 150, 0.12);
+  --air-dangerBg: rgba(214, 138, 138, 0.12);
+  --air-warning: #d4b46a;
+  --air-warningBg: rgba(212, 180, 106, 0.12);
+  --air-overlay: rgba(0, 0, 0, 0.5);
+  --air-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), 0 1px 4px rgba(0, 0, 0, 0.15);
+  --air-shadowHover: 0 10px 36px rgba(0, 0, 0, 0.3), 0 3px 10px rgba(0, 0, 0, 0.2);
 }
 
 :root[data-theme="glass"] {
-  --color-app-bg: #e8edf5;
-  --color-surface: rgba(255, 255, 255, 0.65);
-  --color-surface-muted: rgba(255, 255, 255, 0.4);
-  --color-border: rgba(255, 255, 255, 0.55);
-  --color-border-strong: rgba(100, 120, 160, 0.4);
-  --color-text: #1a2540;
-  --color-muted: #4a5878;
-  --color-primary: #007aff;
-  --color-primary-strong: #0066d6;
-  --color-primary-soft: rgba(0, 122, 255, 0.12);
-  --color-primary-border: rgba(0, 122, 255, 0.35);
+  --color-app-bg: #f0eef4;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-surface-muted: rgba(255, 255, 255, 0.5);
+  --color-border: rgba(255, 255, 255, 0.6);
+  --color-border-strong: rgba(139, 126, 200, 0.26);
+  --color-text: #3a3540;
+  --color-muted: #8a849a;
+  --color-primary: #8b7ec8;
+  --color-primary-strong: #7869b8;
+  --color-primary-soft: rgba(139, 126, 200, 0.1);
+  --color-primary-border: rgba(139, 126, 200, 0.3);
   --color-primary-text: #ffffff;
-  --color-danger: #ff3b30;
-  --color-success: #34c759;
-  --color-info: #007aff;
-  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --air-borderLight: rgba(255, 255, 255, 0.3);
-  --air-textSecondary: #5a688a;
-  --air-successBg: rgba(52, 199, 89, 0.12);
-  --air-dangerBg: rgba(255, 59, 48, 0.1);
-  --air-warning: #ff9500;
-  --air-warningBg: rgba(255, 149, 0, 0.12);
-  --air-overlay: rgba(20, 30, 60, 0.3);
-  --air-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  --air-shadowHover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --color-danger: #c77b7b;
+  --color-success: #8faa8b;
+  --color-info: #8b7ec8;
+  --shadow-panel: 0 8px 32px rgba(60, 52, 40, 0.06);
+  --air-borderLight: rgba(255, 255, 255, 0.4);
+  --air-textSecondary: #6a6478;
+  --air-successBg: rgba(143, 170, 139, 0.12);
+  --air-dangerBg: rgba(199, 123, 123, 0.1);
+  --air-warning: #c4a35a;
+  --air-warningBg: rgba(196, 163, 90, 0.12);
+  --air-overlay: rgba(60, 52, 40, 0.2);
+  --air-shadow: 0 8px 32px rgba(60, 52, 40, 0.06);
+  --air-shadowHover: 0 8px 24px rgba(60, 52, 40, 0.1);
 }
 
 :root[data-theme="glass"] body {
-  background: linear-gradient(135deg, #d0deff 0%, #e0d4ff 45%, #ffd9ec 100%);
+  background: linear-gradient(135deg, #e4dff0 0%, #ede8f5 40%, #f0e8e8 100%);
 }
 
 :root[data-theme="glass"] .console-content,
@@ -182,6 +228,16 @@ select {
   overflow: hidden;
 }
 
+/* Main content fills remaining space beside the chat panel.
+   Without flex:1 the main area stays at content width and wastes
+   space on large desktop windows. */
+#main-content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
 /* ========================================
    Chat panel
    ======================================== */
@@ -211,7 +267,7 @@ select {
 }
 
 .chat-header {
-  padding: 14px 16px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface);
   display: flex;
@@ -236,6 +292,7 @@ select {
   flex: 1;
   overflow: auto;
   padding: 14px;
+  height: 100%;
 }
 
 .chat-bubble-row {
@@ -248,19 +305,24 @@ select {
   justify-content: flex-end;
 }
 
+.chat-bubble-row-bot {
+  justify-content: flex-start;
+}
+
 .chat-bubble {
   max-width: 86%;
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 12px 16px;
+  border-radius: 18px;
   word-break: break-word;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .chat-bubble-user {
   background: var(--color-primary);
   color: var(--color-primary-text);
   border: 1px solid var(--color-primary);
+  box-shadow: 0 4px 16px rgba(139, 126, 200, 0.2);
 }
 
 .chat-bubble-bot {
@@ -279,9 +341,10 @@ select {
 
 .chat-tool-pill {
   font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
+  font-weight: 500;
 }
 
 .chat-tool-running {
@@ -310,19 +373,20 @@ select {
   min-height: 72px;
   resize: vertical;
   box-sizing: border-box;
-  padding: 10px 14px;
-  border-radius: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-input);
   border: 1px solid var(--color-border-strong);
   outline: none;
   font-size: 13px;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--color-text);
   background: var(--color-surface);
-  transition: border-color 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .chat-textarea:focus {
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
 .chat-textarea:disabled {
@@ -331,23 +395,27 @@ select {
 
 .chat-send-btn {
   width: 100%;
-  margin-top: 8px;
-  height: 36px;
-  border-radius: 10px;
+  margin-top: 10px;
+  height: 40px;
+  border-radius: var(--radius-pill);
   border: none;
   background: var(--color-primary);
   color: var(--color-primary-text);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  transition: opacity 0.15s;
+  transition: opacity 0.2s, box-shadow 0.2s, transform 0.1s;
+  box-shadow: 0 4px 16px rgba(139, 126, 200, 0.25);
+  font-size: 13px;
+  letter-spacing: -0.005em;
 }
 
 .chat-send-btn:hover {
-  opacity: 0.9;
+  opacity: 0.92;
+  box-shadow: 0 6px 20px rgba(139, 126, 200, 0.3);
 }
 
 .chat-send-btn-disabled {
@@ -361,9 +429,9 @@ select {
 }
 
 .chat-icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
@@ -372,11 +440,12 @@ select {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.2s, border-color 0.2s;
 }
 
 .chat-icon-btn:hover {
   background: var(--color-surface-muted);
+  border-color: var(--color-border-strong);
 }
 
 /* Resize handle between chat and console */
@@ -410,16 +479,18 @@ select {
    ======================================== */
 
 .status-bar {
-  height: 30px;
-  padding: 0 16px;
+  height: 36px;
+  padding: 0 20px;
   background: var(--color-surface);
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 20px;
   font-size: 12px;
   color: var(--color-muted);
   border-top: 1px solid var(--color-border);
   flex-shrink: 0;
+  font-weight: 500;
+  letter-spacing: -0.005em;
 }
 
 .status-conn {
@@ -731,10 +802,10 @@ select {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.12s;
+  transition: background 0.15s;
 }
 
 .chat-session-item:hover {
@@ -876,16 +947,16 @@ select {
 .toast-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: var(--radius-card);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   pointer-events: auto;
   max-width: 360px;
   animation: toast-slide-in 0.25s ease;
-  box-shadow: var(--air-shadow);
+  box-shadow: var(--air-shadowHover);
   border: 1px solid var(--color-border);
 }
 
@@ -1059,18 +1130,19 @@ button:focus-visible {
 .chat-session-search-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 28px 6px 10px;
-  border-radius: 8px;
+  padding: 8px 28px 8px 12px;
+  border-radius: var(--radius-input);
   border: 1px solid var(--color-border-strong);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 12px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .chat-session-search-input:focus {
   border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 
 .chat-session-search-clear {
@@ -1120,8 +1192,8 @@ button:focus-visible {
   max-width: 520px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  border-radius: var(--radius-card-lg);
+  box-shadow: 0 24px 64px rgba(45, 42, 38, 0.12), 0 4px 16px rgba(45, 42, 38, 0.06);
   overflow: hidden;
   animation: cmd-slide 0.15s ease;
 }
@@ -1188,10 +1260,10 @@ button:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background 0.1s;
+  transition: background 0.15s;
   color: var(--color-text);
 }
 
@@ -1213,11 +1285,51 @@ button:focus-visible {
 .cmd-palette-shortcut {
   font-family: "SF Mono", "Fira Code", monospace;
   font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   color: var(--color-muted);
+}
+
+/* ========================================
+   Large desktop (wide window) responsive
+   ======================================== */
+
+/* Settings panel: clip overflow so content scrolls inside SettingsContent */
+.settings-panel {
+  overflow: hidden;
+}
+
+/* console-view root pane must fill the main-content height so content
+   doesn't collapse to its natural height on large screens. */
+.console-view {
+  height: 100%;
+}
+
+/* Comfortable spacing on large screens */
+@media (min-width: 1280px) {
+  .console-content {
+    padding: 0 28px;
+  }
+
+  .status-bar {
+    padding: 0 24px;
+  }
+}
+
+/* On very wide screens, add generous spacing and center the home content
+   column at a readable max width so text lines don't stretch too thin. */
+@media (min-width: 1600px) {
+  .console-content {
+    padding: 0 40px;
+  }
+
+  .home-view {
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 
 /* ========================================
@@ -1343,4 +1455,434 @@ button:focus-visible {
   .status-bar {
     gap: 6px;
   }
+}
+
+/* ── 无障碍：屏幕阅读器专用可见性 ── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── 无障碍：跳到主内容 ── */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 8px;
+  z-index: 9999;
+  padding: 8px 14px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: 8px;
+}
+
+/* ── 命令面板：键盘聚焦项的可见焦点环 ── */
+.cmd-palette-item:focus-visible,
+.cmd-palette-item[aria-selected="true"] {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+/* ── 应用内命名输入模态（替代 window.prompt）── */
+.prompt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3100;
+  background: var(--air-overlay, rgba(0, 0, 0, 0.5));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: cmd-fade 0.12s ease;
+}
+
+.prompt-modal {
+  width: 90%;
+  max-width: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card-lg);
+  box-shadow: 0 24px 64px rgba(45, 42, 38, 0.12), 0 4px 16px rgba(45, 42, 38, 0.06);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: cmd-slide 0.15s ease;
+}
+
+.prompt-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.015em;
+}
+
+.prompt-modal-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.prompt-modal-input {
+  width: 100%;
+  height: 40px;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 0 14px;
+  outline: none;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.prompt-modal-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.prompt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.prompt-modal-btn {
+  height: 36px;
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.prompt-modal-btn-cancel {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+
+.prompt-modal-btn-confirm {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.prompt-modal-btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   莫兰迪极简风 — 卡片悬浮 & 按钮按压反馈（视觉打磨）
+   ════════════════════════════════════════════════════════════════ */
+.section-card,
+.settings-panel section,
+[data-morandi-card] {
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+.section-card:hover,
+.settings-panel section:hover {
+  box-shadow: var(--air-shadowHover);
+  transform: translateY(-1px);
+}
+/* 交互式卡片：wiki 分类、画廊、能力卡 */
+.category-card:hover,
+.gallery-card:hover,
+.cap-card:hover {
+  box-shadow: var(--air-shadowHover);
+  transform: translateY(-2px);
+}
+/* 通用按压反馈 */
+button:not(:disabled):active,
+[role="button"]:active {
+  transform: scale(0.97);
+  transition: transform .08s ease;
+}
+/* 列表项 / 导航 悬浮微反馈 */
+.nav-item,
+.session-item {
+  transition: background .15s ease, color .15s ease;
+}
+
+
+/* ════════════════════════════════════════════════════════════════
+   莫兰迪极简风 — 控制台外壳精修（Chat / Header / Status / 内容区）
+   ════════════════════════════════════════════════════════════════ */
+
+/* 主内容区：更充足的留白与呼吸感 */
+.console-content {
+  padding: 22px 22px 28px;
+}
+
+/* 顶栏：标题层级 + 胶囊按钮 */
+.console-header {
+  margin-bottom: var(--space-lg) !important;
+}
+
+.console-header .text-style-title,
+.console-content [class*="title"] {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+/* 控制台内的 AIRUI 按钮（secondary 导航类）统一为胶囊软按钮 */
+.console-content button,
+.settings-panel button {
+  letter-spacing: -0.005em;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Bento Grid 便当盒布局（首页 / 能力页 / Wiki）
+   ════════════════════════════════════════════════════════════════ */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--space-md);
+  align-items: stretch;
+}
+.bento-col-12 { grid-column: span 12; }
+.bento-col-8  { grid-column: span 8; }
+.bento-col-6  { grid-column: span 6; }
+.bento-col-4  { grid-column: span 4; }
+.bento-col-3  { grid-column: span 3; }
+.bento-row-2  { grid-row: span 2; }
+
+@media (max-width: 1100px) {
+  .bento-col-8, .bento-col-6 { grid-column: span 12; }
+  .bento-col-4 { grid-column: span 6; }
+  .bento-col-3 { grid-column: span 6; }
+}
+@media (max-width: 720px) {
+  .bento-grid { grid-template-columns: 1fr; }
+  .bento-col-12, .bento-col-8, .bento-col-6, .bento-col-4, .bento-col-3 { grid-column: span 1; }
+  .bento-row-2 { grid-row: span 1; }
+}
+
+/* 通用莫兰迪卡片（React 内联 style 的辅助类，用于 bento tile） */
+.m-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-panel);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
+}
+.m-card-hover:hover {
+  box-shadow: var(--air-shadowHover);
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+}
+.m-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.m-card-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--color-primary);
+}
+.m-card-sub {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+.m-stat-num {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.m-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* 首页 hero：薰衣草柔光渐变，弱化边界 */
+.bento-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background:
+    radial-gradient(120% 140% at 88% -20%, var(--color-primary-soft) 0%, transparent 55%),
+    linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-muted) 100%);
+  border-radius: var(--radius-card-lg);
+  box-shadow: var(--air-shadow);
+  padding: 30px 32px;
+}
+.bento-hero-glow {
+  position: absolute;
+  top: -50px;
+  right: -30px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-primary) 0%, transparent 70%);
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+/* 胶囊软按钮（bento 内 CTA） */
+.m-pill-btn {
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-primary-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(139, 126, 200, 0.22);
+  transition: opacity .2s, transform .12s, box-shadow .2s;
+}
+.m-pill-btn:hover { box-shadow: 0 6px 18px rgba(139, 126, 200, 0.3); }
+.m-pill-btn-ghost {
+  background: transparent;
+  color: var(--color-primary-strong);
+  border-color: var(--color-primary-border);
+  box-shadow: none;
+}
+.m-pill-btn-ghost:hover { background: var(--color-primary-soft); box-shadow: none; }
+
+/* 能力清单行：克制的分隔线 + 悬浮微反馈 */
+.m-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--air-borderLight);
+  font-size: 12px;
+}
+.m-row:last-child { border-bottom: none; }
+.m-row-name { font-weight: 600; color: var(--color-text); }
+.m-row-desc { color: var(--color-muted); font-size: 11px; text-align: right; }
+
+/* MCP 工具一键执行按钮（莫兰迪胶囊） */
+.m-tool-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  margin: 3px 0;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.m-tool-btn:hover { border-color: var(--color-primary-border); background: var(--color-surface); }
+.m-tool-btn-quick { background: var(--color-primary-soft); border-color: var(--color-primary-border); }
+
+/* ════════════════════════════════════════════════════════════════
+   AIRUI 内置组件内容润色（agent 渲染的产物继承此风格）
+   因 AIRUI 组件用内联 style + CSS 变量，颜色已统一；
+   此处针对表格 / 卡片容器 / 图表 等做圆角与留白精修。
+   ════════════════════════════════════════════════════════════════ */
+
+/* 表格：圆角化 + 柔和表头（覆盖 AIRUI Table 的内联背景需用 !important） */
+.console-content table,
+.airui-gallery-card table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  overflow: hidden;
+}
+.console-content th,
+.airui-gallery-card th {
+  text-align: left;
+  padding: 9px 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--color-surface-muted) !important;
+  border-bottom: 1px solid var(--color-border);
+}
+.console-content td,
+.airui-gallery-card td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--air-borderLight);
+  color: var(--color-text);
+}
+.console-content tr:last-child td,
+.airui-gallery-card tr:last-child td { border-bottom: none; }
+
+/* 图表容器：内边距与圆角（ECharts 在 inline div 里，给父级留白即可） */
+.airui-gallery-card [class*="chart"],
+.console-content [class*="chart"] {
+  border-radius: var(--radius-input);
+}
+
+/* AIRUI Widget 卡片：画廊内每个产物卡 */
+.airui-gallery-card > div:first-child { border-radius: var(--radius-card) !important; }
+
+/* KPI 数值统一字重层级（AIRUI KPI 已用 inline，此处兜底） */
+.console-content [class*="kpi"],
+.airui-gallery-card [class*="kpi"] { letter-spacing: -0.03em; }
+
+/* ════════════════════════════════════════════════════════════════
+   滚动条：莫兰迪柔和细滚动条
+   ════════════════════════════════════════════════════════════════ */
+.chat-messages::-webkit-scrollbar,
+.console-content::-webkit-scrollbar,
+.settings-panel *::-webkit-scrollbar,
+.cmd-palette-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.chat-messages::-webkit-scrollbar-thumb,
+.console-content::-webkit-scrollbar-thumb,
+.settings-panel *::-webkit-scrollbar-thumb,
+.cmd-palette-list::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-pill);
+}
+.chat-messages::-webkit-scrollbar-thumb:hover,
+.console-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+.chat-messages::-webkit-scrollbar-track,
+.console-content::-webkit-scrollbar-track {
+  background: transparent;
 }

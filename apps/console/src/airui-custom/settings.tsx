@@ -1,4 +1,4 @@
-import { type FC, type CSSProperties, useState } from "react";
+import { type FC, type CSSProperties, useState, useId } from "react";
 import Icon from "../components/Icon";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
@@ -11,38 +11,48 @@ export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknow
   const rel = resolvedProps.path as string;
   const path = `draft.${rel}`;
   const value = doc ? getByPath(doc.state, path) : undefined;
-  const kind = (resolvedProps.kind as string) ?? "text";
-  const label = resolvedProps.label as string | undefined;
-  const options = (resolvedProps.options as Array<{ value: string; label: string }>) ?? [];
+ const kind = (resolvedProps.kind as string) ?? "text";
+ const label = resolvedProps.label as string | undefined;
+ const options = (resolvedProps.options as Array<{ value: string; label: string }>) ?? [];
+  const placeholder = resolvedProps.placeholder as string | undefined;
+ const fieldId = useId();
 
-  const txt = (((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {});
+ const txt = (((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {});
 
-  const update = (next: unknown) => {
-    if (!doc) return;
-    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
-  };
+ const update = (next: unknown) => {
+   if (!doc) return;
+   setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+ };
 
-  const [showPassword, setShowPassword] = useState(kind === "password" ? false : undefined);
+ const [showPassword, setShowPassword] = useState(kind === "password" ? false : undefined);
 
-  return (
-    <label style={fieldLabelStyle}>
-      {label}
-      {kind === "switch" ? (
-        <input type="checkbox" checked={Boolean(value)} onChange={(e) => update(e.target.checked)} style={{ width: 16, height: 16 }} />
-      ) : kind === "select" ? (
-        <select value={String(value ?? "")} onChange={(e) => update(e.target.value)} style={fieldStyle}>
-          {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
-      ) : (
-        <div style={{ position: "relative" }}>
-          <input
-            type={kind === "password" && showPassword ? "text" : kind === "password" ? "password" : kind === "number" ? "number" : "text"}
-            value={kind === "number" ? Number(value ?? 0) : String(value ?? "")}
-            min={kind === "number" ? 1 : undefined}
-            onChange={(e) => update(kind === "number" ? Number(e.target.value || 1) : e.target.value)}
-            style={fieldStyle}
-          />
-          {kind === "password" && (
+  // If the current value isn't among the select options, inject it so the
+  // dropdown shows the actual value instead of silently defaulting.
+  const selectOptions = kind === "select" && value != null && String(value) && !options.some((o) => o.value === String(value))
+    ? [{ value: String(value), label: String(value) }, ...options]
+    : options;
+
+ return (
+   <label htmlFor={fieldId} style={fieldLabelStyle}>
+     {label}
+     {kind === "switch" ? (
+       <input id={fieldId} type="checkbox" checked={Boolean(value)} onChange={(e) => update(e.target.checked)} style={{ width: 16, height: 16 }} />
+     ) : kind === "select" ? (
+        <select id={fieldId} value={String(value ?? "")} onChange={(e) => update(e.target.value)} style={fieldStyle}>
+          {selectOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+       </select>
+     ) : (
+       <div style={{ position: "relative" }}>
+         <input
+           id={fieldId}
+           type={kind === "password" && showPassword ? "text" : kind === "password" ? "password" : kind === "number" ? "number" : "text"}
+           value={kind === "number" ? Number(value ?? 0) : String(value ?? "")}
+           min={kind === "number" ? 1 : undefined}
+            placeholder={placeholder}
+           onChange={(e) => update(kind === "number" ? Number(e.target.value || 1) : e.target.value)}
+           style={fieldStyle}
+         />
+         {kind === "password" && (
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
@@ -65,14 +75,14 @@ export const SettingCard: FC<{ comp: Component; resolvedProps: Record<string, un
   const desc = resolvedProps.desc as string | undefined;
   const align = (resolvedProps.align as string) ?? "center";
   const maxWidth = (resolvedProps.maxWidth as string | number | undefined) ?? 640;
-  const sectionStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: 12, background: "var(--color-surface)", boxShadow: "var(--air-shadow)", overflow: "hidden", width: "100%", maxWidth };
+  const sectionStyle: CSSProperties = { border: "1px solid var(--color-border)", borderRadius: "var(--radius-card)", background: "var(--color-surface)", boxShadow: "var(--air-shadow)", overflow: "hidden", width: "100%", maxWidth };
   if (align === "left") { sectionStyle.marginLeft = 0; sectionStyle.marginRight = "auto"; }
   else if (align === "right") { sectionStyle.marginLeft = "auto"; sectionStyle.marginRight = 0; }
   else { sectionStyle.marginInline = "auto"; }
   return (
     <section style={sectionStyle}>
       {title && (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--color-border)", background: "var(--color-surface-muted)" }}>
           <span style={{ width: 3, height: 16, borderRadius: 2, background: "var(--color-primary)" }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <span style={{ fontWeight: 600, fontSize: 14, color: "var(--color-text)", letterSpacing: "-0.015em" }}>{title}</span>
@@ -98,7 +108,9 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
   const quickPaths = (resolvedProps.quickPaths as string[] | undefined) ?? [];
   const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {};
   const txt = (k: string) => t[k] ?? k;
-  const quickChipStyle = (used: boolean): CSSProperties => ({ height: 28, padding: "0 10px", borderRadius: 10, border: `1px solid ${used ? "var(--color-border)" : "var(--color-border-strong)"}`, background: "transparent", color: used ? "var(--color-muted)" : "var(--color-text)", cursor: used ? "default" : "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 });
+  const listId = useId();
+  const listLabel = txt((resolvedProps.labelKey as string) ?? "") || placeholder || txt("addItem");
+  const quickChipStyle = (used: boolean): CSSProperties => ({ height: 28, padding: "0 12px", borderRadius: "var(--radius-input)", border: `1px solid ${used ? "var(--color-border)" : "var(--color-border-strong)"}`, background: "transparent", color: used ? "var(--color-muted)" : "var(--color-text)", cursor: used ? "default" : "pointer", fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 });
 
   const update = (next: string[]) => {
     if (!doc) return;
@@ -107,11 +119,13 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span id={listId} className="sr-only">{listLabel}</span>
       {items.map((item, i) => (
         <div key={i} style={{ display: "flex", gap: 6 }}>
           <input
             value={item}
             placeholder={placeholder}
+            aria-label={listLabel}
             onChange={(e) => update(items.map((x, j) => (j === i ? e.target.value : x)))}
             style={fieldStyle}
           />
@@ -173,18 +187,23 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
     card: {
       type: "SettingCard",
       props: { title: "{state.t.llm}", desc: "{state.t.settingsLlmDesc}" },
-      children: [
-        { type: "LlmProviderPanel" },
-        { type: "Setting", props: { path: "model.display_name", kind: "text", label: "{state.t.displayName}" } },
-        { type: "Setting", props: { path: "model.provider", kind: "text", label: "{state.t.provider}" } },
-        { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}" } },
-        { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}" } },
+     children: [
+       { type: "LlmProviderPanel" },
+        { type: "Setting", props: { path: "model.provider", kind: "select", label: "{state.t.provider}", options: [
+          { value: "openai", label: "OpenAI 兼容" },
+          { value: "llamacpp", label: "llama.cpp (本地)" },
+          { value: "ollama", label: "Ollama (本地)" },
+          { value: "anthropic", label: "Anthropic" },
+        ] } },
+        { type: "Setting", props: { path: "model.base_url", kind: "text", label: "{state.t.baseUrl}", placeholder: "https://api.openai.com/v1" } },
         { type: "Setting", props: { path: "model.api_key", kind: "password", label: "{state.t.apiKey}" } },
         { type: "ModelFetcher" },
+        { type: "Setting", props: { path: "model.name", kind: "text", label: "{state.t.modelName}", placeholder: "gpt-4o" } },
+        { type: "Setting", props: { path: "model.display_name", kind: "text", label: "{state.t.displayName}", placeholder: "{state.t.providerNamePlaceholder}" } },
         { type: "Setting", props: { path: "model.max_output_tokens", kind: "number", label: "{state.t.maxTokens}" } },
-      ],
-    },
-  },
+     ],
+   },
+ },
   {
     key: "runtime",
     labelKey: "runtime",
@@ -239,7 +258,7 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   },
 ];
 
-const navItemBase: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10, cursor: "pointer", fontSize: 13, textAlign: "left", border: "none", width: "100%", transition: "background .15s, color .15s" };
+const navItemBase: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: "var(--radius-input)", cursor: "pointer", fontSize: 13, textAlign: "left", border: "none", width: "100%", transition: "background .15s, color .15s" };
 const navItemActive: CSSProperties = { ...navItemBase, background: "var(--color-surface-muted)", color: "var(--color-primary)", fontWeight: 600, boxShadow: "inset 2px 0 0 var(--color-primary)" };
 const navItemIdle: CSSProperties = { ...navItemBase, background: "transparent", color: "var(--color-text)", fontWeight: 500 };
 

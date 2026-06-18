@@ -1,0 +1,1 @@
+import { test, expect } from '@playwright/test';\n\ntest('ChatPanel renders correctly', async ({ page }) => {\n  await page.goto('/');\n  \n  const chatPanel = page.getByTestId('chat-panel');\n  await expect(chatPanel).toBeVisible();\n});

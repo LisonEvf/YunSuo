@@ -128,6 +128,7 @@ export const messages: Record<LanguageCode, Record<string, string>> = {
     reconnect: "重连",
     reconnecting: "重连中...",
     reconnectFailed: "重连失败",
+    applyAndReconnect: "应用并重连",
     quickPaths: "常用路径",
     marketplace: "插件市场",
     marketplaceSources: "市场源",
@@ -179,6 +180,7 @@ export const messages: Record<LanguageCode, Record<string, string>> = {
    cmdGoHome: "回到首页",
    dragToResize: "拖拽调整宽度",
    modeGeneralAgent: "通用助手",
+  skipToContent: "跳到主内容",
   },
  "en-US": {
     activeRun: "active",
@@ -358,6 +360,7 @@ export const messages: Record<LanguageCode, Record<string, string>> = {
    cmdGoHome: "Go Home",
    dragToResize: "Drag to resize",
    modeGeneralAgent: "General Agent",
+  skipToContent: "Skip to main content",
   },
 };
 

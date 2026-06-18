@@ -11,6 +11,7 @@ export interface SerializableMessage {
   content: string;
   airui?: Component;
   toolStatus?: Array<{ name: string; state: "running" | "done" | "error" }>;
+  id?: string;
 }
 
 const STORAGE_KEY = "yunsuo:chat-sessions";
@@ -68,6 +69,9 @@ export function saveActiveSessionId(id: string): void {
 
 export function createSession(firstMessage?: SerializableMessage): ChatSession {
   const id = `s-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`;
+  if (firstMessage && !firstMessage.id) {
+    firstMessage = { ...firstMessage, id: `m-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}` };
+  }
   return {
     id,
     title: firstMessage

@@ -29,7 +29,7 @@ export const MarketplaceSources: FC<{ comp: Component; resolvedProps: Record<str
         <div style={{ fontSize: 11, color: "var(--color-muted)", marginTop: 2 }}>{txt("marketplaceHint")}</div>
       </div>
       {sources.map((src, i) => (
-        <div key={src.id} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
+        <div key={src.id} style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input value={src.name} placeholder={txt("sourceNamePh")} onChange={(e) => patch(i, { name: e.target.value })} style={{ ...fieldStyle, flex: 1 }} />
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--color-text)", whiteSpace: "nowrap" }}>
@@ -63,8 +63,8 @@ interface MarketData {
   marketplaces: Array<{ id: string; name: string; url: string; ok: boolean; error?: string }>;
   plugins: MarketPlugin[];
 }
-const mpCardStyle = (installed: boolean): CSSProperties => ({ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)", border: `1px solid ${installed ? "var(--color-success)" : "var(--color-border)"}`, background: "var(--color-surface)" });
-const mpIconStyle = (color: string): CSSProperties => ({ width: 34, height: 34, borderRadius: 8, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em", flexShrink: 0 });
+const mpCardStyle = (installed: boolean): CSSProperties => ({ display: "flex", flexDirection: "column", gap: 8, padding: 14, borderRadius: "var(--radius-md)", boxShadow: "var(--air-shadow)", border: `1px solid ${installed ? "var(--color-success)" : "var(--color-border)"}`, background: "var(--color-surface)" });
+const mpIconStyle = (color: string): CSSProperties => ({ width: 34, height: 34, borderRadius: "var(--radius-sm)", background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 14, letterSpacing: "-0.01em", flexShrink: 0 });
 
 // MarketplaceBrowser: 拉取清单 → 网格展示 → 安装(git clone)/卸载，安装后同步刷新已发现清单
 export const MarketplaceBrowser: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {

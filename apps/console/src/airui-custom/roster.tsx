@@ -5,7 +5,7 @@ import { useStore } from "../store";
 import { rosterEmptyStyle } from "./helpers";
 
 const rosterLabelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, color: "var(--color-text)" };
-const rosterItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 2, padding: "8px 12px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface)" };
+const rosterItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 2, padding: "8px 12px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)", background: "var(--color-surface)" };
 
 // SkillsRoster: 读 state.skills（来自 /api/skills），展示已扫描到的技能清单
 export const SkillsRoster: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
@@ -40,7 +40,7 @@ export const PluginsRoster: FC<{ comp: Component; resolvedProps: Record<string, 
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={rosterLabelStyle}>{txt("discoveredPlugins")} · {plugins.length}</span>
-        <span style={{ fontSize: 10, color: "var(--color-muted)", padding: "1px 7px", borderRadius: 8, border: "1px solid var(--color-border)" }}>{txt("pluginOnlyDiscovery")}</span>
+        <span style={{ fontSize: 10, color: "var(--color-muted)", padding: "1px 7px", borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)" }}>{txt("pluginOnlyDiscovery")}</span>
       </div>
       {plugins.length === 0 ? (
         <div style={rosterEmptyStyle}>{txt("noPluginsFound")}</div>

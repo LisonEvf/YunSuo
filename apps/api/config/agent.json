@@ -136,10 +136,10 @@
     }
   ],
   "ui": {
-    "theme": "system",
+    "theme": "light",
     "language": "zh-CN",
     "chatCollapsed": false,
-    "chatWidth": 360
+    "chatWidth": 417
   },
   "skills": {
     "enabled": true,

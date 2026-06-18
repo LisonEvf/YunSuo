@@ -23,8 +23,8 @@ function MessageBubble({ msg, thinkingLabel, language }: { msg: ChatMessage; thi
       void sendChat(content);
     } else {
       const msgs = useStore.getState().chatMessages;
-      const idx = msgs.lastIndexOf(msg);
-      const prevUser = [...msgs.slice(0, idx)].reverse().find((m) => m.role === "user");
+      const idx = msg.id ? msgs.findIndex((m) => m.id === msg.id) : msgs.lastIndexOf(msg);
+      const prevUser = idx >= 0 ? [...msgs.slice(0, idx)].reverse().find((m) => m.role === "user") : undefined;
       if (prevUser) void sendChat(prevUser.content);
     }
   };
@@ -199,11 +199,16 @@ export default function ChatPanel() {
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
+    let currentWidth = startWidth;
+
     const onMove = (ev: MouseEvent) => {
       if (!draggingRef.current) return;
-      const delta = startX - ev.clientX;
+      // 鼠标向右拖动时，宽度应该增加；鼠标向左拖动时，宽度应该减少
+      // 由于是右侧调整宽度，所以delta为正时宽度应增加，负时减少
+      const delta = ev.clientX - startX;
       const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta));
-      setAppConfig({ ui: { ...useStore.getState().appConfig.ui, chatWidth: next } });
+      currentWidth = next;
+      setAppConfig({ ui: { ...appConfig.ui, chatWidth: next } });
     };
     const onUp = () => {
       draggingRef.current = false;
@@ -211,6 +216,15 @@ export default function ChatPanel() {
       document.body.style.userSelect = "";
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
+
+      // 保存宽度设置到持久化存储
+      try {
+        fetch("/api/config", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ config: { ...appConfig, ui: { ...appConfig.ui, chatWidth: currentWidth } } }),
+        });
+      } catch { /* persistence failure doesn't block UI */ }
     };
     document.addEventListener("mousemove", onMove);
     document.addEventListener("mouseup", onUp);
@@ -276,6 +290,7 @@ export default function ChatPanel() {
                   onChange={(e) => setSessionSearch(e.target.value)}
                   placeholder={t(language, "searchSessions")}
                   className="chat-session-search-input"
+                  aria-label={t(language, "searchSessions")}
                   autoFocus
                 />
                 {sessionSearch && (
@@ -320,7 +335,7 @@ export default function ChatPanel() {
 
         <div ref={scrollRef} className="chat-messages">
           {messages.map((msg, index) => (
-            <MessageBubble key={index} msg={msg} thinkingLabel={t(language, "thinking")} language={language} />
+            <MessageBubble key={msg.id ?? index} msg={msg} thinkingLabel={t(language, "thinking")} language={language} />
           ))}
           <ToolStrip tools={messages[messages.length - 1]?.toolStatus || []} />
           {activeSession && messages.length > 1 && (
@@ -331,22 +346,23 @@ export default function ChatPanel() {
         </div>
 
         <div className="chat-input-area">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(event) => { setInput(event.target.value); autoResize(); }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                handleSend();
-              }
-            }}
-            onInput={autoResize}
-            placeholder={t(language, "askPlaceholder")}
-            disabled={loading}
-            className="chat-textarea chat-textarea-auto"
-            rows={1}
-          />
+         <textarea
+           ref={inputRef}
+           value={input}
+           onChange={(event) => { setInput(event.target.value); autoResize(); }}
+           onKeyDown={(event) => {
+             if (event.key === "Enter" && !event.shiftKey) {
+               event.preventDefault();
+               handleSend();
+             }
+           }}
+           onInput={autoResize}
+           placeholder={t(language, "askPlaceholder")}
+           disabled={loading}
+           aria-label={t(language, "askPlaceholder")}
+           className="chat-textarea chat-textarea-auto"
+           rows={1}
+         />
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}

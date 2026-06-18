@@ -89,6 +89,7 @@ export interface ChatMessage {
   content: string;
   airui?: Component;
   toolStatus?: ToolStatus[];
+  id?: string;
 }
 
 export interface McpToolFormState {
@@ -116,7 +117,7 @@ const WELCOME_MESSAGES: Record<LanguageCode, string> = {
 };
 
 function getWelcomeMessage(lang: LanguageCode = "zh-CN"): ChatMessage {
-  return { role: "assistant", content: WELCOME_MESSAGES[lang] ?? WELCOME_MESSAGES["zh-CN"] };
+  return { role: "assistant", content: WELCOME_MESSAGES[lang] ?? WELCOME_MESSAGES["zh-CN"], id: `welcome-${lang}` };
 }
 
 function nowLabel() {
@@ -274,6 +275,7 @@ export const useStore = create<AppState>((set, get) => ({
       },
     })),
   addChatMessage: (msg) => {
+    if (!msg.id) msg = { ...msg, id: `m-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}` };
     set((s) => ({ chatMessages: [...s.chatMessages, msg] }));
     // Debounced persist - schedule after current call stack
     setTimeout(() => get().persistCurrentSession(), 0);

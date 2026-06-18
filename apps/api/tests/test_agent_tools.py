@@ -39,3 +39,35 @@ def test_normalize_airui_component_preserves_expanded_renderer_types_with_flexib
         component = _normalize_airui_component({"type": raw_type, "props": {}})
         assert component["type"] == normalized_type
 
+
+def test_render_airui_panel_attaches_actions_to_widget(monkeypatch):
+    fake_doc = {"root": {"type": "Dashboard", "children": [{"ref": "row-artifacts", "type": "Row", "children": []}]}}
+
+    class FakeSession:
+        def __init__(self):
+            self.doc = fake_doc
+
+    class FakeManager:
+        def get_or_create(self, session_id):
+            return FakeSession()
+
+    async def fake_push(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("app.airui.session.session_manager", FakeManager())
+    monkeypatch.setattr("app.airui.ws_bridge.push_document", fake_push)
+
+    from app.agent.tools import _render_airui_panel
+    actions = [{"label": "导出", "prompt": "把当前表格导出为 CSV", "variant": "secondary"}]
+    result = _render_airui_panel({
+        "ref": "artifact-test",
+        "title": "测试面板",
+        "content": {"type": "KPI", "props": {"label": "总数", "value": 3}},
+        "actions": actions,
+    })
+
+    assert result["status"] == "rendered"
+    widget = fake_doc["root"]["children"][0]["children"][-1]
+    assert widget["ref"] == "artifact-test"
+    assert widget["props"]["actions"] == actions
+

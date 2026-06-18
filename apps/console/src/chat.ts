@@ -26,6 +26,7 @@ export async function sendChat(text: string) {
 
   let assistantContent = "";
   let toolStatuses: ToolStatus[] = [];
+  let autoCollapsedThisSession = false;
 
   try {
     const res = await fetch("/api/chat", {
@@ -44,21 +45,21 @@ export async function sendChat(text: string) {
       return;
     }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+   const reader = res.body.getReader();
+   const decoder = new TextDecoder();
+   let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+   while (true) {
+     const { done, value } = await reader.read();
+     if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+     buffer += decoder.decode(value, { stream: true });
+     const lines = buffer.split("\n");
+     buffer = lines.pop() || "";
 
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const evt = JSON.parse(line.slice(6));
+     for (const line of lines) {
+       if (!line.startsWith("data: ")) continue;
+       const evt = JSON.parse(line.slice(6));
 
         if (evt.type === "skills") {
           useStore.getState().setActiveSkills(evt.skills || []);
@@ -99,6 +100,11 @@ export async function sendChat(text: string) {
 
         if (evt.type === "airui" && evt.data) {
           useStore.getState().updateLastMessage({ content: assistantContent, airui: evt.data, toolStatus: toolStatuses });
+          if (!autoCollapsedThisSession) {
+            autoCollapsedThisSession = true;
+            const cfg = useStore.getState().appConfig;
+            useStore.getState().setAppConfig({ ui: { ...cfg.ui, chatCollapsed: true } });
+          }
         }
 
         if (evt.type === "config_changed" && evt.config) {
@@ -107,6 +113,11 @@ export async function sendChat(text: string) {
 
         if (evt.type === "done") {
           useStore.getState().addRunEvent({ label: "Final response", detail: "Assistant response completed.", state: "done" });
+          window.dispatchEvent(new CustomEvent("yunsuo:inspector-refresh"));
+          // 主动关闭流：某些代理（Vite preview）转发 SSE 时不关闭连接，
+          // 导致 reader.read() 永久等待，chatLoading 卡住。
+          try { await reader.cancel(); } catch { /* ignore */ }
+          return;
         }
       }
     }

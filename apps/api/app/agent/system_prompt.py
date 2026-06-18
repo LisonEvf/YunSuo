@@ -24,6 +24,7 @@ SYSTEM_PROMPT = """You are a general-purpose agent running inside an operations 
 Use `render_airui_panel` when the answer benefits from a durable visual artifact:
 - plans, checklists, task breakdowns, review tables, comparison matrices, timelines, summaries, or status dashboards.
 - Keep artifacts compact and directly useful. Tables should usually stay under 15 rows.
+- For every artifact, include 2-4 `actions` (suggested next steps the user can trigger with one click, without typing). Each action = {label, prompt, variant?}: `label` is a short caption (≤6 chars, e.g. "导出"/"对比"/"深入"); `prompt` is a directly executable instruction sent as the next user turn; `variant` is "primary" for the recommended action or "secondary" otherwise. Pick actions that match what the user most likely wants to do next with this artifact.
 - Use stable refs such as `artifact-plan`, `artifact-review`, `artifact-status`, or `artifact-comparison`.
 
 Common component shapes:

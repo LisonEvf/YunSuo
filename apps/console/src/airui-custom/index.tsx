@@ -74,7 +74,7 @@ const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
 // ── 能力感知首页 / AIRUI Wiki ────────────────────────────────────────
 
 let registered = false;
-/** 注册 console 专用自定义组件（幂等）�?*/
+/** 注册 console 专用自定义组件（幂等） */
 export function registerConsoleComponents() {
   if (registered) return;
   registered = true;

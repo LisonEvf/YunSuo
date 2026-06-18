@@ -93,14 +93,14 @@ export const consoleLayout: AirUIDocument = {
               { type: "Text", props: { value: "{state.t.settingsSubtitle}", style: "caption" } },
             ],
           },
-          // 主体：左菜单 + 右内容（设置分类由 state.settingsSection 控制）
-          {
-            type: "Pane",
-            props: { direction: "row", grow: true, minWidth: 0 },
-            children: [
-              { type: "SettingsNav" },
-              { type: "SettingsContent" },
-            ],
+         // 主体：左菜单 + 右内容（设置分类由 state.settingsSection 控制）
+         {
+         type: "Pane",
+         props: { direction: "row", grow: true, minWidth: 0, minHeight: 0 },
+         children: [
+           { type: "SettingsNav" },
+           { type: "SettingsContent" },
+          ],
           },
           { type: "Notice", props: { field: "settingsError" } },
           // 底部操作栏

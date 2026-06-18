@@ -30,6 +30,8 @@ const CommandPalette: FC<Props> = ({ open, onClose }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // 记录打开前的焦点元素，关闭时归还，避免焦点掉回 body
+  const triggerRef = useRef<HTMLElement | null>(null);
 
   const commands = useMemo<Command[]>(() => {
     const cmds: Command[] = [
@@ -106,9 +108,16 @@ const CommandPalette: FC<Props> = ({ open, onClose }) => {
 
   useEffect(() => {
     if (open) {
+      triggerRef.current = document.activeElement as HTMLElement;
       setQuery("");
       setSelectedIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const focusId = setTimeout(() => inputRef.current?.focus(), 50);
+      document.body.style.overflow = "hidden"; // 锁定背景滚动
+      return () => {
+        clearTimeout(focusId);
+        document.body.style.overflow = "";
+        triggerRef.current?.focus();
+      };
     }
   }, [open]);
 
@@ -146,7 +155,13 @@ const CommandPalette: FC<Props> = ({ open, onClose }) => {
   if (!open) return null;
 
   return (
-    <div className="cmd-palette-overlay" onClick={onClose}>
+    <div
+      className="cmd-palette-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t(language, "commandPalette")}
+    >
       <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
         <div className="cmd-palette-header">
           <Icon name="sparkles" size={16} />
@@ -157,18 +172,28 @@ const CommandPalette: FC<Props> = ({ open, onClose }) => {
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t(language, "commandPalette")}
             className="cmd-palette-input"
+            aria-label={t(language, "commandPalette")}
+            role="combobox"
+            aria-expanded="true"
+            aria-autocomplete="list"
+            aria-controls="cmd-palette-list"
+            aria-activedescendant={filtered[selectedIdx] ? `cmd-opt-${filtered[selectedIdx].id}` : undefined}
           />
           <button className="cmd-palette-close" onClick={onClose} aria-label={t(language, "cancel")}>
             <Icon name="close" size={14} />
           </button>
         </div>
-        <div ref={listRef} className="cmd-palette-list">
+        <div ref={listRef} id="cmd-palette-list" role="listbox" className="cmd-palette-list">
           {filtered.length === 0 && (
             <div className="cmd-palette-empty">{t(language, "noResults")}</div>
           )}
           {filtered.map((cmd, i) => (
             <div
               key={cmd.id}
+              id={`cmd-opt-${cmd.id}`}
+              role="option"
+              aria-selected={i === selectedIdx}
+              tabIndex={-1}
               className={`cmd-palette-item ${i === selectedIdx ? "cmd-palette-item-active" : ""}`}
               onClick={() => cmd.action()}
               onMouseEnter={() => setSelectedIdx(i)}

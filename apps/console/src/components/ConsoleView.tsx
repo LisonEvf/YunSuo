@@ -28,12 +28,18 @@ function collectArtifactPanels(root: Component | undefined): ArtifactPanel[] {
   const row = root.children.find((c) => c?.ref === "row-artifacts");
   const widgets = row?.children ?? [];
   return widgets
-    .map((widget, index) => {
+    .map((widget, index): ArtifactPanel | null => {
       const ref = String(widget?.ref ?? `artifact-${index}`);
       if (ref === "artifact-empty") return null;
       const inner = widget?.type === "Widget" ? widget?.children?.[0] : widget;
       if (!inner) return null;
-      return { ref, title: String(widget?.props?.title ?? ref), component: normalizeAirUIComponent(inner) };
+      const panel: ArtifactPanel = {
+        ref,
+        title: String(widget?.props?.title ?? ref),
+        component: normalizeAirUIComponent(inner),
+        actions: Array.isArray(widget?.props?.actions) ? widget.props.actions : undefined,
+      };
+      return panel;
     })
     .filter((p): p is ArtifactPanel => p !== null);
 }
@@ -60,6 +66,7 @@ function openSettings() {
       plugins: { enabled: cfg.plugins.enabled, search_paths: [...cfg.plugins.search_paths], marketplaces: (cfg.plugins.marketplaces ?? []).map((m) => ({ ...m })) },
     } as DraftShape,
   });
+  window.dispatchEvent(new CustomEvent("yunsuo:inspector-refresh"));
 }
 
 function closeSettings() {
@@ -181,57 +188,56 @@ export default function ConsoleView() {
     applyPatch([{ op: "update-state", stateDelta: { artifacts: [...wsPanels, ...chatPanel] } }]);
   }, [artifactDoc, lastAiruiComp, language, applyPatch]);
 
-  // REST 轮询：runtime KPI + 全部 skills + agent config
-  useEffect(() => {
-    let cancelled = false;
-    async function loadInspector() {
-      try {
-        const [skillsRes, memoryRes, trajectoriesRes, configRes, mcpRes, pluginsRes] = await Promise.all([
-          fetch("/api/skills"),
-          fetch("/api/memory/stats"),
-          fetch("/api/trajectories/summary"),
-          fetch("/api/config"),
-          fetch("/api/mcp/status"),
-          fetch("/api/plugins"),
-        ]);
-        const [skills, memory, trajectories, config, mcpStatus, pluginsData] = await Promise.all([
-          skillsRes.json(),
-          memoryRes.json(),
-          trajectoriesRes.json(),
-          configRes.json(),
-          mcpRes.json(),
-          pluginsRes.json(),
-        ]);
-        if (cancelled) return;
-        const loaded = config?.config || defaultAgentConfig;
-        setAppConfig(loaded);
-        const lang = loaded?.ui?.language || language;
-        const docState = useAirUIStore.getState().doc;
-        if (docState) {
-          useAirUIStore.getState().applyPatch([{
-            op: "update-state",
-            stateDelta: {
-              skills: skills.skills || [],
-              mcpServers: mcpStatus.servers || [],
-              plugins: pluginsData.plugins || [],
-              runtime: {
-                modelText: loaded?.model?.name || t(lang, "notLoaded"),
-                memoryText: `${memory.total || 0} ${t(lang, "entries")}`,
-                trajectoriesText: `${trajectories.total || 0} ${t(lang, "samples")}`,
-                failedText: `${trajectories.failed || 0}`,
-                skillsCountText: String(skills.skills?.length || 0),
-              },
+  // loadInspector 函数定义
+  const loadInspector = useCallback(async () => {
+    try {
+      const [skillsRes, memoryRes, trajectoriesRes, configRes, mcpRes, pluginsRes] = await Promise.all([
+        fetch("/api/skills"),
+        fetch("/api/memory/stats"),
+        fetch("/api/trajectories/summary"),
+        fetch("/api/config"),
+        fetch("/api/mcp/status"),
+        fetch("/api/plugins"),
+      ]);
+      const [skills, memory, trajectories, config, mcpStatus, pluginsData] = await Promise.all([
+        skillsRes.json(), memoryRes.json(), trajectoriesRes.json(),
+        configRes.json(), mcpRes.json(), pluginsRes.json(),
+      ]);
+      const loaded = config?.config || defaultAgentConfig;
+      setAppConfig(loaded);
+      const lang = loaded?.ui?.language || language;
+      const docState = useAirUIStore.getState().doc;
+      if (docState) {
+        useAirUIStore.getState().applyPatch([{
+          op: "update-state",
+          stateDelta: {
+            skills: skills.skills || [],
+            mcpServers: mcpStatus.servers || [],
+            plugins: pluginsData.plugins || [],
+            runtime: {
+              modelText: loaded?.model?.name || t(lang, "notLoaded"),
+              memoryText: `${memory.total || 0} ${t(lang, "entries")}`,
+              trajectoriesText: `${trajectories.total || 0} ${t(lang, "samples")}`,
+              failedText: `${trajectories.failed || 0}`,
+              skillsCountText: String(skills.skills?.length || 0),
             },
-          }]);
-        }
-      } catch {
-        // 静默：保留上一次 inspector 数据
+          },
+        }]);
       }
+    } catch {
+      // 静默：保留上一次 inspector 数据
     }
-    loadInspector();
-    const timer = window.setInterval(loadInspector, 45000);
-    return () => { cancelled = true; window.clearInterval(timer); };
   }, [language, setAppConfig]);
+
+  // mount + 语言切换时拉一次（不再定时轮询）
+  useEffect(() => { void loadInspector(); }, [loadInspector]);
+
+  // 事件驱动刷新：chat done / 进设置页时触发
+  useEffect(() => {
+    const handler = () => { void loadInspector(); };
+    window.addEventListener("yunsuo:inspector-refresh", handler);
+    return () => window.removeEventListener("yunsuo:inspector-refresh", handler);
+  }, [loadInspector]);
 
   const handleInteraction = useCallback((widgetRef: string, interaction: string, payload: Record<string, unknown>) => {
     if (widgetRef === "console:home" && interaction === "click") backHome();

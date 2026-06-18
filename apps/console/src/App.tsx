@@ -7,10 +7,12 @@ import StatusBar from "./components/StatusBar";
 import ToastContainer from "./components/Toast";
 import CommandPalette from "./components/CommandPalette";
 import { useStore } from "./store";
+import { t } from "./i18n";
 import { CUSTOM_THEMES_KEY, loadCustomThemes, applyCustomThemes } from "./themes";
 
 export default function App() {
   const theme = useStore((s) => s.appConfig.ui.theme);
+  const language = useStore((s) => s.appConfig.ui.language);
   const appConfig = useStore((s) => s.appConfig);
   const setAppConfig = useStore((s) => s.setAppConfig);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -88,9 +90,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">{t(language, "skipToContent")}</a>
       <div className="app-main">
         <ChatPanel />
-        <ConsoleView />
+        <main id="main-content">
+          <ConsoleView />
+        </main>
       </div>
       <StatusBar />
       <McpToolForm />

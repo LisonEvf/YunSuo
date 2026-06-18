@@ -4,11 +4,14 @@ import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import type { ArtifactPanel } from "./helpers";
 import { CapabilityHome, WikiHome } from "./home";
 import { savePreset } from "./presets";
+import { sendChat } from "../chat";
+import { useStore } from "../store";
 
 export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
   const setDoc = useAirUIStore((s) => s.setDoc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
+  const loading = useStore((s) => s.chatLoading);
 
   // Hooks 必须在条件 return 之前
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
   };
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
       {artifacts.map((artifact) => (
         <div
           key={artifact.ref}
@@ -77,11 +80,11 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
           onDrop={(e) => handleDrop(e, artifact.ref)}
           style={{
             border: "1px solid var(--color-border)",
-            borderRadius: 10,
+            borderRadius: "var(--radius-card)",
             background: "var(--color-surface)",
             overflow: "hidden",
             cursor: "move",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)",
+            boxShadow: "var(--air-shadow)",
             position: "relative"
           }}
         >
@@ -90,7 +93,7 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
               display: "flex",
               justifyContent: "space-between",
               gap: 12,
-              padding: "10px 12px",
+              padding: "12px 14px",
               borderBottom: "1px solid var(--color-border)",
               background: "var(--color-surface-muted)",
               fontSize: 13,
@@ -106,7 +109,7 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
                 style={{
                   width: 22,
                   height: 22,
-                  borderRadius: 6,
+                  borderRadius: "var(--radius-xs)",
                   border: "1px solid var(--color-border)",
                   background: "var(--color-surface-muted)",
                   color: "var(--color-text)",
@@ -126,6 +129,30 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
           <div className="airui-gallery-card" style={{ padding: 12 }}>
             <AirUIComponent comp={artifact.component} />
           </div>
+          {artifact.actions && artifact.actions.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 12px 12px", borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
+              {artifact.actions.map((action, i) => {
+                const primary = action.variant === "primary";
+                return (
+                  <button
+                    key={i}
+                    onClick={() => { if (!loading) void sendChat(action.prompt); }}
+                    disabled={loading}
+                    style={{
+                      padding: "6px 12px", borderRadius: "var(--radius-pill)", cursor: loading ? "default" : "pointer",
+                      fontSize: 12, fontWeight: 600, letterSpacing: "-0.005em",
+                      border: `1px solid ${primary ? "var(--color-primary)" : "var(--color-border)"}`,
+                      background: primary ? "var(--color-primary)" : "var(--color-surface)",
+                      color: primary ? "#fff" : "var(--color-text)",
+                      opacity: loading ? 0.6 : 1,
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ))}
     </div>

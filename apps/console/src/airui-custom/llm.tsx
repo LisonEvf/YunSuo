@@ -28,9 +28,9 @@ export const Notice: FC<{ comp: Component; resolvedProps: Record<string, unknown
 // Card: like Widget but reads resolvedProps (Widget is engine-special-cased to raw comp.props,
 // so {state.t.xxx} in its title would render literally). Used by the homepage preset.
 
-const mcpBadgeStyle = (connected: boolean): CSSProperties => ({ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 8, background: connected ? "var(--color-success)" : "var(--color-surface-muted)", color: connected ? "#fff" : "var(--color-muted)", border: connected ? "none" : "1px solid var(--color-border)" });
-const mcpExpandBtnStyle: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11, transition: "background .15s, border-color .15s" };
-const mcpToolItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 1, padding: "6px 10px", borderRadius: 8, background: "var(--color-surface-muted)", fontSize: 11, border: "1px solid var(--color-border)" };
+const mcpBadgeStyle = (connected: boolean): CSSProperties => ({ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: "var(--radius-sm)", background: connected ? "var(--color-success)" : "var(--color-surface-muted)", color: connected ? "#fff" : "var(--color-muted)", border: connected ? "none" : "1px solid var(--color-border)" });
+const mcpExpandBtnStyle: CSSProperties = { flexShrink: 0, width: 28, height: 28, borderRadius: "var(--radius-sm)", border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11, transition: "background .15s, border-color .15s" };
+const mcpToolItemStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 1, padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "var(--color-surface-muted)", fontSize: 11, border: "1px solid var(--color-border)" };
 
 export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
   const doc = useAirUIStore((s) => s.doc);
@@ -99,7 +99,7 @@ export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unk
         const tools = st?.tools || [];
         const isOpen = expanded.has(i);
         return (
-          <div key={i} style={{ border: `1px solid ${connected ? "var(--color-success)" : "var(--color-border)"}`, borderRadius: 10, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
+          <div key={i} style={{ border: `1px solid ${connected ? "var(--color-success)" : "var(--color-border)"}`, borderRadius: "var(--radius-input)", padding: 12, display: "flex", flexDirection: "column", gap: 8, background: "var(--color-surface-muted)" }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 value={String(srv.name || "")}
@@ -183,10 +183,10 @@ export const McpServers: FC<{ comp: Component; resolvedProps: Record<string, unk
 // LlmProviderPanel: 预设网格一键回填 + 已保存 provider 卡片列表（切换/删除/保存为 provider）
 // 设计借鉴 cc-switch ProviderCard（圆角卡片 + 品牌色块图标 + 激活态强调），
 // 渲染层用 AIRUI 设计 token（CSS 变量）+ inline style，与 McpServers/Card 风格一致
-const presetBtnStyle: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--color-text)", textAlign: "left", letterSpacing: "-0.005em", transition: "border-color .15s, background .15s" };
-const iconBlockStyle = (color: string): CSSProperties => ({ flexShrink: 0, width: 34, height: 34, borderRadius: 8, background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" });
-const cardBase: CSSProperties = { display: "flex", alignItems: "center", gap: 12, borderRadius: 10, padding: "12px 14px", transition: "border-color .15s" };
-const modelFetchBtnStyle: CSSProperties = { height: 32, padding: "0 12px", borderRadius: 10, border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
+const presetBtnStyle: CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderRadius: "var(--radius-input)", border: "1px solid var(--color-border)", background: "var(--color-surface)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--color-text)", textAlign: "left", letterSpacing: "-0.005em", transition: "border-color .15s, background .15s" };
+const iconBlockStyle = (color: string): CSSProperties => ({ flexShrink: 0, width: 34, height: 34, borderRadius: "var(--radius-sm)", background: color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 600, fontSize: 15, letterSpacing: "-0.01em" });
+const cardBase: CSSProperties = { display: "flex", alignItems: "center", gap: 12, borderRadius: "var(--radius-card)", padding: "14px 16px", transition: "border-color .15s" };
+const modelFetchBtnStyle: CSSProperties = { height: 32, padding: "0 16px", borderRadius: "var(--radius-pill)", border: "1px solid var(--color-border)", background: "var(--color-surface-muted)", color: "var(--color-text)", cursor: "pointer", fontSize: 11 };
 
 const initialOf = (name?: string) => {
   const s = (name || "").trim();
@@ -241,7 +241,7 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
     patchDraft({ providers: [...providers, inst], active_provider_id: id });
   };
 
-  const activate = (id: string) => {
+  const activate = async (id: string) => {
     const inst = providers.find((p) => p.id === id);
     if (!inst) return;
     patchDraft({
@@ -256,6 +256,32 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
         max_output_tokens: inst.max_output_tokens,
       },
     });
+    // 即时生效：merge 进 appConfig 并 PUT，后端 reset_agent 使下一轮用新 provider
+    try {
+      const current = useStore.getState().appConfig;
+      const next = {
+        ...current,
+        active_provider_id: id,
+        model: {
+          ...current.model,
+          display_name: inst.name,
+          provider: inst.provider,
+          name: inst.model_name,
+          base_url: inst.base_url,
+          api_key: inst.api_key,
+          max_output_tokens: inst.max_output_tokens,
+        },
+      };
+      const res = await fetch("/api/config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: next }),
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        useStore.getState().setAppConfig(payload?.config ?? next);
+      }
+    } catch { /* 即时生效失败不阻塞 draft 编辑，用户仍可底部统一保存 */ }
   };
 
   const remove = (id: string) => {
@@ -329,7 +355,7 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
           <button onClick={saveAsProvider} style={addBtnStyle}>+ {txt("saveAsProvider")}</button>
         </div>
         {providers.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "18px 14px", borderRadius: 10, border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)", textAlign: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "22px 16px", borderRadius: "var(--radius-card)", border: "1px dashed var(--color-border)", background: "var(--color-surface-muted)", textAlign: "center" }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)" }}>{txt("noSavedProvidersTitle")}</span>
             <span style={{ fontSize: 11, color: "var(--color-muted)" }}>{txt("noSavedProviders")}</span>
           </div>
@@ -350,11 +376,11 @@ export const LlmProviderPanel: FC<{ comp: Component; resolvedProps: Record<strin
               <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || p.model_name || "(unnamed)"}</span>
-                  {active && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: 8, background: color, color: "#fff" }}>{txt("currentProvider")}</span>}
+                  {active && <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "1px 7px", borderRadius: "var(--radius-sm)", background: color, color: "#fff" }}>{txt("currentProvider")}</span>}
                 </div>
                 <span style={{ fontSize: 11, color: "var(--color-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.model_name || "—"} · {p.base_url || "—"}</span>
               </div>
-              {!active && <button onClick={() => activate(p.id)} style={activateBtnStyle}>{txt("activateProvider")}</button>}
+              {!active && <button onClick={() => { void activate(p.id); }} style={activateBtnStyle}>{txt("activateProvider")}</button>}
               <button onClick={() => remove(p.id)} style={delBtnStyle}>×</button>
             </div>
           );
@@ -446,7 +472,7 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
                   style={{
                     fontSize: 11,
                     padding: "4px 8px",
-                    borderRadius: 8,
+                    borderRadius: "var(--radius-sm)",
                     background: active ? "var(--color-primary)" : "var(--color-surface-muted)",
                     border: `1px solid ${active ? "var(--color-primary)" : "var(--color-border)"}`,
                     color: active ? "#fff" : "var(--color-text)",
@@ -465,4 +491,4 @@ export const ModelFetcher: FC<{ comp: Component; resolvedProps: Record<string, u
 };
 
 let registered = false;
-/** 注册 console 专用自定义组件（幂等）�?*/
+/** 注册 console 专用自定义组件（幂等） */

@@ -36,6 +36,18 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                         "type": "object",
                         "description": "AIRUI component tree, such as Table, Chart, KPI, Row, Column, or Text.",
                     },
+                    "actions": {
+                        "type": "array",
+                        "description": "Suggested next-step actions shown as buttons under the panel. Each item: {label (short button caption), prompt (a directly executable instruction sent on click), variant ('primary'|'secondary', optional)}. Aim for 2-4 actions matching what the user most likely wants next.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string"},
+                                "prompt": {"type": "string"},
+                                "variant": {"type": "string"},
+                            },
+                        },
+                    },
                     "session_id": {"type": "string", "description": "AIRUI session ID. Default: 'default'."},
                 },
                 "required": ["ref", "title", "content"],
@@ -163,10 +175,15 @@ def _render_airui_panel(args: dict, snapshot: dict | None = None) -> dict[str, A
     artifact_row = _find_ref(root, "row-artifacts")
     target_children = artifact_row.setdefault("children", []) if artifact_row else children
     _remove_ref(target_children, ref)
+
+    actions = args.get("actions")
+    widget_props = {"title": title, "colSpan": max(1, min(col_span, 12)), "rowSpan": max(1, row_span)}
+    if isinstance(actions, list):
+        widget_props["actions"] = actions
     target_children.append({
         "type": "Widget",
         "ref": ref,
-        "props": {"title": title, "colSpan": max(1, min(col_span, 12)), "rowSpan": max(1, row_span)},
+        "props": widget_props,
         "children": [content],
     })
 

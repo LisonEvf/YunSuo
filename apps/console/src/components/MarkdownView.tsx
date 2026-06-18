@@ -34,7 +34,11 @@ const components: Components = {
   ),
   strong: ({ children }) => <strong className="md-strong">{children}</strong>,
   em: ({ children }) => <em className="md-em">{children}</em>,
-  table: ({ children }) => <table className="md-table">{children}</table>,
+ table: ({ children }) => (
+     <div className="md-table-wrap">
+       <table className="md-table">{children}</table>
+     </div>
+   ),
   th: ({ children }) => <th className="md-th">{children}</th>,
   td: ({ children }) => <td className="md-td">{children}</td>,
   hr: () => <hr className="md-hr" />,
@@ -43,14 +47,15 @@ const components: Components = {
 interface Props {
   content: string;
   plain?: boolean;
+  className?: string;
 }
 
-const MarkdownView: FC<Props> = ({ content, plain }) => {
+const MarkdownView: FC<Props> = ({ content, plain, className }) => {
   if (plain || !content) {
     return <div className="md-plain">{content}</div>;
   }
   return (
-    <div className="chat-md">
+    <div className={className ?? "chat-md"}>
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {content}
       </ReactMarkdown>

@@ -316,6 +316,13 @@ select {
   word-break: break-word;
   font-size: 13px;
   line-height: 1.6;
+  min-width: 0;
+}
+
+/* Content-first: a bubble containing a wide table drops the 86% cap so the
+   table can take its natural width instead of stacking cells vertically. */
+.chat-bubble:has(.md-table-wrap) {
+  max-width: 100%;
 }
 
 .chat-bubble-user {
@@ -523,6 +530,8 @@ select {
 
 .chat-md {
   word-break: break-word;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .chat-md .md-h1,
@@ -599,6 +608,29 @@ select {
   background: var(--color-app-bg);
   border: 1px solid var(--color-border);
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Subtle, visible horizontal scrollbar for code blocks so users know
+   long lines are scrollable, in keeping with the soft Morandi aesthetic. */
+.chat-md .md-pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chat-md .md-pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-md .md-pre::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
+
+.chat-md .md-pre::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }
 
 .chat-md .md-code-block {
@@ -630,10 +662,31 @@ select {
   font-style: italic;
 }
 
-.chat-md .md-table {
-  width: 100%;
-  border-collapse: collapse;
+.chat-md .md-table-wrap {
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
   margin: 0.5em 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.chat-md .md-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chat-md .md-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
+
+.chat-md .md-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
+.chat-md .md-table {
+  border-collapse: collapse;
   font-size: 12px;
 }
 
@@ -644,12 +697,14 @@ select {
   color: var(--color-text);
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
+  white-space: nowrap;
 }
 
 .chat-md .md-td {
   padding: 4px 8px;
   border: 1px solid var(--color-border);
   color: var(--color-text);
+  white-space: nowrap;
 }
 
 .chat-md .md-hr {
@@ -661,6 +716,43 @@ select {
 .md-plain {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* ========================================
+   AIRUI card markdown (reuses .chat-md base styles)
+   ======================================== */
+
+/* Markdown rendered inside AIRUI cards (via the Markdown/CodeBlock component
+   overrides). Typography inherits the shared .chat-md rules; this block only
+   adds card-context adjustments. */
+.airui-card-md {
+  min-width: 0;
+}
+
+/* First heading/paragraph in a card should not push the top padding. */
+.airui-card-md > .md-h1:first-child,
+.airui-card-md > .md-h2:first-child,
+.airui-card-md > .md-h3:first-child,
+.airui-card-md > .md-h4:first-child,
+.airui-card-md > .md-p:first-child {
+  margin-top: 0;
+}
+
+/* Subtle language label above fenced code inside cards. */
+.airui-card-md .md-code-lang {
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* A card whose own content is a markdown table spans the full gallery row so
+   the table keeps its natural width. Mirrors the .md-table-wrap handling for
+   gallery cards. */
+.artifact-gallery-grid > *:has(.airui-card-md .md-table) {
+  grid-column: 1 / -1;
 }
 
 /* ========================================
@@ -1788,10 +1880,87 @@ button:not(:disabled):active,
   padding: 9px 0;
   border-bottom: 1px solid var(--air-borderLight);
   font-size: 12px;
+  min-width: 0;
 }
 .m-row:last-child { border-bottom: none; }
-.m-row-name { font-weight: 600; color: var(--color-text); }
-.m-row-desc { color: var(--color-muted); font-size: 11px; text-align: right; }
+.m-row-name {
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-row-desc {
+  color: var(--color-muted);
+  font-size: 11px;
+  text-align: right;
+  flex-shrink: 0;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 超宽内容防御：home.tsx 的清单行用内联 style（无类名），结构深度不一
+   （skills/plugins 是 .m-card-list>div>span；MCP 服务行多一层包裹 div；
+   MCP 工具用 .m-tool-btn>span；presets 在 button 内）。
+   故改用深层后代选择器，覆盖任意嵌套层级，确保任何超宽文本都被省略截断、
+   而非静默裁切或撑爆卡片。min-width:0 解除 flex item 默认 min-width:auto 的溢出行为。 */
+.m-card-list > div,
+.m-card-list > div > div,
+.m-tool-btn {
+  min-width: 0;
+}
+/* 各行均为 [span 名称] + [span 描述] 两列，span 内无嵌套 span，
+   故深层 :first-child / :last-child 能安全区分名称（弹性收缩）与描述（限宽）。 */
+.m-card-list span:first-child {
+  min-width: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-card-list span:last-child {
+  min-width: 0;
+  flex-shrink: 0;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 能力清单滚动区：将整段列表收进有限高度、可独立滚动的列里，保证便当卡片在数据膨胀时仍对称悬浮，而不是单卡撑爆整页。 */
+.m-card-list {
+  display: flex;
+  flex-direction: column;
+  max-height: var(--m-card-list-max, 340px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-top: 2px;
+  padding-right: 4px;
+}
+/* 独占整行（col-12）的卡片可放宽一点滚动高度，半幅卡片（col-6）保持紧凑以维持对齐。 */
+.bento-col-12 .m-card-list { max-height: var(--m-card-list-max-tall, 420px); }
+
+/* 标题右侧的莫兰迪计数胶囊：滚动列表里还有多少条，一眼便知。 */
+.m-card-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 7px;
+  margin-left: auto;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
 
 /* MCP 工具一键执行按钮（莫兰迪胶囊） */
 .m-tool-btn {
@@ -1822,7 +1991,8 @@ button:not(:disabled):active,
 /* 表格：圆角化 + 柔和表头（覆盖 AIRUI Table 的内联背景需用 !important） */
 .console-content table,
 .airui-gallery-card table {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12px;
@@ -1857,6 +2027,98 @@ button:not(:disabled):active,
 /* AIRUI Widget 卡片：画廊内每个产物卡 */
 .airui-gallery-card > div:first-child { border-radius: var(--radius-card) !important; }
 
+/* Constrain AIRUI cards so wide tables/charts scroll instead of overflowing
+   the card and the chat panel. min-width:0 breaks the flex/grid shrink floor. */
+.artifact-gallery-grid {
+  display: grid;
+  gap: 16px;
+  /* Cards start at ~320px so normal content breathes; wide content can grow. */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+/* Content-first sizing: a card holding a wide table spans the full row so the
+   table gets its natural width instead of being squeezed into one grid track
+   and stacking vertically. Supported by all modern browsers (:has). */
+.artifact-gallery-grid > *:has(table) {
+  grid-column: 1 / -1;
+}
+
+.airui-gallery-card {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Headless gallery cards: save-as-preset floats top-right and stays faint
+   until hovered, keeping artifact content as the visual focus. */
+.gallery-save-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xs);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+.gallery-save-btn:hover {
+  opacity: 1;
+  box-shadow: var(--air-shadow);
+}
+
+/* Subtle ref tag in the bottom-left corner of a headless card. */
+.gallery-ref-tag {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+  opacity: 0.5;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+.airui-gallery-card th,
+.console-content th {
+  white-space: nowrap;
+}
+
+/* Keep columns readable: never force-break short tokens into tall vertical
+   stacks. Only ultra-long unbreakable strings wrap; wide tables grow to
+   natural width and scroll horizontally inside the card. */
+.airui-gallery-card td,
+.console-content td,
+.console-content th {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.airui-gallery-card::-webkit-scrollbar,
+.console-content::-webkit-scrollbar {
+  height: 8px;
+}
+.airui-gallery-card::-webkit-scrollbar-thumb,
+.console-content::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
+.airui-gallery-card::-webkit-scrollbar-thumb:hover,
+.console-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
 /* KPI 数值统一字重层级（AIRUI KPI 已用 inline，此处兜底） */
 .console-content [class*="kpi"],
 .airui-gallery-card [class*="kpi"] { letter-spacing: -0.03em; }
@@ -1867,22 +2129,30 @@ button:not(:disabled):active,
 .chat-messages::-webkit-scrollbar,
 .console-content::-webkit-scrollbar,
 .settings-panel *::-webkit-scrollbar,
-.cmd-palette-list::-webkit-scrollbar {
+.cmd-palette-list::-webkit-scrollbar,
+.m-card-list::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .chat-messages::-webkit-scrollbar-thumb,
 .console-content::-webkit-scrollbar-thumb,
 .settings-panel *::-webkit-scrollbar-thumb,
-.cmd-palette-list::-webkit-scrollbar-thumb {
+.cmd-palette-list::-webkit-scrollbar-thumb,
+.m-card-list::-webkit-scrollbar-thumb {
   background: var(--color-border-strong);
   border-radius: var(--radius-pill);
 }
 .chat-messages::-webkit-scrollbar-thumb:hover,
-.console-content::-webkit-scrollbar-thumb:hover {
+.console-content::-webkit-scrollbar-thumb:hover,
+.m-card-list::-webkit-scrollbar-thumb:hover {
   background: var(--color-muted);
 }
 .chat-messages::-webkit-scrollbar-track,
 .console-content::-webkit-scrollbar-track {
   background: transparent;
+}
+.m-card-list::-webkit-scrollbar-track { background: transparent; }
+.m-card-list {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
 }

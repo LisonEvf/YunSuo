@@ -6,6 +6,7 @@ import { sendChat } from "../chat";
 import { Card } from "./home";
 import { ArtifactGallery } from "./gallery";
 import { InspectorSkills, RunTimeline } from "./inspector";
+import { MarkdownCard, CodeBlockCard } from "./markdown";
 import { Setting, SettingCard, ListEditor, SettingsNav, SettingsContent } from "./settings";
 import { ConnStatus, Notice, McpServers, LlmProviderPanel, ModelFetcher } from "./llm";
 import { SkillsRoster, PluginsRoster } from "./roster";
@@ -97,4 +98,8 @@ export function registerConsoleComponents() {
   registerComponent("ModelFetcher", ModelFetcher);
   registerComponent("SettingsNav", SettingsNav);
   registerComponent("SettingsContent", SettingsContent);
+  // Rich markdown inside AIRUI cards: overrides the primitive built-in
+  // Markdown/CodeBlock renderers with the shared MarkdownView (GFM + Morandi).
+  registerComponent("Markdown", MarkdownCard);
+  registerComponent("CodeBlock", CodeBlockCard);
 }

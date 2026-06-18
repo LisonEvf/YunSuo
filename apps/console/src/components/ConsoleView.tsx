@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import type { Component } from "@air-ui/core";
 import { AirUIComponent, InteractionProvider, useAirUIStore } from "@air-ui/renderer-react";
 import { useStore, defaultAgentConfig, type McpServerConfig, type ProviderInstance, type MarketplaceSource } from "../store";
+import type { HomeConfig } from "../store";
 import { t, messages } from "../i18n";
 import { sendInteraction } from "../ws-client";
 import { consoleLayout } from "../consoleLayout";
@@ -13,6 +14,7 @@ registerConsoleComponents();
 
 interface DraftShape {
   ui: { theme: string; language: string };
+  home: HomeConfig;
   model: Record<string, unknown>;
   providers: ProviderInstance[];
   active_provider_id: string | null;
@@ -57,6 +59,7 @@ function openSettings() {
     settingsError: "",
     draft: {
       ui: { theme: cfg.ui.theme, language: cfg.ui.language },
+      home: { enabled: cfg.home?.enabled ?? true, title: cfg.home?.title ?? "", subtitle: cfg.home?.subtitle ?? "", starters: (cfg.home?.starters ?? []).map((s) => ({ ...s })) },
       model: { ...cfg.model },
       providers: (cfg.providers ?? []).map((p) => ({ ...p })),
       active_provider_id: cfg.active_provider_id ?? null,
@@ -94,6 +97,7 @@ async function saveSettings() {
     const next = {
       ...current,
       ui: { ...current.ui, ...draft.ui },
+      home: draft.home ?? current.home ?? { enabled: true, title: "", subtitle: "", starters: [] },
       model: { ...current.model, ...draft.model },
       providers: draft.providers ?? current.providers ?? [],
       active_provider_id: draft.active_provider_id ?? current.active_provider_id ?? null,

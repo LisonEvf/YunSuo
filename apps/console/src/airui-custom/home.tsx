@@ -4,6 +4,7 @@ import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { useStore } from "../store";
 import { sendChat } from "../chat";
 import { type McpToolLite, type McpServerLite, type ArtifactPanel } from "./helpers";
+import type { HomeStarter } from "../store";
 import { removeNodeByRef, savePreset, listPresets, deletePreset, type UIPreset } from "./presets";
 import Icon from "../components/Icon";
 import { showToast } from "../components/Toast";
@@ -50,6 +51,53 @@ async function handleMcpToolClick(srvIdx: number, toolIdx: number) {
 
 /* ── Capability-aware home: Bento Grid layout ─────────────────────── */
 
+/* Customizable domain launcher home. Renders when home.starters is non-empty:
+ * the hero uses the configured title/subtitle, and each starter is a one-click
+ * card that fires sendChat(prompt) — the entry point of the closed UI loop. */
+const starterCardStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, padding: "18px 18px", borderRadius: "var(--radius-card)", border: "1px solid var(--color-border)", background: "var(--color-surface)", boxShadow: "var(--air-shadow)", cursor: "pointer", textAlign: "left", transition: "transform .15s, box-shadow .15s, border-color .15s" };
+const starterLabelStyle: CSSProperties = { fontSize: 14, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.01em" };
+const starterHintStyle: CSSProperties = { fontSize: 11, color: "var(--color-muted)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" };
+
+export const CustomHome: FC<{ starters: HomeStarter[]; title: string; subtitle: string }> = ({ starters, title, subtitle }) => {
+  const doc = useAirUIStore((s) => s.doc);
+  const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string>) || {};
+  const run = (s: HomeStarter) => { void sendChat(s.prompt); };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
+      <div className="bento-hero">
+        <div className="bento-hero-glow" />
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-xs)" }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.02em" }}>{title || t.homeWelcome}</div>
+          {subtitle && <div style={{ ...captionStyle, maxWidth: 620 }}>{subtitle}</div>}
+        </div>
+      </div>
+      <div className="bento-grid">
+        {starters.map((s, i) => {
+          const primary = s.variant === "primary";
+          return (
+            <button
+              key={i}
+              onClick={() => run(s)}
+              className="m-card m-card-hover"
+              style={{
+                ...starterCardStyle,
+                borderColor: primary ? "var(--color-primary-border)" : starterCardStyle.borderColor,
+                background: primary ? "radial-gradient(120% 140% at 90% -20%, var(--color-primary-soft) 0%, transparent 60%), var(--color-surface)" : starterCardStyle.background,
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {primary && <span style={{ width: 3, height: 14, borderRadius: 2, background: "var(--color-primary)" }} />}
+                <span style={starterLabelStyle}>{s.label}</span>
+              </span>
+              <span style={starterHintStyle}>{s.prompt}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 export const CapabilityHome: FC = () => {
   const doc = useAirUIStore((s) => s.doc);
   const setDoc = useAirUIStore((s) => s.setDoc);
@@ -58,16 +106,23 @@ export const CapabilityHome: FC = () => {
   const skills = (state.skills as Array<{ name?: string; description?: string }>) ?? [];
   const mcpServers = (state.mcpServers as Array<{ name?: string; connected?: boolean; tools?: Array<{ name?: string; description?: string }> }>) ?? [];
   const plugins = (state.plugins as Array<{ name?: string; path?: string }>) ?? [];
-  const runtime = (state.runtime as { modelText?: string; skillsCountText?: string; memoryText?: string; failedText?: string; trajectoriesText?: string }) ?? {};
-  const [presets, setPresets] = useState<UIPreset[]>(() => listPresets());
-  useEffect(() => {
-    const handler = () => setPresets(listPresets());
-    window.addEventListener("presets-changed", handler);
-    return () => window.removeEventListener("presets-changed", handler);
-  }, []);
-  const hasAny = skills.length > 0 || mcpServers.length > 0 || plugins.length > 0 || presets.length > 0;
+ const runtime = (state.runtime as { modelText?: string; skillsCountText?: string; memoryText?: string; failedText?: string; trajectoriesText?: string }) ?? {};
+ const [presets, setPresets] = useState<UIPreset[]>(() => listPresets());
+ useEffect(() => {
+   const handler = () => setPresets(listPresets());
+   window.addEventListener("presets-changed", handler);
+   return () => window.removeEventListener("presets-changed", handler);
+ }, []);
+ const hasAny = skills.length > 0 || mcpServers.length > 0 || plugins.length > 0 || presets.length > 0;
+  // Customizable start page: a configured domain launcher takes precedence
+  // over the generic capability home, making the UI — not chat — the entry.
+  // (kept after all hooks so hook order is stable across renders)
+  const homeCfg = useStore((s) => s.appConfig.home);
+  if (homeCfg?.enabled !== false && Array.isArray(homeCfg?.starters) && homeCfg.starters.length > 0) {
+    return <CustomHome starters={homeCfg.starters} title={homeCfg.title} subtitle={homeCfg.subtitle} />;
+  }
 
-  const insertPreset = (preset: UIPreset) => {
+ const insertPreset = (preset: UIPreset) => {
     if (!doc) return;
     const artifacts = ((state.artifacts as ArtifactPanel[]) ?? []);
     const newArtifact: ArtifactPanel = {

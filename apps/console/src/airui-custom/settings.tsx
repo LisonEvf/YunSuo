@@ -4,6 +4,7 @@ import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { fieldStyle, fieldLabelStyle, delBtnStyle, addBtnStyle, toggleBtnStyle } from "./helpers";
+import type { HomeStarter } from "../store";
 
 export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
@@ -153,6 +154,59 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
 };
 
 // McpServers: 编辑 draft.mcp.servers，每 server 一卡片（name/enabled/transport/命令或 url）
+// StartersEditor: 编辑 draft.home.starters — 自定义起始页的一键入口（UI 循环起点）
+export const StartersEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const path = "draft.home.starters";
+  const raw = doc ? getByPath(doc.state, path) : [];
+  const items: HomeStarter[] = Array.isArray(raw) ? (raw as HomeStarter[]) : [];
+  const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+
+  const update = (next: HomeStarter[]) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+  };
+
+  const starterRow: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, padding: "10px 10px 10px 12px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-input)", background: "var(--color-surface-muted)" };
+  const starterFieldRow: CSSProperties = { display: "flex", gap: 6, alignItems: "center" };
+  const miniInput: CSSProperties = { ...fieldStyle, padding: "7px 10px", fontSize: 12 };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.map((item, i) => (
+        <div key={i} style={starterRow}>
+          <div style={starterFieldRow}>
+            <input
+              value={item.label ?? ""}
+              placeholder={txt("homeStarterLabelPh")}
+              onChange={(e) => update(items.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+              style={{ ...miniInput, flex: "0 0 120px" }}
+            />
+            <select
+              value={item.variant ?? "secondary"}
+              onChange={(e) => update(items.map((x, j) => (j === i ? { ...x, variant: e.target.value as HomeStarter["variant"] } : x)))}
+              style={{ ...miniInput, flex: "0 0 96px" }}
+            >
+              <option value="primary">{txt("homeStarterPrimary")}</option>
+              <option value="secondary">{txt("homeStarterSecondary")}</option>
+            </select>
+            <button onClick={() => update(items.filter((_, j) => j !== i))} style={{ ...delBtnStyle, marginLeft: "auto" }} title={txt("delete")} aria-label={txt("delete")}>×</button>
+          </div>
+          <input
+            value={item.prompt ?? ""}
+            placeholder={txt("homeStarterPromptPh")}
+            onChange={(e) => update(items.map((x, j) => (j === i ? { ...x, prompt: e.target.value } : x)))}
+            style={miniInput}
+          />
+        </div>
+      ))}
+      <button onClick={() => update([...items, { label: "", prompt: "", variant: items.length === 0 ? "primary" : "secondary" }])} style={addBtnStyle}>+ {txt("homeStarterAdd")}</button>
+    </div>
+  );
+};
+
 // McpServers: 配置 + 运行时状态合并。读 draft.mcp.servers（配置）与 state.mcpServers
 // （/api/mcp/status 反馈），按 name 匹配，每个 server 卡片显示连接徽章 + 可展开工具清单 + 重连入口
 
@@ -163,6 +217,20 @@ interface SettingsSectionDef {
 }
 
 const SETTINGS_SECTIONS: SettingsSectionDef[] = [
+  {
+    key: "home",
+    labelKey: "homeSection",
+    card: {
+      type: "SettingCard",
+      props: { title: "{state.t.homeSection}", desc: "{state.t.settingsHomeDesc}" },
+      children: [
+        { type: "Setting", props: { path: "home.title", kind: "text", label: "{state.t.homeSectionTitle}", placeholder: "{state.t.homeSectionTitlePh}" } },
+        { type: "Setting", props: { path: "home.subtitle", kind: "text", label: "{state.t.homeSectionSubtitle}", placeholder: "{state.t.homeSectionSubtitlePh}" } },
+        { type: "Setting", props: { path: "home.enabled", kind: "switch", label: "{state.t.homeSectionEnabled}" } },
+        { type: "StartersEditor" },
+      ],
+    },
+  },
   {
     key: "appearance",
     labelKey: "appearance",

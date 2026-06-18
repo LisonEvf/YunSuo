@@ -66,13 +66,14 @@ export interface AgentConfig {
   providers: ProviderInstance[];
   active_provider_id: string | null;
   provider_presets: ProviderPreset[];
-  ui: {
-    theme: ThemeMode;
-    language: LanguageCode;
-    chatCollapsed?: boolean;
-    chatWidth?: number;
-  };
-  skills: { enabled: boolean; search_paths: string[] };
+ ui: {
+   theme: ThemeMode;
+   language: LanguageCode;
+   chatCollapsed?: boolean;
+   chatWidth?: number;
+ };
+  home: HomeConfig;
+ skills: { enabled: boolean; search_paths: string[] };
   mcp: { enabled: boolean; servers: McpServerConfig[] };
   plugins: { enabled: boolean; search_paths: string[]; marketplaces: MarketplaceSource[] };
 }
@@ -83,6 +84,25 @@ export interface MarketplaceSource {
   url: string;
   enabled: boolean;
 }
+
+/** A one-click home launcher. Clicking sends `prompt` as the next user turn,
+ *  driving the closed UI loop (agent → MCP/data tools → rendered cards). */
+export interface HomeStarter {
+  label: string;
+  prompt: string;
+  variant?: "primary" | "secondary";
+  icon?: string;
+}
+
+/** Customizable start page. When `starters` is non-empty the home renders a
+ *  domain launcher instead of the generic capability home. */
+export interface HomeConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  starters: HomeStarter[];
+}
+
 
 /** A single AIRUI panel produced by one render_airui_panel tool call during chat.
  *  A chat turn may produce several of these; each renders as its own Bento card. */
@@ -119,8 +139,9 @@ export const defaultAgentConfig: AgentConfig = {
   providers: [],
   active_provider_id: null,
   provider_presets: [],
-  ui: { theme: "light", language: "zh-CN", chatCollapsed: false, chatWidth: 360 },
-  skills: { enabled: true, search_paths: ["packages/agent-skills"] },
+ ui: { theme: "light", language: "zh-CN", chatCollapsed: false, chatWidth: 360 },
+  home: { enabled: true, title: "", subtitle: "", starters: [] },
+ skills: { enabled: true, search_paths: ["packages/agent-skills"] },
   mcp: { enabled: true, servers: [] },
   plugins: { enabled: true, search_paths: [], marketplaces: [] },
 };
@@ -282,8 +303,9 @@ export const useStore = create<AppState>((set, get) => ({
         providers: config.providers ?? s.appConfig.providers ?? [],
         active_provider_id: config.active_provider_id ?? s.appConfig.active_provider_id ?? null,
         provider_presets: config.provider_presets ?? s.appConfig.provider_presets ?? [],
-        ui: { ...defaultAgentConfig.ui, ...s.appConfig.ui, ...config.ui },
-        skills: { ...defaultAgentConfig.skills, ...s.appConfig.skills, ...config.skills },
+       ui: { ...defaultAgentConfig.ui, ...s.appConfig.ui, ...config.ui },
+        home: { ...defaultAgentConfig.home, ...s.appConfig.home, ...config.home },
+       skills: { ...defaultAgentConfig.skills, ...s.appConfig.skills, ...config.skills },
         mcp: { ...defaultAgentConfig.mcp, ...s.appConfig.mcp, ...config.mcp },
         plugins: { ...defaultAgentConfig.plugins, ...s.appConfig.plugins, ...config.plugins },
       },

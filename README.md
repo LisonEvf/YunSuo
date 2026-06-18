@@ -36,7 +36,7 @@
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r apps/api/requirements.txt pytest
-bun install
+cd apps/console && bun install
 ```
 
 同时启动后端和前端：
@@ -59,7 +59,6 @@ bun run dev
 ```
 
 启动后可访问：
-
 - 后端健康检查：http://127.0.0.1:8000/health
 - Agent 对话接口：http://127.0.0.1:8000/api/chat
 - 控制台静态页：http://127.0.0.1:8000/console/

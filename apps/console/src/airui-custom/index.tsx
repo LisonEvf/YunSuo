@@ -7,7 +7,7 @@ import { Card } from "./home";
 import { ArtifactGallery } from "./gallery";
 import { InspectorSkills, RunTimeline } from "./inspector";
 import { MarkdownCard, CodeBlockCard } from "./markdown";
-import { Setting, SettingCard, ListEditor, SettingsNav, SettingsContent } from "./settings";
+import { Setting, SettingCard, ListEditor, StartersEditor, SettingsNav, SettingsContent } from "./settings";
 import { ConnStatus, Notice, McpServers, LlmProviderPanel, ModelFetcher } from "./llm";
 import { SkillsRoster, PluginsRoster } from "./roster";
 import { MarketplaceSources, MarketplaceBrowser } from "./marketplace";
@@ -56,10 +56,10 @@ const Pane: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({
     overflow: resolvedProps.scroll ? "auto" : undefined,
     alignItems: resolveAlign(resolvedProps.align as string),
     justifyContent: justify ? (justifyMap[justify] ?? (justify as CSSProperties["justifyContent"])) : undefined,
-    marginTop: resolvedProps.marginTop as string | undefined,
-    marginBottom: resolvedProps.marginBottom as string | undefined,
-    paddingTop: resolvedProps.paddingTop as string | undefined,
-    paddingBottom: resolvedProps.paddingBottom as string | undefined,
+    ...(resolvedProps.marginTop ? { marginTop: resolvedProps.marginTop as string } : {}),
+    ...(resolvedProps.marginBottom ? { marginBottom: resolvedProps.marginBottom as string } : {}),
+    ...(resolvedProps.paddingTop ? { paddingTop: resolvedProps.paddingTop as string } : {}),
+    ...(resolvedProps.paddingBottom ? { paddingBottom: resolvedProps.paddingBottom as string } : {}),
     borderBottom: resolvedProps.borderBottom ? "1px solid var(--color-border)" : undefined,
     borderLeft: resolvedProps.borderLeft ? "1px solid var(--color-border)" : undefined,
     borderTop: resolvedProps.borderTop ? "1px solid var(--color-border)" : undefined,
@@ -89,6 +89,7 @@ export function registerConsoleComponents() {
   registerComponent("Card", Card);
   registerComponent("SettingCard", SettingCard);
   registerComponent("ListEditor", ListEditor);
+  registerComponent("StartersEditor", StartersEditor);
   registerComponent("McpServers", McpServers);
   registerComponent("LlmProviderPanel", LlmProviderPanel);
   registerComponent("SkillsRoster", SkillsRoster);

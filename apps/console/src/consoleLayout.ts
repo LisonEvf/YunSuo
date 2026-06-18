@@ -106,7 +106,7 @@ export const consoleLayout: AirUIDocument = {
           // 底部操作栏
           {
             type: "Pane",
-            props: { direction: "row", gap: "8px", justify: "end", align: "center", borderTop: true, padding: "12px 16px", background: "var(--color-surface)" },
+            props: { direction: "row", gap: "12px", justify: "end", align: "center", borderTop: true, padding: "16px 20px", background: "var(--color-surface)" },
             children: [
               { type: "Button", ref: "console:cancel", props: { label: "{state.t.cancel}", variant: "secondary" } },
               { type: "Button", ref: "console:save", props: { label: "{state.saveLabel}", variant: "primary", disabled: "@state.settingsSaving" } },

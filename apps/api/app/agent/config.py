@@ -34,6 +34,16 @@ DEFAULT_AGENT_CONFIG: dict = {
         "theme": "light",
         "language": "zh-CN",
     },
+    # home: 自定义起始页（把通用工作台快速定制为专用领域 SaaS 的入口）。
+    # enabled=false 或 starters 为空 → 回退到内置的「能力感知首页」。
+    # starter 是一键驱动的 UI 循环入口：{label, prompt, variant?, icon?}，点击即把
+    # prompt 作为新一轮用户输入发给 agent，常用于触发 MCP/数据工具并渲染看板卡片。
+    "home": {
+        "enabled": True,
+        "title": "",
+        "subtitle": "",
+        "starters": [],
+    },
     "skills": {
         "enabled": True,
         # search_paths: 扫描 SKILL.md 的目录列表（相对项目根）

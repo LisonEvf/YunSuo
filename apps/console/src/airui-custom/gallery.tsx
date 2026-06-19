@@ -1,6 +1,12 @@
 import { type FC, useState } from "react";
 import type { Component } from "@air-ui/core";
-import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
+import {
+  AirUIComponent,
+  useAirUIStore,
+  InteractionProvider,
+  useInteraction,
+  type InteractionHandler,
+} from "@air-ui/renderer-react";
 import type { ArtifactPanel } from "./helpers";
 import { CapabilityHome, WikiHome } from "./home";
 import { savePreset } from "./presets";
@@ -16,12 +22,45 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
   // Hooks 必须在条件 return 之前
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  // Parent interaction handler (from ConsoleView's InteractionProvider).
+  // Each card wraps its content in a child provider that injects the card's
+  // artifact ref/title when an inner widget (e.g. a Table) emits without its
+  // own ref, so the agent always knows WHICH card the user interacted with.
+  const parentEmit = useInteraction();
 
   if (state.wikiOpen === true) {
     return <WikiHome />;
   }
   const artifacts = ((state.artifacts as ArtifactPanel[]) ?? []);
   const homePinned = state.homePinned === true;
+  // While the agent is processing the first turn, show a skeleton loading
+  // grid instead of snapping back to the home page. This keeps the UI loop
+  // feeling responsive: user clicks starter -> sees loading -> cards appear.
+  if ((!artifacts.length && loading) && !homePinned) {
+    return (
+      <div className="artifact-gallery-grid" style={{ minHeight: 200 }}>
+        <div style={{ gridColumn: "1 / -1" }} className="m-card" >
+          <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className="gallery-skeleton-dot" />
+              <span className="console-skeleton-line" style={{ width: 140, height: 13 }} />
+            </div>
+            <span className="console-skeleton-line" style={{ width: "80%", height: 12 }} />
+            <span className="console-skeleton-line" style={{ width: "60%", height: 12 }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12, marginTop: 6 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-card)", padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <span className="console-skeleton-line" style={{ width: "60%", height: 10 }} />
+                  <span className="console-skeleton-line" style={{ width: 48, height: 28 }} />
+                  <span className="console-skeleton-line" style={{ width: "80%", height: 8 }} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!artifacts.length || homePinned) {
     return <CapabilityHome />;
   }
@@ -70,7 +109,24 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
 
   return (
     <div className="artifact-gallery-grid">
-      {artifacts.map((artifact) => (
+     {artifacts.map((artifact) => {
+        // Per-card handler: when an inner widget (Table/Chart/etc.) has no
+        // own ref, fall back to the artifact's ref and tag the payload with
+        // the card title so the agent can correlate the interaction with the
+        // card it just rendered. This closes the interaction loop.
+        const cardEmit: InteractionHandler = (widgetRef, interaction, payload) => {
+          if (widgetRef) {
+            parentEmit(widgetRef, interaction, payload);
+            return;
+          }
+          const enriched: Record<string, unknown> = {
+            ...payload,
+            _cardRef: artifact.ref,
+            _cardTitle: artifact.title,
+          };
+          parentEmit(artifact.ref, interaction, enriched);
+        };
+        return (
         <div
           key={artifact.ref}
           draggable
@@ -101,10 +157,12 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
           >
             📦
           </button>
-          <span className="gallery-ref-tag">{artifact.ref}</span>
+         <span className="gallery-ref-tag">{artifact.ref}</span>
+          <InteractionProvider value={cardEmit}>
           <div className="airui-gallery-card" style={{ padding: 12 }}>
             <AirUIComponent comp={artifact.component} />
           </div>
+          </InteractionProvider>
           {artifact.actions && artifact.actions.length > 0 && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "0 12px 12px", borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
               {artifact.actions.map((action, i) => {
@@ -130,7 +188,8 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
             </div>
           )}
         </div>
-      ))}
+      );
+    })}
     </div>
   );
 };

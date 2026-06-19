@@ -60,6 +60,49 @@ You can help the user manage LLM provider presets and saved instances through co
 - When tools fail, summarize the failure and continue with the best available information.
 """
 
+UI_INTERACTION_GUIDANCE = """
+## UI Interaction Events
+The user can interact with the AIRUI cards you generate: clicking buttons, drilling
+into table rows, selecting tabs, filtering data, etc. These interactions arrive as
+natural-language messages that describe what the user did. Respond by generating new
+or updated AIRUI panels that serve the user implicit intent. The interaction message
+identifies the card the user touched (its ref and, when available, its title) plus the
+row/item/value involved. Use that context to respond with something NEW and useful.
+
+CRITICAL LOOP CONTRACT: every UI interaction message MUST be answered with at least one
+`render_airui_panel` call. Never reply to an interaction with plain text alone, and never
+repeat a previous panel verbatim. If the interaction is a drilldown, render a fresh
+detail/breakdown panel (e.g. a focused Table, a KPI row, or a Chart) for the specific
+row the user selected. If it is a select/change, render an updated panel reflecting the
+new selection. The goal is a continuous loop: user clicks something in a card -> you
+render a new card -> user clicks again.
+
+- A drilldown on a table row means the user wants more detail about that row. Render
+  a new panel with expanded information, a detail view, or a related breakdown.
+- A click on a button means the user wants to perform that button implied action.
+- A select or change on a control means the user is adjusting the view: update
+  the relevant panel to reflect their selection.
+- Always include 2-4 action buttons on interactive panels so the user can continue the
+  interaction loop without typing.
+"""
+
 
 def build_system_prompt() -> str:
-    return f"Current date: {date.today().isoformat()}\n\n{SYSTEM_PROMPT}"
+    """Build the runtime system prompt.
+
+    A user-defined domain instruction (config ``system_prompt``) is prepended so
+    the agent adopts the configured persona/domain knowledge, turning the generic
+    console into a tailored domain workspace. Falls back to the built-in generic
+    prompt when the field is empty.
+    """
+    custom = ""
+    try:
+        from . import config
+        custom = str(config.AGENT_CONFIG.get("system_prompt") or "").strip()
+    except Exception:
+        custom = ""
+    header = f"Current date: {date.today().isoformat()}\n\n"
+    body = SYSTEM_PROMPT + UI_INTERACTION_GUIDANCE
+    if custom:
+        return f"{header}## Domain Instructions (user-defined)\n{custom}\n\n{body}"
+    return f"{header}{body}"

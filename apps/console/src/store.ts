@@ -4,6 +4,28 @@ import type { ProviderPreset } from "./providerPresets";
 import { applyPatches } from "@air-ui/core";
 import { loadSessions, saveSessions, loadActiveSessionId, saveActiveSessionId, createSession, deriveTitle, type ChatSession } from "./chatHistory";
 
+export interface DomainTemplateStarter {
+  label: string;
+  prompt: string;
+  variant?: "primary" | "secondary";
+}
+
+export interface DomainTemplate {
+  key: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  system_prompt?: string;
+ home?: {
+   enabled?: boolean;
+   title?: string;
+   subtitle?: string;
+   starters?: DomainTemplateStarter[];
+   widgets?: HomeWidget[];
+ };
+  mcp?: { servers?: McpServerConfig[] };
+}
+
 export interface ToolStatus {
   name: string;
   state: "running" | "done" | "error";
@@ -73,9 +95,13 @@ export interface AgentConfig {
    chatWidth?: number;
  };
   home: HomeConfig;
+  /** User-defined domain instructions prepended to the agent system prompt.
+   *  Empty falls back to the built-in generic prompt. */
+  system_prompt: string;
  skills: { enabled: boolean; search_paths: string[] };
   mcp: { enabled: boolean; servers: McpServerConfig[] };
   plugins: { enabled: boolean; search_paths: string[]; marketplaces: MarketplaceSource[] };
+  domain_templates: DomainTemplate[];
 }
 
 export interface MarketplaceSource {
@@ -94,6 +120,38 @@ export interface HomeStarter {
   icon?: string;
 }
 
+/** A home widget action button: clicking sends `prompt` as the next user turn,
+ *  closing the UI loop from a live data card. */
+export interface HomeWidgetAction {
+  label: string;
+  prompt: string;
+  variant?: "primary" | "secondary";
+}
+
+/** A live data card on the custom home. Backed by a direct MCP tool call
+ *  (no LLM): the backend resolves the tool result into a Table/KPI/Text card. */
+export interface HomeWidget {
+  ref: string;
+  title?: string;
+  /** Bento column span (1-12); defaults to 6. */
+  colSpan?: number;
+  kind?: "auto" | "table" | "kpi" | "text";
+  /** Prefixed MCP tool name, e.g. "mcp_kpl_emotion_today". */
+  tool?: string;
+  server?: string;
+  toolName?: string;
+  args?: Record<string, unknown>;
+  /** Dotted path into the payload to normalize (e.g. "DaBanList", "list"). */
+  path?: string;
+  /** Restrict/select table columns; also labels positional-list columns. */
+  columns?: string[];
+  /** For kind=kpi on a dict: which key's value to display. */
+  valueKey?: string;
+  /** Cap the number of table rows. */
+  limit?: number;
+  actions?: HomeWidgetAction[];
+}
+
 /** Customizable start page. When `starters` is non-empty the home renders a
  *  domain launcher instead of the generic capability home. */
 export interface HomeConfig {
@@ -101,6 +159,7 @@ export interface HomeConfig {
   title: string;
   subtitle: string;
   starters: HomeStarter[];
+  widgets?: HomeWidget[];
 }
 
 
@@ -140,10 +199,12 @@ export const defaultAgentConfig: AgentConfig = {
   active_provider_id: null,
   provider_presets: [],
  ui: { theme: "light", language: "zh-CN", chatCollapsed: false, chatWidth: 360 },
-  home: { enabled: true, title: "", subtitle: "", starters: [] },
+ home: { enabled: true, title: "", subtitle: "", starters: [], widgets: [] },
+ system_prompt: "",
  skills: { enabled: true, search_paths: ["packages/agent-skills"] },
   mcp: { enabled: true, servers: [] },
   plugins: { enabled: true, search_paths: [], marketplaces: [] },
+  domain_templates: [],
 };
 
 const WELCOME_MESSAGES: Record<LanguageCode, string> = {
@@ -308,6 +369,7 @@ export const useStore = create<AppState>((set, get) => ({
        skills: { ...defaultAgentConfig.skills, ...s.appConfig.skills, ...config.skills },
         mcp: { ...defaultAgentConfig.mcp, ...s.appConfig.mcp, ...config.mcp },
         plugins: { ...defaultAgentConfig.plugins, ...s.appConfig.plugins, ...config.plugins },
+        domain_templates: config.domain_templates ?? s.appConfig.domain_templates ?? [],
       },
     })),
   addChatMessage: (msg) => {

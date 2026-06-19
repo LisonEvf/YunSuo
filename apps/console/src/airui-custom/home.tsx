@@ -4,7 +4,7 @@ import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { useStore } from "../store";
 import { sendChat } from "../chat";
 import { type McpToolLite, type McpServerLite, type ArtifactPanel } from "./helpers";
-import type { HomeStarter } from "../store";
+import type { HomeStarter, HomeWidget } from "../store";
 import { removeNodeByRef, savePreset, listPresets, deletePreset, type UIPreset } from "./presets";
 import Icon from "../components/Icon";
 import { showToast } from "../components/Toast";
@@ -58,10 +58,87 @@ const starterCardStyle: CSSProperties = { display: "flex", flexDirection: "colum
 const starterLabelStyle: CSSProperties = { fontSize: 14, fontWeight: 700, color: "var(--color-text)", letterSpacing: "-0.01em" };
 const starterHintStyle: CSSProperties = { fontSize: 11, color: "var(--color-muted)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" };
 
-export const CustomHome: FC<{ starters: HomeStarter[]; title: string; subtitle: string }> = ({ starters, title, subtitle }) => {
+/* ── Live home widgets: MCP-backed data cards ─────────────────────── */
+
+/** One widget resolved by the backend into a concrete AIRUI component. */
+interface ResolvedHomeWidget {
+  ref: string;
+  title?: string;
+  colSpan?: number;
+  component: Component;
+  actions?: { label: string; prompt: string; variant?: string }[];
+}
+
+/* Map a 1-12 colSpan onto the responsive bento classes that actually exist. */
+const bentoColClass = (span?: number): string => {
+  const s = span ?? 6;
+  if (s >= 10) return "bento-col-12";
+  if (s >= 8) return "bento-col-8";
+  if (s >= 5) return "bento-col-6";
+  if (s >= 3) return "bento-col-4";
+  return "bento-col-3";
+};
+
+const widgetActionPrimary: CSSProperties = { height: 30, padding: "0 14px", borderRadius: "var(--radius-pill)", border: "1px solid var(--color-primary)", background: "var(--color-primary)", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" };
+const widgetActionGhost: CSSProperties = { height: 30, padding: "0 14px", borderRadius: "var(--radius-pill)", border: "1px solid var(--color-primary-border)", background: "transparent", color: "var(--color-primary-strong)", fontSize: 12, fontWeight: 600, cursor: "pointer" };
+
+/** A single live-data card: title bar + resolved component + action buttons
+ *  that close the UI loop via sendChat. */
+const LiveWidgetCard: FC<{ widget: ResolvedHomeWidget; loading?: boolean }> = ({ widget, loading }) => {
+  const actions = widget.actions ?? [];
+  return (
+    <div className={"m-card " + bentoColClass(widget.colSpan)} style={{ gap: 12, overflow: "hidden", minWidth: 0 }}>
+      {widget.title && (
+        <div style={{ ...cardTitleStyle, flexShrink: 0 }}>
+          <span style={accentBar} />{widget.title}
+        </div>
+      )}
+      <div style={{ flex: 1, minHeight: 0, opacity: loading ? 0.45 : 1 }}>
+        <AirUIComponent comp={widget.component} />
+      </div>
+      {actions.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flexShrink: 0 }}>
+          {actions.map((a, i) => (
+            <button key={i} onClick={() => void sendChat(a.prompt)} style={a.variant === "primary" ? widgetActionPrimary : widgetActionGhost}>
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const CustomHome: FC<{ starters: HomeStarter[]; widgets?: HomeWidget[]; title: string; subtitle: string }> = ({ starters, widgets, title, subtitle }) => {
   const doc = useAirUIStore((s) => s.doc);
   const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string>) || {};
   const run = (s: HomeStarter) => { void sendChat(s.prompt); };
+
+  /* Resolve live widgets once per configuration. The backend calls each MCP
+   *  tool directly (no LLM) and returns AIRUI components for Table/KPI/Text. */
+  const [live, setLive] = useState<ResolvedHomeWidget[]>([]);
+  const [loadingWidgets, setLoadingWidgets] = useState(false);
+  const widgetSig = JSON.stringify(widgets ?? []);
+  useEffect(() => {
+    let cancelled = false;
+    if (!widgets || widgets.length === 0) { setLive([]); return; }
+    setLoadingWidgets(true);
+    fetch("/api/home/widgets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ widgets }),
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then((data) => {
+        if (cancelled) return;
+        setLive(Array.isArray(data?.widgets) ? (data.widgets as ResolvedHomeWidget[]) : []);
+      })
+      .catch(() => { if (!cancelled) setLive([]); })
+      .finally(() => { if (!cancelled) setLoadingWidgets(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetSig]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-md)" }}>
       <div className="bento-hero">
@@ -71,6 +148,13 @@ export const CustomHome: FC<{ starters: HomeStarter[]; title: string; subtitle: 
           {subtitle && <div style={{ ...captionStyle, maxWidth: 620 }}>{subtitle}</div>}
         </div>
       </div>
+      {live.length > 0 && (
+        <div className="bento-grid">
+          {live.map((w) => (
+            <LiveWidgetCard key={w.ref} widget={w} loading={loadingWidgets} />
+          ))}
+        </div>
+      )}
       <div className="bento-grid">
         {starters.map((s, i) => {
           const primary = s.variant === "primary";
@@ -117,9 +201,11 @@ export const CapabilityHome: FC = () => {
   // Customizable start page: a configured domain launcher takes precedence
   // over the generic capability home, making the UI — not chat — the entry.
   // (kept after all hooks so hook order is stable across renders)
-  const homeCfg = useStore((s) => s.appConfig.home);
-  if (homeCfg?.enabled !== false && Array.isArray(homeCfg?.starters) && homeCfg.starters.length > 0) {
-    return <CustomHome starters={homeCfg.starters} title={homeCfg.title} subtitle={homeCfg.subtitle} />;
+ const homeCfg = useStore((s) => s.appConfig.home);
+  const homeStarters = Array.isArray(homeCfg?.starters) ? homeCfg.starters : [];
+  const homeWidgets = homeCfg?.widgets ?? [];
+  if (homeCfg?.enabled !== false && (homeStarters.length > 0 || homeWidgets.length > 0)) {
+    return <CustomHome starters={homeStarters} widgets={homeWidgets} title={homeCfg.title} subtitle={homeCfg.subtitle} />;
   }
 
  const insertPreset = (preset: UIPreset) => {

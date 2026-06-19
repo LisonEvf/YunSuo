@@ -4,10 +4,9 @@ import { AirUIComponent, InteractionProvider, useAirUIStore } from "@air-ui/rend
 import { useStore, defaultAgentConfig, type McpServerConfig, type ProviderInstance, type MarketplaceSource } from "../store";
 import type { HomeConfig } from "../store";
 import { t, messages } from "../i18n";
-import { sendInteraction } from "../ws-client";
 import { consoleLayout } from "../consoleLayout";
 import { registerConsoleComponents, normalizeAirUIComponent, type ArtifactPanel } from "../airui-custom";
-import { sendChat, HOME_PROMPTS } from "../chat";
+import { sendChat, sendInteractionViaChat, HOME_PROMPTS } from "../chat";
 
 // 模块级注册自定义组件（幂等）
 registerConsoleComponents();
@@ -22,6 +21,7 @@ interface DraftShape {
   skills: { enabled: boolean; search_paths: string[] };
   mcp: { enabled: boolean; servers: McpServerConfig[] };
   plugins: { enabled: boolean; search_paths: string[]; marketplaces: MarketplaceSource[] };
+  system_prompt: string;
 }
 
 // 从后端 artifact 影子文档提取工件面板（ref=row-artifacts 下的 Widget 列表）
@@ -57,6 +57,7 @@ function openSettings() {
     settingsOpen: true,
     mainVisible: false,
     settingsError: "",
+    settingsSection: "domain",
     draft: {
       ui: { theme: cfg.ui.theme, language: cfg.ui.language },
       home: { enabled: cfg.home?.enabled ?? true, title: cfg.home?.title ?? "", subtitle: cfg.home?.subtitle ?? "", starters: (cfg.home?.starters ?? []).map((s) => ({ ...s })) },
@@ -67,6 +68,7 @@ function openSettings() {
       skills: { enabled: cfg.skills.enabled, search_paths: [...cfg.skills.search_paths] },
       mcp: { enabled: cfg.mcp.enabled, servers: cfg.mcp.servers.map((s) => ({ ...s })) },
       plugins: { enabled: cfg.plugins.enabled, search_paths: [...cfg.plugins.search_paths], marketplaces: (cfg.plugins.marketplaces ?? []).map((m) => ({ ...m })) },
+      system_prompt: cfg.system_prompt ?? "",
     } as DraftShape,
   });
   window.dispatchEvent(new CustomEvent("yunsuo:inspector-refresh"));
@@ -109,6 +111,7 @@ async function saveSettings() {
       skills: { ...current.skills, ...draft.skills },
       mcp: { ...current.mcp, ...draft.mcp },
       plugins: { ...current.plugins, ...draft.plugins },
+      system_prompt: draft.system_prompt ?? current.system_prompt ?? "",
     };
     const res = await fetch("/api/config", {
       method: "PUT",
@@ -274,7 +277,7 @@ export default function ConsoleView() {
     else if (widgetRef.startsWith("home:")) {
       const prompt = HOME_PROMPTS[widgetRef];
       if (prompt) void sendChat(prompt);
-    } else sendInteraction(widgetRef, interaction, payload);
+    } else void sendInteractionViaChat(widgetRef, interaction, payload);
   }, []);
 
   if (!airuiDoc) return null;

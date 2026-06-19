@@ -1,0 +1,80 @@
+INFO:     127.0.0.1:51550 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51559 - "POST /api/home/widgets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51618 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52223 - "GET /console/index.html?v=1781820038736 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52223 - "GET /console/assets/index-CUVOoiKL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52223 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63706 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51934 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58840 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50087 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51127 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51127 - "GET /console/sw.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:61858 - "POST /api/home/widgets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59210 - "GET /console/assets/index-Cj3HBoZY.css HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53176 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59210 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49494 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62870 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51418 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /console/icon-192.png HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53496 - "GET /console/sw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53496 - "GET /console/?cb=1781797726475 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /console/assets/index-CUVOoiKL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57869 - "GET /console/assets/vendor-RTquq3oZ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65413 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57645 - "GET /console/assets/index-DTB4Tb_U.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64645 - "GET /console/manifest.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65413 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57869 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64551 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60120 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57645 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53496 - "GET /console/icon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57645 - "GET /console/icon-192.png HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53739 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53739 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58261 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60138 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61880 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49372 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "PUT /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65285 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50164 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51499 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50132 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50164 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61673 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51499 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50132 - "GET /api/plugins/marketplace HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50164 - "POST /api/models HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "POST /api/home/widgets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "PUT /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "GET /console/assets/charts-zzDXTw6g.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "GET /console/assets/index-Cj3HBoZY.css HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56342 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:56342 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54871 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50453 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57576 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57576 - "GET /console/icon-192.png HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59966 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59966 - "GET /console/sw.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59966 - "GET /console/?cb=1781797726475 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59966 - "GET /console/assets/index-CUVOoiKL.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50453 - "GET /console/assets/index-DTB4Tb_U.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54871 - "GET /.well-known/appspecific/com.chrome.devtools.json HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:57576 - "GET /console/assets/vendor-RTquq3oZ.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58642 - "GET /console/manifest.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57576 - "GET /api/skills HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59966 - "GET /api/memory/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54871 - "GET /api/config HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50453 - "GET /api/trajectories/summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59447 - "GET /api/mcp/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56342 - "GET /api/plugins HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57576 - "GET /console/icon.svg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59966 - "GET /console/icon-192.png HTTP/1.1" 404 Not Found

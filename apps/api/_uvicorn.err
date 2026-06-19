@@ -1,0 +1,90 @@
+INFO:     Started server process [32604]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:49659 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:51549 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+[06/19/26 06:00:13] INFO     Processing request of type           server.py:733
+                             ListToolsRequest                                  
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+                    INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:64100 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+[06/19/26 06:03:48] INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:62917 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:53817 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+WARNING:app.agent.mcp_client:MCP server 'tdx' load failed: 
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:httpx:HTTP Request: GET http://127.0.0.1:11232/v1/models "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:11232/v1/chat/completions "HTTP/1.1 200 OK"
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:65422 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:56674 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:58259 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered

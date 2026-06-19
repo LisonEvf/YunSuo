@@ -162,3 +162,76 @@ export const HOME_PROMPTS: Record<string, string> = {
   "home:prompt-table": "生成一个示例数据表格",
   "home:prompt-doc": "用 Markdown 起草一份示例文档",
 };
+
+/**
+ * Format a UI interaction into a natural-language instruction the agent can act on.
+ * This closes the loop: user interacts with a card component -> agent turn -> new UI.
+ */
+function formatInteractionMessage(
+  widgetRef: string,
+  interaction: string,
+  payload: Record<string, unknown>,
+): string {
+  const raw = payload || {};
+  // The gallery attaches the owning card's ref/title when an inner widget
+  // (e.g. a Table) emits without its own ref. Surface them as readable context
+  // and strip them so they don't clutter the data dump below.
+  const cardTitle = typeof raw._cardTitle === "string" ? raw._cardTitle : "";
+  const p: Record<string, unknown> = { ...raw };
+  delete p._cardTitle;
+  delete p._cardRef;
+  const ctx = cardTitle ? ` on card "${cardTitle}"` : "";
+  switch (interaction) {
+    case "drilldown": {
+      const row = p.row ?? p.data ?? p.item;
+      const idx = p.index;
+      const rowStr = row ? JSON.stringify(row) : "";
+      return idx != null
+        ? `User drilled into row ${idx} of "${widgetRef}"${ctx}${rowStr ? `: ${rowStr}` : ""}. Show detailed information for this selection.`
+        : `User drilled into "${widgetRef}"${ctx}${rowStr ? `: ${rowStr}` : ""}. Show detailed information.`;
+    }
+    case "click": {
+      const label = p.label ?? p.key ?? p.name;
+      return `User clicked "${label ?? widgetRef}" on component "${widgetRef}"${ctx}.`;
+    }
+    case "change": {
+      const val = p.value ?? p.checked;
+      return `User changed "${widgetRef}"${ctx}${val !== undefined ? ` to ${JSON.stringify(val)}` : ""}.`;
+    }
+    case "select": {
+      const val = p.value ?? p.key ?? p.tab ?? p.node ?? p.date ?? p.item;
+      return `User selected ${val !== undefined ? JSON.stringify(val) : "an item"} from "${widgetRef}"${ctx}.`;
+    }
+    case "rowClick": {
+      const row = p.row;
+      return `User clicked row ${p.index ?? ""} of "${widgetRef}"${ctx}${row ? `: ${JSON.stringify(row)}` : ""}.`;
+    }
+    case "filter": {
+      return `User filtered "${widgetRef}"${ctx} with query: ${JSON.stringify(p.query ?? "")}.`;
+    }
+    case "search": {
+      return `User searched "${widgetRef}"${ctx} for: ${JSON.stringify(p.query ?? "")}.`;
+    }
+    case "action": {
+      return `User triggered the action button on "${widgetRef}"${ctx}.`;
+    }
+    default: {
+      const dataStr = Object.keys(p).length ? ` Data: ${JSON.stringify(p)}` : "";
+      return `User interacted with component "${widgetRef}" (${interaction})${ctx}.${dataStr}`;
+    }
+  }
+}
+
+/**
+ * Send a UI interaction through the agent chat flow (SSE streaming).
+ * This is the closed-loop bridge: clicking a component inside a card triggers
+ * a new agent turn that can generate updated/new UI.
+ */
+export async function sendInteractionViaChat(
+  widgetRef: string,
+  interaction: string,
+  payload: Record<string, unknown> = {},
+) {
+  const message = formatInteractionMessage(widgetRef, interaction, payload);
+  await sendChat(message);
+}

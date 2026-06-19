@@ -305,7 +305,11 @@ async def test_chat_stream_airui_inline_event(mock_agent, monkeypatch):
     events = await _collect(mock_agent.chat_stream([{"role": "user", "content": "render"}]))
     airui_events = [e for e in events if e["type"] == "airui"]
     assert len(airui_events) >= 1
-    assert airui_events[0]["data"] == airui_content
+    # render_airui_panel emits a full panel descriptor (ref/title/col_span/
+    # row_span/actions/content) so one response can render several cards.
+    panel = airui_events[0]["data"]
+    assert panel["col_span"] == 12
+    assert panel["content"] == airui_content
 
 
 @pytest.mark.asyncio

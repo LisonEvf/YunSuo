@@ -2176,3 +2176,27 @@ button:not(:disabled):active,
   scrollbar-width: thin;
   scrollbar-color: var(--color-border-strong) transparent;
 }
+
+/* Pulsing dot for the gallery loading skeleton. */
+.gallery-skeleton-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: skill-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* Settings footer: cancel/save action buttons — capsule shape + breathing room.
+   The core Button component hardcodes its style (ignores props), so we scope
+   overrides here to match the minimalist card / Morandi design language. */
+.settings-footer {
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+}
+.settings-footer button {
+  margin: var(--space-xs) 0;
+  border-radius: var(--radius-pill) !important;
+}
+/* Inter-button spacing comes from the footer flex `gap` so the two pills sit
+   as a cohesive group; buttons only carry a small vertical margin for touch room. */

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from .airui.renderer import render_console
 from .airui.session import session_manager
 from .airui.ws_bridge import register_ws_routes
+from .home_widgets import resolve_widgets
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -76,6 +77,10 @@ class ConfigRequest(BaseModel):
     config: dict
 
 
+class HomeWidgetsRequest(BaseModel):
+    widgets: list[dict]
+
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     """General agent chat endpoint with optional streaming and skill activation."""
@@ -112,10 +117,11 @@ async def chat(req: ChatRequest):
 
 @app.get("/api/config")
 def get_config():
-    from .agent.config import load_agent_config, get_merged_presets
+    from .agent.config import load_agent_config, get_merged_presets, get_merged_domain_templates
 
     cfg = load_agent_config()
     cfg["provider_presets"] = get_merged_presets(cfg)
+    cfg["domain_templates"] = get_merged_domain_templates(cfg)
     return {"config": cfg}
 
 
@@ -172,6 +178,17 @@ def mcp_reconnect():
     except Exception as exc:
         logger.warning("mcp reconnect: agent rebuild failed: %s", exc)
     return {"servers": _status()}
+
+
+@app.post("/api/home/widgets")
+def home_widgets(req: HomeWidgetsRequest):
+    """Resolve live home widgets to AIRUI components backed by MCP tools.
+
+    Each widget calls its MCP tool directly (no LLM) and is normalized into a
+    Table/KPI/Text card, so a custom start page can show live data. Failures
+    degrade per-widget to a text card instead of erroring the whole request.
+    """
+    return {"widgets": resolve_widgets(req.widgets)}
 
 
 @app.get("/api/plugins")

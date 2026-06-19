@@ -7,7 +7,7 @@ import { Card } from "./home";
 import { ArtifactGallery } from "./gallery";
 import { InspectorSkills, RunTimeline } from "./inspector";
 import { MarkdownCard, CodeBlockCard } from "./markdown";
-import { Setting, SettingCard, ListEditor, StartersEditor, SettingsNav, SettingsContent } from "./settings";
+import { Setting, SettingCard, ListEditor, StartersEditor, WidgetsEditor, SettingsNav, SettingsContent, DomainTemplates } from "./settings";
 import { ConnStatus, Notice, McpServers, LlmProviderPanel, ModelFetcher } from "./llm";
 import { SkillsRoster, PluginsRoster } from "./roster";
 import { MarketplaceSources, MarketplaceBrowser } from "./marketplace";
@@ -89,7 +89,8 @@ export function registerConsoleComponents() {
   registerComponent("Card", Card);
   registerComponent("SettingCard", SettingCard);
   registerComponent("ListEditor", ListEditor);
-  registerComponent("StartersEditor", StartersEditor);
+ registerComponent("StartersEditor", StartersEditor);
+  registerComponent("WidgetsEditor", WidgetsEditor);
   registerComponent("McpServers", McpServers);
   registerComponent("LlmProviderPanel", LlmProviderPanel);
   registerComponent("SkillsRoster", SkillsRoster);
@@ -99,6 +100,7 @@ export function registerConsoleComponents() {
   registerComponent("ModelFetcher", ModelFetcher);
   registerComponent("SettingsNav", SettingsNav);
   registerComponent("SettingsContent", SettingsContent);
+  registerComponent("DomainTemplates", DomainTemplates);
   // Rich markdown inside AIRUI cards: overrides the primitive built-in
   // Markdown/CodeBlock renderers with the shared MarkdownView (GFM + Morandi).
   registerComponent("Markdown", MarkdownCard);

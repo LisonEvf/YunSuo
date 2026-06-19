@@ -44,6 +44,10 @@ DEFAULT_AGENT_CONFIG: dict = {
         "subtitle": "",
         "starters": [],
     },
+    # system_prompt: user-defined domain instructions prepended to the agent
+    # system prompt. Redefines persona/domain knowledge to tailor the console
+    # into a domain-specific SaaS. Empty falls back to the built-in generic prompt.
+    "system_prompt": "",
     "skills": {
         "enabled": True,
         # search_paths: 扫描 SKILL.md 的目录列表（相对项目根）
@@ -63,6 +67,12 @@ DEFAULT_AGENT_CONFIG: dict = {
         # url 指向返回 {name, plugins:[{name, description, author, version, category, source, iconColor}]} 的 JSON
         "marketplaces": [],
     },
+    # domain_templates: user-defined domain template overlay (merged with built-in
+    # BUILTIN_DOMAIN_TEMPLATES via get_merged_domain_templates). Each item:
+    #   {key, name, icon?, description?, system_prompt?, home?: {title, subtitle, starters[]}, mcp?: {servers[]}}
+    # Applying a template writes home/system_prompt (overwrite) + mcp.servers (append)
+    # into the active config, switching the console into a specialized SaaS.
+    "domain_templates": [],
 }
 
 
@@ -177,6 +187,18 @@ def get_merged_presets(cfg: dict | None = None) -> list[dict]:
     if cfg is None:
         cfg = AGENT_CONFIG
     return merge_presets(BUILTIN_PROVIDER_PRESETS, cfg.get("provider_presets") or [])
+
+
+def get_merged_domain_templates(cfg: dict | None = None) -> list[dict]:
+    """Return built-in domain templates merged with cfg's user overlay layer.
+
+    Used by /api/config so the frontend can list every applicable domain
+    template (built-in + user-defined) in one shot. Mirrors get_merged_presets.
+    """
+    from .domain_templates import BUILTIN_DOMAIN_TEMPLATES, merge_domain_templates
+    if cfg is None:
+        cfg = AGENT_CONFIG
+    return merge_domain_templates(BUILTIN_DOMAIN_TEMPLATES, cfg.get("domain_templates") or [])
 
 
 AGENT_CONFIG = reload_config()

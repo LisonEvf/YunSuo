@@ -1,10 +1,12 @@
 import { type FC, type CSSProperties, useState, useId } from "react";
-import Icon from "../components/Icon";
+import Icon, { type IconName } from "../components/Icon";
 import type { Component } from "@air-ui/core";
 import { getByPath, setByPath } from "@air-ui/core";
 import { AirUIComponent, useAirUIStore } from "@air-ui/renderer-react";
 import { fieldStyle, fieldLabelStyle, delBtnStyle, addBtnStyle, toggleBtnStyle } from "./helpers";
 import type { HomeStarter } from "../store";
+import type { HomeWidget } from "../store";
+import { useStore, type DomainTemplate } from "../store";
 
 export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
   const doc = useAirUIStore((s) => s.doc);
@@ -42,6 +44,15 @@ export const Setting: FC<{ comp: Component; resolvedProps: Record<string, unknow
         <select id={fieldId} value={String(value ?? "")} onChange={(e) => update(e.target.value)} style={fieldStyle}>
           {selectOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
        </select>
+     ) : kind === "textarea" ? (
+       <textarea
+         id={fieldId}
+         value={String(value ?? "")}
+         rows={(resolvedProps.rows as number) ?? 4}
+         placeholder={placeholder}
+         onChange={(e) => update(e.target.value)}
+         style={{ ...fieldStyle, minHeight: 90, resize: "vertical", fontFamily: "inherit", lineHeight: 1.55 }}
+       />
      ) : (
        <div style={{ position: "relative" }}>
          <input
@@ -153,6 +164,158 @@ export const ListEditor: FC<{ comp: Component; resolvedProps: Record<string, unk
   );
 };
 
+// WidgetsEditor: 编辑 draft.home.widgets — 自定义起始页的「实时数据卡片」
+// 每个卡片直连一个 MCP 工具（不经 LLM），后端把返回数据归一为 Table/KPI/Text 渲染。
+export const WidgetsEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const path = "draft.home.widgets";
+  const raw = doc ? getByPath(doc.state, path) : [];
+  const items: HomeWidget[] = Array.isArray(raw) ? (raw as HomeWidget[]) : [];
+  const t = ((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {};
+  const txt = (k: string) => t[k] ?? k;
+
+  const update = (next: HomeWidget[]) => {
+    if (!doc) return;
+    setDoc({ ...doc, state: setByPath(doc.state, path, next) });
+  };
+
+  const rowStyle: CSSProperties = { display: "flex", flexDirection: "column", gap: 6, padding: "10px 10px 10px 12px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-input)", background: "var(--color-surface-muted)" };
+  const fieldRow: CSSProperties = { display: "flex", gap: 6, alignItems: "center" };
+  const mini: CSSProperties = { ...fieldStyle, padding: "7px 10px", fontSize: 12 };
+  const label: CSSProperties = { fontSize: 10, fontWeight: 700, color: "var(--color-muted)", letterSpacing: "0.04em", textTransform: "uppercase", width: 64, flexShrink: 0 };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {items.length > 0 && (
+        <div style={{ fontSize: 11, color: "var(--color-muted)", lineHeight: 1.5 }}>
+          {txt("widgetsHint")}
+        </div>
+      )}
+      {items.map((item, i) => (
+        <WidgetRow
+          key={i}
+          widget={item}
+          txt={txt}
+          styles={{ rowStyle, fieldRow, mini, label }}
+          onChange={(patch) => update(items.map((x, j) => (j === i ? { ...x, ...patch } : x)))}
+          onDelete={() => update(items.filter((_, j) => j !== i))}
+        />
+      ))}
+      <button
+        onClick={() => update([...items, { ref: "widget-" + Date.now(), title: "", tool: "", kind: "auto", colSpan: 6 }])}
+        style={addBtnStyle}
+      >
+        + {txt("widgetsAdd")}
+      </button>
+    </div>
+  );
+};
+
+const WidgetRow: FC<{
+  widget: HomeWidget;
+  txt: (k: string) => string;
+  styles: { rowStyle: CSSProperties; fieldRow: CSSProperties; mini: CSSProperties; label: CSSProperties };
+  onChange: (patch: Partial<HomeWidget>) => void;
+  onDelete: () => void;
+}> = ({ widget, txt, styles, onChange, onDelete }) => {
+  const [argsText, setArgsText] = useState(() => widget.args ? JSON.stringify(widget.args) : "");
+  const [colsText, setColsText] = useState(() => (widget.columns ?? []).join(", "));
+  const [actionsText, setActionsText] = useState(
+    () => (widget.actions ?? []).map((a) => a.label + " | " + a.prompt + (a.variant === "primary" ? " | primary" : "")).join("\n")
+  );
+  const { rowStyle, fieldRow, mini, label } = styles;
+
+  return (
+    <div style={rowStyle}>
+      <div style={fieldRow}>
+        <input
+          value={widget.title ?? ""}
+          placeholder={txt("widgetsTitlePh")}
+          onChange={(e) => onChange({ title: e.target.value })}
+          style={{ ...mini, flex: "1 1 auto" }}
+        />
+        <button onClick={onDelete} style={{ ...delBtnStyle, marginLeft: "auto" }} title={txt("delete")} aria-label={txt("delete")}>×</button>
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>tool</span>
+        <input
+          value={widget.tool ?? ""}
+          placeholder={txt("widgetsToolPh")}
+          onChange={(e) => onChange({ tool: e.target.value })}
+          style={mini}
+        />
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>{txt("widgetsKind")}</span>
+        <select value={widget.kind ?? "auto"} onChange={(e) => onChange({ kind: e.target.value as HomeWidget["kind"] })} style={{ ...mini, flex: "0 0 96px" }}>
+          <option value="auto">auto</option>
+          <option value="table">table</option>
+          <option value="kpi">kpi</option>
+          <option value="text">text</option>
+        </select>
+        <span style={label}>{txt("widgetsSpan")}</span>
+        <select value={String(widget.colSpan ?? 6)} onChange={(e) => onChange({ colSpan: Number(e.target.value) })} style={{ ...mini, flex: "0 0 64px" }}>
+          {[3, 4, 6, 8, 12].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>path</span>
+        <input value={widget.path ?? ""} placeholder={txt("widgetsPathPh")} onChange={(e) => onChange({ path: e.target.value || undefined })} style={mini} />
+        <span style={label}>{txt("widgetsValue")}</span>
+        <input value={widget.valueKey ?? ""} placeholder={txt("widgetsValuePh")} onChange={(e) => onChange({ valueKey: e.target.value || undefined })} style={mini} />
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>{txt("widgetsCols")}</span>
+        <input
+          value={colsText}
+          placeholder={txt("widgetsColsPh")}
+          onChange={(e) => {
+            setColsText(e.target.value);
+            const cols = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+            onChange({ columns: cols.length ? cols : undefined });
+          }}
+          style={mini}
+        />
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>args</span>
+        <input
+          value={argsText}
+          placeholder={txt("widgetsArgsPh")}
+          onChange={(e) => {
+            setArgsText(e.target.value);
+ try {
+              const parsed = e.target.value.trim() ? JSON.parse(e.target.value) : {};
+              if (parsed && typeof parsed === "object") onChange({ args: parsed });
+ } catch { /* allow free typing until valid JSON */ }
+          }}
+          style={mini}
+        />
+      </div>
+      <div style={fieldRow}>
+        <span style={label}>{txt("widgetsActions")}</span>
+        <input
+          value={actionsText}
+          placeholder={txt("widgetsActionsPh")}
+          onChange={(e) => {
+            setActionsText(e.target.value);
+            const acts = e.target.value.split("\n").map((line) => {
+              const parts = line.split("|").map((s) => s.trim());
+              if (parts.length < 2 || !parts[0]) return null;
+              const a: { label: string; prompt: string; variant?: "primary" | "secondary" } = { label: parts[0], prompt: parts[1] };
+              if (parts[2] === "primary") a.variant = "primary";
+              return a;
+            }).filter(Boolean) as { label: string; prompt: string; variant?: "primary" | "secondary" }[];
+            onChange({ actions: acts.length ? (acts as HomeWidget["actions"]) : undefined });
+          }}
+          style={mini}
+        />
+      </div>
+    </div>
+  );
+};
+
 // McpServers: 编辑 draft.mcp.servers，每 server 一卡片（name/enabled/transport/命令或 url）
 // StartersEditor: 编辑 draft.home.starters — 自定义起始页的一键入口（UI 循环起点）
 export const StartersEditor: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
@@ -218,6 +381,18 @@ interface SettingsSectionDef {
 
 const SETTINGS_SECTIONS: SettingsSectionDef[] = [
   {
+    key: "domain",
+    labelKey: "domainSection",
+    card: {
+      type: "SettingCard",
+      props: { title: "{state.t.domainSection}", desc: "{state.t.settingsDomainDesc}" },
+      children: [
+        { type: "DomainTemplates" },
+        { type: "Setting", props: { path: "system_prompt", kind: "textarea", label: "{state.t.systemPrompt}", placeholder: "{state.t.systemPromptPh}", rows: 10 } },
+      ],
+    },
+  },
+  {
     key: "home",
     labelKey: "homeSection",
     card: {
@@ -226,9 +401,10 @@ const SETTINGS_SECTIONS: SettingsSectionDef[] = [
       children: [
         { type: "Setting", props: { path: "home.title", kind: "text", label: "{state.t.homeSectionTitle}", placeholder: "{state.t.homeSectionTitlePh}" } },
         { type: "Setting", props: { path: "home.subtitle", kind: "text", label: "{state.t.homeSectionSubtitle}", placeholder: "{state.t.homeSectionSubtitlePh}" } },
-        { type: "Setting", props: { path: "home.enabled", kind: "switch", label: "{state.t.homeSectionEnabled}" } },
-        { type: "StartersEditor" },
-      ],
+       { type: "Setting", props: { path: "home.enabled", kind: "switch", label: "{state.t.homeSectionEnabled}" } },
+       { type: "StartersEditor" },
+       { type: "WidgetsEditor" },
+     ],
     },
   },
   {
@@ -336,7 +512,7 @@ export const SettingsNav: FC<{ comp: Component; resolvedProps: Record<string, un
   const setDoc = useAirUIStore((s) => s.setDoc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
   const t = (state.t as Record<string, string> | undefined) ?? {};
-  const current = (state.settingsSection as string) ?? "llm";
+  const current = (state.settingsSection as string) ?? "domain";
   const txt = (k: string) => t[k] ?? k;
 
   const select = (key: string) => {
@@ -368,8 +544,8 @@ export const SettingsNav: FC<{ comp: Component; resolvedProps: Record<string, un
 export const SettingsContent: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
   const doc = useAirUIStore((s) => s.doc);
   const state = (doc?.state ?? {}) as Record<string, unknown>;
-  const current = (state.settingsSection as string) ?? "llm";
-  const section = SETTINGS_SECTIONS.find((s) => s.key === current) ?? SETTINGS_SECTIONS[1];
+  const current = (state.settingsSection as string) ?? "domain";
+  const section = SETTINGS_SECTIONS.find((sec) => sec.key === current) ?? SETTINGS_SECTIONS[0];
   // maxWidth: "none" 让 SettingCard 占满右侧，不再居中受限
   const card: Component = { ...section.card, props: { ...section.card.props, maxWidth: "none" } };
   return (
@@ -380,3 +556,83 @@ export const SettingsContent: FC<{ comp: Component; resolvedProps: Record<string
 };
 
 // ── 能力 Roster：展示后端已发现的 skills / plugins（把配置从盲写变有反馈）────
+
+// ── DomainTemplates: one-click domain template switcher ──
+// Lists built-in + user templates from appConfig.domain_templates. Clicking a
+// template writes home (overwrite) + system_prompt (overwrite) + mcp.servers
+// (append) into the active draft, so the user tailors the console into a
+// specialized SaaS in one action. Mirrors how Setting writes draft via setByPath.
+export const DomainTemplates: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = () => {
+  const doc = useAirUIStore((s) => s.doc);
+  const setDoc = useAirUIStore((s) => s.setDoc);
+  const templates = useStore((s) => s.appConfig.domain_templates) ?? [];
+  const txt = (((doc?.state as Record<string, unknown> | undefined)?.t as Record<string, string> | undefined) ?? {});
+
+  const apply = (tpl: DomainTemplate) => {
+    if (!doc) return;
+    let next = { ...doc.state } as Record<string, unknown>;
+    const draft = { ...((next.draft as Record<string, unknown>) ?? {}) } as Record<string, unknown>;
+    // system_prompt: overwrite (a domain switch replaces persona entirely)
+    if (tpl.system_prompt !== undefined) draft.system_prompt = tpl.system_prompt;
+    // home: overwrite title/subtitle/starters (a domain switch replaces the entry page)
+    if (tpl.home) {
+      const curHome = { ...((draft.home as Record<string, unknown>) ?? {}) };
+      if (tpl.home.title !== undefined) curHome.title = tpl.home.title;
+      if (tpl.home.subtitle !== undefined) curHome.subtitle = tpl.home.subtitle;
+      if (tpl.home.starters !== undefined) curHome.starters = tpl.home.starters.map((s) => ({ ...s }));
+      if (tpl.home.enabled !== undefined) curHome.enabled = tpl.home.enabled;
+      draft.home = curHome;
+    }
+    // mcp.servers: append (data sources are infrastructure; never clobber)
+    if (tpl.mcp?.servers?.length) {
+      const curMcp = { ...((draft.mcp as Record<string, unknown>) ?? {}) };
+      const curServers = (curMcp.servers as Array<Record<string, unknown>>) ?? [];
+      curMcp.servers = [...curServers, ...tpl.mcp.servers.map((s) => ({ ...s }))];
+      draft.mcp = curMcp;
+    }
+    next.draft = draft;
+    setDoc({ ...doc, state: next });
+  };
+
+  if (!templates.length) return null;
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>{txt.domainTemplates}</div>
+      <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 12, lineHeight: 1.5 }}>{txt.domainTemplatesDesc}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+        {templates.map((tpl) => {
+          const iconColor = "var(--color-primary)";
+          return (
+            <div key={tpl.key} style={{
+              background: "var(--color-surface)", border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)", padding: 14, display: "flex", flexDirection: "column", gap: 8,
+              boxShadow: "var(--shadow-panel)", minWidth: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, background: "var(--color-primary-soft, rgba(139,126,200,0.12))", color: iconColor, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon name={((tpl.icon as IconName) ?? "sparkles")} size={16} />
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{tpl.name}</span>
+              </div>
+              {tpl.description ? (
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", lineHeight: 1.5, flex: 1, minHeight: 0 }}>{tpl.description}</div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => apply(tpl)}
+                style={{
+                  alignSelf: "flex-start", padding: "6px 16px", borderRadius: "var(--radius-pill)",
+                  border: "1px solid var(--color-primary)", background: "var(--color-primary)", color: "#fff",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "opacity 0.15s",
+                }}
+              >
+                {txt.applyTemplate}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};

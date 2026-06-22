@@ -81,9 +81,9 @@ const CommandPalette: FC<Props> = ({ open, onClose }) => {
         id: "goHome",
         labelKey: "cmdGoHome",
         icon: "home",
-        action: () => {
-          patchConsoleState({ homePinned: true, artifacts: [], wikiOpen: false, wikiCategory: "", settingsOpen: false, mainVisible: true });
-          onClose();
+       action: () => {
+         patchConsoleState({ homePinned: true, artifacts: [], showcaseView: "", wikiCategory: "", settingsOpen: false, mainVisible: true });
+         onClose();
         },
       },
       {

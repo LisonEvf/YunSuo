@@ -1,4 +1,4 @@
-import type { LanguageCode } from "./store";
+﻿import type { LanguageCode } from "./store";
 
 export const messages: Record<LanguageCode, Record<string, string>> = {
   "zh-CN": {
@@ -400,6 +400,12 @@ export const messages: Record<LanguageCode, Record<string, string>> = {
     addServer: "Add server",
     invoke: "Invoke",
     toolParams: "params",
+   showcaseTitle: "AIRUI Component Showcase",
+   showcaseSubtitle: "Click a category to see each component rendered live.",
+   showcaseGallery: "Component Gallery",
+   showcaseGalleryDesc: "Browse and interact with AIRUI built-in components in real time.",
+   stockSentimentTitle: "A-Share Sentiment Dashboard",
+   stockSentimentDesc: "Pull live market data and render sentiment KPIs and sector boards.",
     modelFetchHint: "Enter Base URL and API Key first",
     modelFetchFailed: "Failed to fetch models. Check URL and API Key.",
     fetchModels: "Fetch available models",

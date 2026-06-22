@@ -1,0 +1,94 @@
+INFO:     Started server process [33656]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:60262 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:62707 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:51638 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+Downloading numpy (11.8MiB)
+ Downloading numpy
+Installed 44 packages in 7.21sInstalled 44 packages in 7.23s
+
+[06/22/26 09:15:06] INFO    [06/22/26 09:15:06]  Processing request of type          INFO      server.pyProcessing request of type          : 733server.py
+:                    733         
+ListToolsRequest                                                               ListToolsRequest                    
+              
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+[06/22/26 09:15:09] INFO     Processing request of type           server.py:733
+                             ListToolsRequest                                  
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+[06/22/26 09:15:09] INFO     Processing request of type           server.py:733
+                             ListToolsRequest                                  
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+[06/22/26 09:15:11] INFO     Processing request of type           server.py:733
+                             ListToolsRequest                                  
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+[06/22/26 09:15:11] INFO     Processing request of type           server.py:733
+                             ListToolsRequest                                  
+INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
+                    INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+WARNING:app.agent.tools:Tool mcp_tdx_get_index_overview({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_emotion_today({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_plate_ranking({'st': '10', 'order': '1'}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_tdx_stock_kline({'market': 1, 'code': '000001', 'period': 4, 'count': '10'}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:59137 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+[06/22/26 09:19:42] INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+WARNING:app.agent.tools:Tool mcp_tdx_get_index_overview({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_emotion_today({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_plate_today({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+WARNING:app.agent.tools:Tool mcp_tdx_stock_quotes({'code_list': [[1, '000001'], [0, '999999']]}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_tdx_market_monitor({'market': 0, 'count': 5}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:49542 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+[06/22/26 09:24:10] INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+WARNING:app.agent.tools:Tool mcp_tdx_get_index_overview({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_emotion_today({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_kpl_plate_ranking({}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+WARNING:app.agent.tools:Tool mcp_tdx_stock_kline({'market': 1, 'code': '000001', 'period': 8, 'count': '10'}) failed: _make_handler.<locals>._handler() takes 1 positional argument but 2 were given
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+ERROR:asyncio:Exception in callback _ProactorBaseWritePipeTransport._loop_writing(<_OverlappedF...hed result=79>)
+handle: <Handle _ProactorBaseWritePipeTransport._loop_writing(<_OverlappedF...hed result=79>)>
+Traceback (most recent call last):
+  File "C:\Users\Lison\anaconda3\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\Lison\anaconda3\Lib\asyncio\proactor_events.py", line 382, in _loop_writing
+    assert f is self._write_fut
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: POST https://open.bigmodel.cn/api/coding/paas/v4/chat/completions "HTTP/1.1 200 OK"
+[06/22/26 09:26:28] INFO     Processing request of type           server.py:733
+                             CallToolRequest                                   
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed

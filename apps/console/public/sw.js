@@ -1,56 +1,44 @@
-// YunSuo Console Service Worker
-const CACHE_VERSION = "yunsuo-v1";
-const STATIC_CACHE = CACHE_VERSION + "-static";
-const RUNTIME_CACHE = CACHE_VERSION + "-runtime";
+﻿// YunSuo Console Service Worker - SELF-UNINSTALLING VERSION
+// This SW exists solely to purge all legacy caches and unregister itself,
+// eliminating the stale-content problem caused by the old cache-first SW.
+// No new SW is registered by the app (see main.tsx), so once this version
+// activates, it cleans up and goes away permanently.
 
-// Assets to precache on install
-const PRECACHE_URLS = [
-  "/console/",
-  "/console/manifest.json",
-];
+const ALL_CACHE_PREFIXES = ["yunsuo-v1", "yunsuo-v2", "yunsuo-v3"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)).catch(() => {})
-  );
+  // Skip waiting so this SW activates immediately, even if an old one is running.
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => !key.startsWith(CACHE_VERSION))
-          .map((key) => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-// Network-first for API/WS, cache-first for static assets
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip non-GET and API/WebSocket requests
-  if (request.method !== "GET") return;
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/ws") || url.pathname.startsWith("/health")) return;
-
-  // Static assets: cache-first
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok && response.type === "basic") {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, clone));
+    (async () => {
+      // 1. Delete every cache from any version (v1, v2, v3, static, runtime).
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map((name) => {
+          if (ALL_CACHE_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+            return caches.delete(name);
           }
-          return response;
-        }).catch(() => cached);
-      })
-    );
-  }
+          return caches.delete(name); // delete everything to be safe
+        })
+      );
+
+      // 2. Claim all clients so the cleanup takes effect on open tabs.
+      await self.clients.claim();
+
+      // 3. Tell every open tab to reload so it picks up the fresh assets.
+      const clientList = await self.clients.matchAll({ type: "window" });
+      clientList.forEach((client) => {
+        client.navigate(client.url);
+      });
+
+      // 4. Unregister this SW so it never intercepts requests again.
+      await self.registration.unregister();
+    })()
+  );
 });
+
+// Pass-through: never intercept any request. Let the browser handle it normally.
+self.addEventListener("fetch", () => {});

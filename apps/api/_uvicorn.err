@@ -1,90 +1,139 @@
-INFO:     Started server process [32604]
+INFO:     Started server process [27532]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:49659 - "WebSocket /ws/airui?session=default" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:51549 - "WebSocket /ws/airui?session=default" [accepted]
-INFO:     connection open
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-[06/19/26 06:00:13] INFO     Processing request of type           server.py:733
-                             ListToolsRequest                                  
-INFO:app.agent.mcp_client:MCP server 'tdx': 33 tools discovered
-                    INFO     Processing request of type           server.py:733
-                             CallToolRequest                                   
-INFO:app.airui.ws_bridge:WS disconnected: session=default
-INFO:     connection closed
-INFO:     127.0.0.1:64100 - "WebSocket /ws/airui?session=default" [accepted]
-INFO:     connection open
-[06/19/26 06:03:48] INFO     Processing request of type           server.py:733
-                             CallToolRequest                                   
-INFO:app.airui.ws_bridge:WS disconnected: session=default
-INFO:     connection closed
-INFO:     127.0.0.1:62917 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     127.0.0.1:51310 - "WebSocket /ws/airui?session=default" [accepted]
 INFO:     connection open
 INFO:app.airui.ws_bridge:WS disconnected: session=default
 INFO:     connection closed
-INFO:     127.0.0.1:53817 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     127.0.0.1:61388 - "WebSocket /ws/airui?session=default" [accepted]
 INFO:     connection open
 INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
-  Caused by: Could not connect, are you offline?
-  Caused by: Request failed after 3 retries
-  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
-  Caused by: client error (Connect)
-  Caused by: dns error: 不知道这样的主机。 (os error 11001)
-  Caused by: 不知道这样的主机。 (os error 11001)
-WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-WARNING:app.agent.mcp_client:MCP server 'tdx' load failed: 
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
-  Caused by: Could not connect, are you offline?
-  Caused by: Request failed after 3 retries
-  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
-  Caused by: client error (Connect)
-  Caused by: dns error: 不知道这样的主机。 (os error 11001)
-  Caused by: 不知道这样的主机。 (os error 11001)
-WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
-  Caused by: Could not connect, are you offline?
-  Caused by: Request failed after 3 retries
-  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
-  Caused by: client error (Connect)
-  Caused by: dns error: 不知道这样的主机。 (os error 11001)
-  Caused by: 不知道这样的主机。 (os error 11001)
-WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
-INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
-error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
-  Caused by: Could not connect, are you offline?
-  Caused by: Request failed after 3 retries
-  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
-  Caused by: client error (Connect)
-  Caused by: dns error: 不知道这样的主机。 (os error 11001)
-  Caused by: 不知道这样的主机。 (os error 11001)
-WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
-error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
-  Caused by: Could not connect, are you offline?
-  Caused by: Request failed after 3 retries
-  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
-  Caused by: client error (Connect)
-  Caused by: dns error: 不知道这样的主机。 (os error 11001)
-  Caused by: 不知道这样的主机。 (os error 11001)
-WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:     127.0.0.1:62737 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:61395 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:64454 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:55381 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     127.0.0.1:50326 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:52229 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:49372 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     127.0.0.1:56011 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
 INFO:httpx:HTTP Request: GET http://127.0.0.1:11232/v1/models "HTTP/1.1 200 OK"
-INFO:httpx:HTTP Request: POST http://127.0.0.1:11232/v1/chat/completions "HTTP/1.1 200 OK"
-INFO:app.airui.ws_bridge:WS disconnected: session=default
-INFO:     connection closed
-INFO:     127.0.0.1:65422 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     127.0.0.1:59340 - "WebSocket /ws/airui?session=default" [accepted]
 INFO:     connection open
 INFO:app.airui.ws_bridge:WS disconnected: session=default
 INFO:     connection closed
-INFO:     127.0.0.1:56674 - "WebSocket /ws/airui?session=default" [accepted]
-INFO:     connection open
-INFO:app.airui.ws_bridge:WS disconnected: session=default
-INFO:     connection closed
-INFO:     127.0.0.1:58259 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     127.0.0.1:54796 - "WebSocket /ws/airui?session=default" [accepted]
 INFO:     connection open
 INFO:app.agent.mcp_client:MCP server 'kpl': 27 tools discovered
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:52501 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+error: Failed to fetch: `https://pypi.org/simple/tdx-mcp/`
+  Caused by: Could not connect, are you offline?
+  Caused by: Request failed after 3 retries
+  Caused by: error sending request for url (https://pypi.org/simple/tdx-mcp/)
+  Caused by: client error (Connect)
+  Caused by: dns error: 不知道这样的主机。 (os error 11001)
+  Caused by: 不知道这样的主机。 (os error 11001)
+WARNING:app.agent.mcp_client:MCP server 'tdx' connect failed: unhandled errors in a TaskGroup (1 sub-exception)
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:58292 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:54666 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:57204 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:55298 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:57930 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:55426 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:62669 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:62863 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:55991 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:60384 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:59902 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:57060 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     127.0.0.1:63523 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:52212 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:57548 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     127.0.0.1:53198 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:     127.0.0.1:49924 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:56903 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     connection closed
+INFO:app.airui.ws_bridge:WS disconnected: session=default
+INFO:     127.0.0.1:50160 - "WebSocket /ws/airui?session=default" [accepted]
+INFO:     connection open

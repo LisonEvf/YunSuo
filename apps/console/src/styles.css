@@ -1,16 +1,14 @@
-* {
+﻿* {
   box-sizing: border-box;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   莫兰迪极简卡片风 — Morandi Minimal Card System
-   ─ 奶油白背景 / 浅灰卡片 / 薰衣草紫主强调色 / 大圆角 / 弥散阴影
-   ─ Bento Grid 便当盒布局 / 充足留白 / 极简图标
-   覆盖 @air-ui/renderer-react 默认主题（:root），不修改 submodule。
-   所有 AIRUI 内置组件均消费以下 CSS 变量，故在此一处统一全站风格。
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   鑾叞杩瀬绠€鍗＄墖椋?鈥?Morandi Minimal Card System
+   鈹€ 濂舵补鐧借儗鏅?/ 娴呯伆鍗＄墖 / 钖拌。鑽夌传涓诲己璋冭壊 / 澶у渾瑙?/ 寮ユ暎闃村奖
+   鈹€ Bento Grid 渚垮綋鐩掑竷灞€ / 鍏呰冻鐣欑櫧 / 鏋佺畝鍥炬爣
+   瑕嗙洊 @air-ui/renderer-react 榛樿涓婚锛?root锛夛紝涓嶄慨鏀?submodule銆?   鎵€鏈?AIRUI 鍐呯疆缁勪欢鍧囨秷璐逛互涓?CSS 鍙橀噺锛屾晠鍦ㄦ涓€澶勭粺涓€鍏ㄧ珯椋庢牸銆?   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 :root {
-  /* ── 莫兰迪色系：低饱和度、柔和克制 ────────────────────── */
+  /* 鈹€鈹€ 鑾叞杩壊绯伙細浣庨ケ鍜屽害銆佹煍鍜屽厠鍒?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€ */
   --color-app-bg: #f6f4f0;
   --color-surface: #ffffff;
   --color-surface-muted: #f0ede7;
@@ -27,7 +25,7 @@
   --color-success: #8faa8b;
   --color-info: #8b7ec8;
 
-  /* ── 弥散阴影：面积大、极浅，营造轻微悬浮的轻盈立体感 ── */
+  /* 鈹€鈹€ 寮ユ暎闃村奖锛氶潰绉ぇ銆佹瀬娴咃紝钀ラ€犺交寰偓娴殑杞荤泩绔嬩綋鎰?鈹€鈹€ */
   --shadow-panel: 0 2px 14px rgba(60, 52, 40, 0.05), 0 1px 3px rgba(60, 52, 40, 0.03);
   --air-shadow: 0 4px 24px rgba(60, 52, 40, 0.06), 0 1px 3px rgba(60, 52, 40, 0.04);
   --air-shadowHover: 0 10px 36px rgba(60, 52, 40, 0.09), 0 3px 10px rgba(60, 52, 40, 0.05);
@@ -40,7 +38,7 @@
   --air-warning: #c4a35a;
   --air-warningBg: rgba(196, 163, 90, 0.14);
 
-  /* ── 圆角 token：大圆角卡片 + 胶囊按钮 ── */
+  /* 鈹€鈹€ 鍦嗚 token锛氬ぇ鍦嗚鍗＄墖 + 鑳跺泭鎸夐挳 鈹€鈹€ */
  --radius-sm: 8px;
  --radius-md: 10px;
  --radius-input: 12px;
@@ -49,7 +47,7 @@
  --radius-card-lg: 22px;
  --radius-pill: 999px;
 
-  /* ── 间距 token（留白尺度）── */
+  /* 鈹€鈹€ 闂磋窛 token锛堢暀鐧藉昂搴︼級鈹€鈹€ */
   --space-xs: 6px;
   --space-sm: 10px;
   --space-md: 16px;
@@ -748,11 +746,8 @@ select {
   color: var(--color-muted);
 }
 
-/* A card whose own content is a markdown table spans the full gallery row so
-   the table keeps its natural width. Mirrors the .md-table-wrap handling for
-   gallery cards. */
-.artifact-gallery-grid > *:has(.airui-card-md .md-table) {
-  grid-column: 1 / -1;
+.airui-gallery-card .md-table-wrap {
+  max-width: 100%;
 }
 
 /* ========================================
@@ -1549,7 +1544,7 @@ button:focus-visible {
   }
 }
 
-/* ── 无障碍：屏幕阅读器专用可见性 ── */
+/* 鈹€鈹€ 鏃犻殰纰嶏細灞忓箷闃呰鍣ㄤ笓鐢ㄥ彲瑙佹€?鈹€鈹€ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1562,7 +1557,7 @@ button:focus-visible {
   border: 0;
 }
 
-/* ── 无障碍：跳到主内容 ── */
+/* 鈹€鈹€ 鏃犻殰纰嶏細璺冲埌涓诲唴瀹?鈹€鈹€ */
 .skip-link {
   position: absolute;
   left: -9999px;
@@ -1581,14 +1576,14 @@ button:focus-visible {
   left: 8px;
 }
 
-/* ── 命令面板：键盘聚焦项的可见焦点环 ── */
+/* 鈹€鈹€ 鍛戒护闈㈡澘锛氶敭鐩樿仛鐒﹂」鐨勫彲瑙佺劍鐐圭幆 鈹€鈹€ */
 .cmd-palette-item:focus-visible,
 .cmd-palette-item[aria-selected="true"] {
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
 
-/* ── 应用内命名输入模态（替代 window.prompt）── */
+/* 鈹€鈹€ 搴旂敤鍐呭懡鍚嶈緭鍏ユā鎬侊紙鏇夸唬 window.prompt锛夆攢鈹€ */
 .prompt-modal-overlay {
   position: fixed;
   inset: 0;
@@ -1679,9 +1674,9 @@ button:focus-visible {
   cursor: not-allowed;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   莫兰迪极简风 — 卡片悬浮 & 按钮按压反馈（视觉打磨）
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   鑾叞杩瀬绠€椋?鈥?鍗＄墖鎮诞 & 鎸夐挳鎸夊帇鍙嶉锛堣瑙夋墦纾級
+   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 .section-card,
 .settings-panel section,
 [data-morandi-card] {
@@ -1692,36 +1687,36 @@ button:focus-visible {
   box-shadow: var(--air-shadowHover);
   transform: translateY(-1px);
 }
-/* 交互式卡片：wiki 分类、画廊、能力卡 */
+/* 浜や簰寮忓崱鐗囷細wiki 鍒嗙被銆佺敾寤娿€佽兘鍔涘崱 */
 .category-card:hover,
 .gallery-card:hover,
 .cap-card:hover {
   box-shadow: var(--air-shadowHover);
   transform: translateY(-2px);
 }
-/* 通用按压反馈 */
+/* 閫氱敤鎸夊帇鍙嶉 */
 button:not(:disabled):active,
 [role="button"]:active {
   transform: scale(0.97);
   transition: transform .08s ease;
 }
-/* 列表项 / 导航 悬浮微反馈 */
+/* 鍒楄〃椤?/ 瀵艰埅 鎮诞寰弽棣?*/
 .nav-item,
 .session-item {
   transition: background .15s ease, color .15s ease;
 }
 
 
-/* ════════════════════════════════════════════════════════════════
-   莫兰迪极简风 — 控制台外壳精修（Chat / Header / Status / 内容区）
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   鑾叞杩瀬绠€椋?鈥?鎺у埗鍙板澹崇簿淇紙Chat / Header / Status / 鍐呭鍖猴級
+   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 
-/* 主内容区：更充足的留白与呼吸感 */
+/* 涓诲唴瀹瑰尯锛氭洿鍏呰冻鐨勭暀鐧戒笌鍛煎惛鎰?*/
 .console-content {
   padding: 22px 22px 28px;
 }
 
-/* 顶栏：标题层级 + 胶囊按钮 */
+/* 椤舵爮锛氭爣棰樺眰绾?+ 鑳跺泭鎸夐挳 */
 .console-header {
   margin-bottom: var(--space-lg) !important;
 }
@@ -1734,15 +1729,14 @@ button:not(:disabled):active,
   color: var(--color-text);
 }
 
-/* 控制台内的 AIRUI 按钮（secondary 导航类）统一为胶囊软按钮 */
+/* 鎺у埗鍙板唴鐨?AIRUI 鎸夐挳锛坰econdary 瀵艰埅绫伙級缁熶竴涓鸿兌鍥婅蒋鎸夐挳 */
 .console-content button,
 .settings-panel button {
   letter-spacing: -0.005em;
 }
 
-/* ════════════════════════════════════════════════════════════════
-   Bento Grid 便当盒布局（首页 / 能力页 / Wiki）
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   Bento Grid 渚垮綋鐩掑竷灞€锛堥椤?/ 鑳藉姏椤?/ Wiki锛?   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 .bento-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
@@ -1766,8 +1760,34 @@ button:not(:disabled):active,
   .bento-col-12, .bento-col-8, .bento-col-6, .bento-col-4, .bento-col-3 { grid-column: span 1; }
   .bento-row-2 { grid-row: span 1; }
 }
+/* Gallery grid: collapse to fewer columns on tablet/mobile so small cards
+   don't shrink below readable width. */
+@media (max-width: 1100px) {
+  .artifact-gallery-grid > *[data-col-span="8"],
+  .artifact-gallery-grid > *[data-col-span="9"],
+  .artifact-gallery-grid > *[data-col-span="6"],
+  .artifact-gallery-grid > *[data-col-span="7"],
+  .artifact-gallery-grid > *[data-col-span="5"],
+  .artifact-gallery-grid > *[data-col-span="4"] {
+    grid-column: span 12;
+  }
+  .artifact-gallery-grid > *[data-col-span="3"],
+  .artifact-gallery-grid > *[data-col-span="2"],
+  .artifact-gallery-grid > *[data-col-span="1"] {
+    grid-column: span 6;
+  }
+  .artifact-gallery-grid > *:not([data-col-span]) {
+    grid-column: span 6;
+  }
+}
+@media (max-width: 720px) {
+  .artifact-gallery-grid { grid-template-columns: 1fr; }
+  .artifact-gallery-grid > * {
+    grid-column: 1 / -1 !important;
+  }
+}
 
-/* 通用莫兰迪卡片（React 内联 style 的辅助类，用于 bento tile） */
+/* 閫氱敤鑾叞杩崱鐗囷紙React 鍐呰仈 style 鐨勮緟鍔╃被锛岀敤浜?bento tile锛?*/
 .m-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1820,7 +1840,7 @@ button:not(:disabled):active,
   letter-spacing: 0.04em;
 }
 
-/* 首页 hero：薰衣草柔光渐变，弱化边界 */
+/* 棣栭〉 hero锛氳柊琛ｈ崏鏌斿厜娓愬彉锛屽急鍖栬竟鐣?*/
 .bento-hero {
   position: relative;
   overflow: hidden;
@@ -1844,7 +1864,7 @@ button:not(:disabled):active,
   pointer-events: none;
 }
 
-/* 胶囊软按钮（bento 内 CTA） */
+/* 鑳跺泭杞寜閽紙bento 鍐?CTA锛?*/
 .m-pill-btn {
   align-self: flex-start;
   height: 36px;
@@ -1871,7 +1891,7 @@ button:not(:disabled):active,
 }
 .m-pill-btn-ghost:hover { background: var(--color-primary-soft); box-shadow: none; }
 
-/* 能力清单行：克制的分隔线 + 悬浮微反馈 */
+/* 鑳藉姏娓呭崟琛岋細鍏嬪埗鐨勫垎闅旂嚎 + 鎮诞寰弽棣?*/
 .m-row {
   display: flex;
   justify-content: space-between;
@@ -1902,18 +1922,14 @@ button:not(:disabled):active,
   white-space: nowrap;
 }
 
-/* 超宽内容防御：home.tsx 的清单行用内联 style（无类名），结构深度不一
-   （skills/plugins 是 .m-card-list>div>span；MCP 服务行多一层包裹 div；
-   MCP 工具用 .m-tool-btn>span；presets 在 button 内）。
-   故改用深层后代选择器，覆盖任意嵌套层级，确保任何超宽文本都被省略截断、
-   而非静默裁切或撑爆卡片。min-width:0 解除 flex item 默认 min-width:auto 的溢出行为。 */
+/* 瓒呭鍐呭闃插尽锛歨ome.tsx 鐨勬竻鍗曡鐢ㄥ唴鑱?style锛堟棤绫诲悕锛夛紝缁撴瀯娣卞害涓嶄竴
+   锛坰kills/plugins 鏄?.m-card-list>div>span锛汳CP 鏈嶅姟琛屽涓€灞傚寘瑁?div锛?   MCP 宸ュ叿鐢?.m-tool-btn>span锛沺resets 鍦?button 鍐咃級銆?   鏁呮敼鐢ㄦ繁灞傚悗浠ｉ€夋嫨鍣紝瑕嗙洊浠绘剰宓屽灞傜骇锛岀‘淇濅换浣曡秴瀹芥枃鏈兘琚渷鐣ユ埅鏂€?   鑰岄潪闈欓粯瑁佸垏鎴栨拺鐖嗗崱鐗囥€俶in-width:0 瑙ｉ櫎 flex item 榛樿 min-width:auto 鐨勬孩鍑鸿涓恒€?*/
 .m-card-list > div,
 .m-card-list > div > div,
 .m-tool-btn {
   min-width: 0;
 }
-/* 各行均为 [span 名称] + [span 描述] 两列，span 内无嵌套 span，
-   故深层 :first-child / :last-child 能安全区分名称（弹性收缩）与描述（限宽）。 */
+/* 鍚勮鍧囦负 [span 鍚嶇О] + [span 鎻忚堪] 涓ゅ垪锛宻pan 鍐呮棤宓屽 span锛?   鏁呮繁灞?:first-child / :last-child 鑳藉畨鍏ㄥ尯鍒嗗悕绉帮紙寮规€ф敹缂╋級涓庢弿杩帮紙闄愬锛夈€?*/
 .m-card-list span:first-child {
   min-width: 0;
   flex: 1 1 0;
@@ -1930,7 +1946,7 @@ button:not(:disabled):active,
   white-space: nowrap;
 }
 
-/* 能力清单滚动区：将整段列表收进有限高度、可独立滚动的列里，保证便当卡片在数据膨胀时仍对称悬浮，而不是单卡撑爆整页。 */
+/* 鑳藉姏娓呭崟婊氬姩鍖猴細灏嗘暣娈靛垪琛ㄦ敹杩涙湁闄愰珮搴︺€佸彲鐙珛婊氬姩鐨勫垪閲岋紝淇濊瘉渚垮綋鍗＄墖鍦ㄦ暟鎹啫鑳€鏃朵粛瀵圭О鎮诞锛岃€屼笉鏄崟鍗℃拺鐖嗘暣椤点€?*/
 .m-card-list {
   display: flex;
   flex-direction: column;
@@ -1940,10 +1956,10 @@ button:not(:disabled):active,
   margin-top: 2px;
   padding-right: 4px;
 }
-/* 独占整行（col-12）的卡片可放宽一点滚动高度，半幅卡片（col-6）保持紧凑以维持对齐。 */
+/* 鐙崰鏁磋锛坈ol-12锛夌殑鍗＄墖鍙斁瀹戒竴鐐规粴鍔ㄩ珮搴︼紝鍗婂箙鍗＄墖锛坈ol-6锛変繚鎸佺揣鍑戜互缁存寔瀵归綈銆?*/
 .bento-col-12 .m-card-list { max-height: var(--m-card-list-max-tall, 420px); }
 
-/* 标题右侧的莫兰迪计数胶囊：滚动列表里还有多少条，一眼便知。 */
+/* 鏍囬鍙充晶鐨勮帿鍏拌开璁℃暟鑳跺泭锛氭粴鍔ㄥ垪琛ㄩ噷杩樻湁澶氬皯鏉★紝涓€鐪间究鐭ャ€?*/
 .m-card-count {
   display: inline-flex;
   align-items: center;
@@ -1962,7 +1978,7 @@ button:not(:disabled):active,
   flex-shrink: 0;
 }
 
-/* MCP 工具一键执行按钮（莫兰迪胶囊） */
+/* MCP 宸ュ叿涓€閿墽琛屾寜閽紙鑾叞杩兌鍥婏級 */
 .m-tool-btn {
   display: flex;
   align-items: center;
@@ -1982,13 +1998,10 @@ button:not(:disabled):active,
 .m-tool-btn:hover { border-color: var(--color-primary-border); background: var(--color-surface); }
 .m-tool-btn-quick { background: var(--color-primary-soft); border-color: var(--color-primary-border); }
 
-/* ════════════════════════════════════════════════════════════════
-   AIRUI 内置组件内容润色（agent 渲染的产物继承此风格）
-   因 AIRUI 组件用内联 style + CSS 变量，颜色已统一；
-   此处针对表格 / 卡片容器 / 图表 等做圆角与留白精修。
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   AIRUI 鍐呯疆缁勪欢鍐呭娑﹁壊锛坅gent 娓叉煋鐨勪骇鐗╃户鎵挎椋庢牸锛?   鍥?AIRUI 缁勪欢鐢ㄥ唴鑱?style + CSS 鍙橀噺锛岄鑹插凡缁熶竴锛?   姝ゅ閽堝琛ㄦ牸 / 鍗＄墖瀹瑰櫒 / 鍥捐〃 绛夊仛鍦嗚涓庣暀鐧界簿淇€?   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 
-/* 表格：圆角化 + 柔和表头（覆盖 AIRUI Table 的内联背景需用 !important） */
+/* 琛ㄦ牸锛氬渾瑙掑寲 + 鏌斿拰琛ㄥご锛堣鐩?AIRUI Table 鐨勫唴鑱旇儗鏅渶鐢?!important锛?*/
 .console-content table,
 .airui-gallery-card table {
   width: auto;
@@ -2018,13 +2031,13 @@ button:not(:disabled):active,
 .console-content tr:last-child td,
 .airui-gallery-card tr:last-child td { border-bottom: none; }
 
-/* 图表容器：内边距与圆角（ECharts 在 inline div 里，给父级留白即可） */
+/* 鍥捐〃瀹瑰櫒锛氬唴杈硅窛涓庡渾瑙掞紙ECharts 鍦?inline div 閲岋紝缁欑埗绾х暀鐧藉嵆鍙級 */
 .airui-gallery-card [class*="chart"],
 .console-content [class*="chart"] {
   border-radius: var(--radius-input);
 }
 
-/* AIRUI Widget 卡片：画廊内每个产物卡 */
+/* AIRUI Widget 鍗＄墖锛氱敾寤婂唴姣忎釜浜х墿鍗?*/
 .airui-gallery-card > div:first-child { border-radius: var(--radius-card) !important; }
 
 /* Constrain AIRUI cards so wide tables/charts scroll instead of overflowing
@@ -2032,30 +2045,47 @@ button:not(:disabled):active,
 .artifact-gallery-grid {
   display: grid;
   gap: 16px;
-  /* Cards start at ~320px so normal content breathes; wide content can grow. */
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  /* 12-column responsive grid: colSpan values from the agent / stock
+     dashboard map proportionally (colSpan=3 鈫?3/12, colSpan=6 鈫?half). */
+  grid-template-columns: repeat(12, 1fr);
 }
 
-/* Content-first sizing: a card holding a wide table spans the full row so the
-   table gets its natural width instead of being squeezed into one grid track
-   and stacking vertically. Supported by all modern browsers (:has). */
-.artifact-gallery-grid > *:has(table) {
-  grid-column: 1 / -1;
+/* Default each card to a quarter (3/12) so small tiles pack neatly. */
+.artifact-gallery-grid > * {
+  grid-column: span 3;
 }
-/* Explicit Bento span hints from the panel descriptor take priority over the
-   :has() heuristic. colSpan >= 8 means "full width" in the auto-fill grid. */
+
+/* Explicit colSpan mapping from panel descriptors. */
 .artifact-gallery-grid > *[data-col-span="12"],
 .artifact-gallery-grid > *[data-col-span="11"],
-.artifact-gallery-grid > *[data-col-span="10"],
+.artifact-gallery-grid > *[data-col-span="10"] {
+  grid-column: span 12;
+}
 .artifact-gallery-grid > *[data-col-span="9"],
 .artifact-gallery-grid > *[data-col-span="8"] {
-  grid-column: 1 / -1;
+  grid-column: span 8;
 }
-/* Half-width panels share a row. */
+.artifact-gallery-grid > *[data-col-span="7"],
 .artifact-gallery-grid > *[data-col-span="6"],
-.artifact-gallery-grid > *[data-col-span="5"],
+.artifact-gallery-grid > *[data-col-span="5"] {
+  grid-column: span 6;
+}
 .artifact-gallery-grid > *[data-col-span="4"] {
-  grid-column: span 1;
+  grid-column: span 4;
+}
+.artifact-gallery-grid > *[data-col-span="3"] {
+  grid-column: span 3;
+}
+.artifact-gallery-grid > *[data-col-span="2"],
+.artifact-gallery-grid > *[data-col-span="1"] {
+  grid-column: span 2;
+}
+
+/* Content-first: a card holding a wide table spans the full row so the table
+   keeps its natural width. Supported by modern browsers (:has). */
+.artifact-gallery-grid > *:has(table),
+.artifact-gallery-grid > *:has(.airui-card-md .md-table) {
+  grid-column: 1 / -1;
 }
 /* Tall panels grow downward. */
 .artifact-gallery-grid > *[data-row-span="2"],
@@ -2066,6 +2096,7 @@ button:not(:disabled):active,
 .airui-gallery-card {
   min-width: 0;
   max-width: 100%;
+  overflow: hidden;
   overflow-x: auto;
 }
 
@@ -2139,13 +2170,12 @@ button:not(:disabled):active,
   background: var(--color-muted);
 }
 
-/* KPI 数值统一字重层级（AIRUI KPI 已用 inline，此处兜底） */
+/* KPI 鏁板€肩粺涓€瀛楅噸灞傜骇锛圓IRUI KPI 宸茬敤 inline锛屾澶勫厹搴曪級 */
 .console-content [class*="kpi"],
 .airui-gallery-card [class*="kpi"] { letter-spacing: -0.03em; }
 
-/* ════════════════════════════════════════════════════════════════
-   滚动条：莫兰迪柔和细滚动条
-   ════════════════════════════════════════════════════════════════ */
+/* 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+   婊氬姩鏉★細鑾叞杩煍鍜岀粏婊氬姩鏉?   鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲 */
 .chat-messages::-webkit-scrollbar,
 .console-content::-webkit-scrollbar,
 .settings-panel *::-webkit-scrollbar,
@@ -2187,7 +2217,7 @@ button:not(:disabled):active,
   flex-shrink: 0;
 }
 
-/* Settings footer: cancel/save action buttons — capsule shape + breathing room.
+/* Settings footer: cancel/save action buttons 鈥?capsule shape + breathing room.
    The core Button component hardcodes its style (ignores props), so we scope
    overrides here to match the minimalist card / Morandi design language. */
 .settings-footer {

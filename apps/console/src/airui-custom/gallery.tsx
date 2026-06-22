@@ -10,7 +10,9 @@ import {
 import type { ArtifactPanel } from "./helpers";
 import { CapabilityHome, WikiHome } from "./home";
 import { savePreset } from "./presets";
-import { sendChat } from "../chat";
+import { sendChat, sendPanelAction } from "../chat";
+import { createPanel } from "../panels";
+import { openCorrection } from "../correction";
 import { useStore } from "../store";
 
 export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string, unknown> }> = ({ resolvedProps }) => {
@@ -28,7 +30,7 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
   // own ref, so the agent always knows WHICH card the user interacted with.
   const parentEmit = useInteraction();
 
-  if (state.wikiOpen === true) {
+  if (state.showcaseView === "wiki") {
     return <WikiHome />;
   }
   const artifacts = ((state.artifacts as ArtifactPanel[]) ?? []);
@@ -107,6 +109,20 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
     savePreset({ name, component: artifact.component, title: artifact.title });
   };
 
+  // 把当前会话保存为后端面板（客制化 SaaS）：用最近一条 user 消息作为起手提示
+  const handleSaveAsPanel = (artifactRef: string) => {
+    const artifact = artifacts.find(a => a.ref === artifactRef);
+    if (!artifact) return;
+    const msgs = useStore.getState().chatMessages;
+    const lastUser = [...msgs].reverse().find((m) => m.role === "user");
+    const starter = lastUser?.content?.trim() || artifact.title || artifactRef;
+    const name = window.prompt("面板名称", artifact.title || artifactRef);
+    if (!name) return;
+    void createPanel({ name, starter_prompt: starter, description: artifact.title }).then((p) => {
+      if (p) window.dispatchEvent(new CustomEvent("yunsuo:inspector-refresh"));
+    });
+  };
+
   return (
     <div className="artifact-gallery-grid">
      {artifacts.map((artifact) => {
@@ -155,10 +171,19 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
             title="保存为预设"
             aria-label="保存为预设"
           >
-            📦
+           📦
+         </button>
+        <span className="gallery-ref-tag">{artifact.ref}</span>
+          <button
+            onClick={() => handleSaveAsPanel(artifact.ref)}
+            className="gallery-save-btn"
+            title="存为面板（可复用起手屏）"
+            aria-label="存为面板"
+            style={{ right: 44 }}
+          >
+            📋
           </button>
-         <span className="gallery-ref-tag">{artifact.ref}</span>
-          <InteractionProvider value={cardEmit}>
+         <InteractionProvider value={cardEmit}>
           <div className="airui-gallery-card" style={{ padding: 12 }}>
             <AirUIComponent comp={artifact.component} />
           </div>
@@ -170,7 +195,15 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
                 return (
                   <button
                     key={i}
-                    onClick={() => { if (!loading) void sendChat(action.prompt); }}
+                    onClick={() => {
+                      if (loading) return;
+                      // correct 类型 action 或无 intent 的纯修正入口 → 打开修正弹窗
+                      if (action.intent?.action === "correct") {
+                        openCorrection({ artifactRef: artifact.ref, originalAction: action, siblingActions: artifact.actions || [] });
+                        return;
+                      }
+                      void sendPanelAction(action);
+                    }}
                     disabled={loading}
                     style={{
                       padding: "6px 12px", borderRadius: "var(--radius-pill)", cursor: loading ? "default" : "pointer",
@@ -185,6 +218,22 @@ export const ArtifactGallery: FC<{ comp: Component; resolvedProps: Record<string
                   </button>
                 );
               })}
+              {/* 全局修正入口：不依赖 agent 是否生成 correct action，任意预判都可纠偏 */}
+              <button
+                onClick={() => {
+                  if (loading) return;
+                  const fallback: typeof artifact.actions[number] = { label: "修正", prompt: "", variant: "secondary" };
+                  openCorrection({ artifactRef: artifact.ref, originalAction: fallback, siblingActions: artifact.actions || [] });
+                }}
+                disabled={loading}
+                title="预判不准？点这里修正"
+                style={{
+                  padding: "6px 10px", borderRadius: "var(--radius-pill)", cursor: loading ? "default" : "pointer",
+                  fontSize: 12, fontWeight: 500,
+                  border: "1px dashed var(--color-border)", background: "transparent",
+                  color: "var(--color-muted)", opacity: loading ? 0.6 : 1,
+                }}
+              >不对，我想…</button>
             </div>
           )}
         </div>

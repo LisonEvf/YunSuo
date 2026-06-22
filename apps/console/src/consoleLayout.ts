@@ -31,7 +31,7 @@ export const consoleLayout: AirUIDocument = {
     },
     artifacts: [],
     homePinned: false,
-    wikiOpen: false,
+    showcaseView: "",
     wikiCategory: "",
     mcpServers: [],
     plugins: [],
@@ -67,7 +67,6 @@ export const consoleLayout: AirUIDocument = {
                 props: { direction: "row", gap: "8px", align: "center" },
                 children: [
                   { type: "Button", ref: "console:home", props: { label: "{state.t.backHome}", variant: "secondary" } },
-                  { type: "Button", ref: "console:wiki", props: { label: "{state.t.airuiWiki}", variant: "secondary" } },
                   { type: "Button", ref: "console:settings", props: { label: "{state.t.settings}", variant: "secondary" } },
                   { type: "ConnStatus" },
                   { type: "Text", props: { value: "{state.activeToolsText}", style: "caption" } },

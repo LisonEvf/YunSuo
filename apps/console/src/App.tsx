@@ -5,6 +5,7 @@ import ChatPanel from "./components/ChatPanel";
 import McpToolForm from "./components/McpToolForm";
 import StatusBar from "./components/StatusBar";
 import ToastContainer from "./components/Toast";
+import CorrectionModal from "./components/CorrectionModal";
 import CommandPalette from "./components/CommandPalette";
 import { useStore } from "./store";
 import { t } from "./i18n";
@@ -100,6 +101,7 @@ export default function App() {
       <StatusBar />
       <McpToolForm />
       <ToastContainer />
+      <CorrectionModal />
       <CommandPalette open={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
     </div>
   );

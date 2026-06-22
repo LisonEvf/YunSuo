@@ -5,15 +5,25 @@
     "context_window_tokens": 65536
   },
   "model": {
-    "provider": "llamacpp",
-    "name": "qwen3-coder",
-    "base_url": "http://127.0.0.1:11232/v1",
-    "api_key": "111",
+    "provider": "openai",
+    "name": "glm-5.1",
+    "base_url": "https://open.bigmodel.cn/api/coding/paas/v4",
+    "api_key": "ee01a1db9362431580d75aefe7ac137c.M1UO78N3Bfkg8pEa",
     "max_output_tokens": 4096,
-    "display_name": ""
+    "display_name": "智谱 GLM"
   },
-  "providers": [],
-  "active_provider_id": null,
+  "providers": [
+    {
+      "id": "p-mqnyegwg-3ee3",
+      "name": "智谱 GLM",
+      "provider": "openai",
+      "base_url": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "api_key": "ee01a1db9362431580d75aefe7ac137c.M1UO78N3Bfkg8pEa",
+      "model_name": "glm-5.1",
+      "max_output_tokens": 4096
+    }
+  ],
+  "active_provider_id": "p-mqnyegwg-3ee3",
   "provider_presets": [
     {
       "key": "openai",
@@ -136,7 +146,7 @@
     }
   ],
   "ui": {
-    "theme": "light",
+    "theme": "graphite",
     "language": "zh-CN",
     "chatCollapsed": false,
     "chatWidth": 360
@@ -158,6 +168,53 @@
       {
         "label": "龙虎榜",
         "prompt": "渲染今日龙虎榜数据：热门个股、机构与游资动向"
+      }
+    ],
+    "widgets": [
+      {
+        "ref": "home-idx",
+        "title": "主要指数",
+        "colSpan": 8,
+        "kind": "table",
+        "tool": "mcp_tdx_get_index_overview",
+        "columns": [
+          "code",
+          "close",
+          "diff",
+          "up_count",
+          "down_count"
+        ],
+        "actions": [
+          {
+            "label": "大盘分析",
+            "prompt": "基于主要指数行情生成今日大盘分析看板",
+            "variant": "primary"
+          }
+        ]
+      },
+      {
+        "ref": "home-zt",
+        "title": "今日涨停",
+        "colSpan": 4,
+        "kind": "kpi",
+        "tool": "mcp_kpl_emotion_today",
+        "path": "DaBanList",
+        "valueKey": "tZhangTing",
+        "actions": [
+          {
+            "label": "涨停复盘",
+            "prompt": "渲染今日涨停复盘看板：连板梯队与封板率"
+          }
+        ]
+      },
+      {
+        "ref": "home-down",
+        "title": "下跌家数",
+        "colSpan": 4,
+        "kind": "kpi",
+        "tool": "mcp_kpl_emotion_today",
+        "path": "DaBanList",
+        "valueKey": "XDJS"
       }
     ]
   },

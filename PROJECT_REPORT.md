@@ -4,7 +4,11 @@
 
 ## 1. 项目定位
 
-项目代号 **云梭（Yunsuo）**——仓库最初是 A 股市场情绪看板（旧代号 `sentiment`），已重构为通用 Agent 操作台。当前形态是 FastAPI + React + AIRUI 的 monorepo，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
+项目代号 **云梭（Yunsuo）**——仓库最初是 A 股市场情绪看板（旧代号 `sentiment`），已重构为基于生成式 UI 的通用 AI Agent。
+
+**顶层定位**：让用户**仅通过点击**就能完成与 LLM 的交互。每一屏 AIRUI 文档都是 agent 对"用户下一步可能想做什么"的预判，点击即推进下一轮，形成闭环；预判不准时弹窗修正，修正沉淀成预判记忆让下一屏更准。目标是降低门槛，让外行用户不写 prompt，靠"点点点 + 偶尔改一句"把 agent 变成专属面板/流程，配合 skill 与 MCP 做到普通人也能客制化专属 SaaS。完整设计见 [docs/generative-ui-agent-design.md](docs/generative-ui-agent-design.md)。
+
+**当前实现形态**（该定位的底座，交互范式仍偏消息驱动）：FastAPI + React + AIRUI 的 monorepo，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。从"消息驱动"演进到"点击驱动"是项目下一步方向；现状 gap 集中在四块——意图 payload 建模、预判标签 + 修正弹窗、预判记忆、面板/流程一等公民（详见设计文档 §8）。
 
 历史股票语义已从主运行路径拆除：REST/工具/技能全部通用化，旧 SDK 保留在 [external/](external/)，旧界面已删除（README 仍提及 [archive/](archive/)，实际目录不存在，见 §11）。
 

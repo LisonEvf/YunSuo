@@ -16,6 +16,7 @@ from .airui.renderer import render_console
 from .airui.session import session_manager
 from .airui.ws_bridge import register_ws_routes
 from .home_widgets import resolve_widgets
+from .stock_dashboard import build_artifacts_root
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,6 +27,12 @@ async def lifespan(_: FastAPI):
     sess = session_manager.get_or_create("default")
     if not sess.doc:
         sess.doc = render_console()
+    # 种子化内置预设面板（外行用户首次进入即见合理选项，见设计文档 §6）
+    try:
+        from .agent.panels import seed_builtin_panels
+        seed_builtin_panels()
+    except Exception as exc:  # noqa: BLE001 — 种子化失败不阻断启动
+        logger.warning("Builtin panel seeding skipped: %s", exc)
     yield
 
 
@@ -49,8 +56,44 @@ app.add_middleware(
 register_ws_routes(app)
 
 _static_dir = Path(__file__).resolve().parent.parent / "static" / "airui"
+
+
+class CachedStaticFiles(StaticFiles):
+    """StaticFiles with Cache-Control: HTML/SW = no-cache, assets = immutable."""
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        # The response from StaticFiles is a FileResponse (or PlainTextResponse
+        # for 404s). Both have a mutable .headers dict we can modify.
+        try:
+            # path is relative to mount point, e.g. "assets/index-abc.js" or ""
+            is_html = (path in ("", ".") or path.endswith(".html"))
+            is_sw = (path == "sw.js")
+            is_manifest = (path == "manifest.json")
+            is_icon = (path == "icon.svg")
+            norm_path = path.replace("\\", "/")
+            is_asset = norm_path.startswith("assets/")
+
+            if is_html or is_sw or is_manifest or is_icon:
+                # These files must always be fetched fresh from the server.
+                # Without this, browsers cache index.html heuristically and
+                # serve stale HTML that references old hashed JS filenames.
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+            elif is_asset:
+                # Hashed build artifacts are content-addressed; safe to cache
+                # aggressively since the filename changes on every rebuild.
+                response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        except Exception:
+            pass
+        return response
+
+
 if _static_dir.exists():
-    app.mount("/console", StaticFiles(directory=str(_static_dir), html=True), name="console-static")
+    app.mount("/console", CachedStaticFiles(directory=str(_static_dir), html=True), name="console-static")
 
 
 @app.get("/health")
@@ -97,6 +140,21 @@ async def chat(req: ChatRequest):
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     messages = [{"role": m.role, "content": m.content} for m in req.messages]
+
+    # 每轮对话开始时清空 WS 影子文档的旧 artifacts，让画廊只显示当前轮次的产物
+    # 而不是把所有历史轮次的 widget 累积在一起。
+    try:
+        from .airui.session import session_manager
+        sess = session_manager.get_or_create("default")
+        if sess.doc:
+            root = sess.doc.get("root", {})
+            for row in (root.get("children") or []):
+                if row.get("ref") == "row-artifacts":
+                    row["children"] = []
+                    break
+            await sess.broadcast({"type": "document", "data": sess.doc})
+    except Exception:
+        pass
 
     if req.stream:
         return StreamingResponse(
@@ -189,6 +247,32 @@ def home_widgets(req: HomeWidgetsRequest):
     degrade per-widget to a text card instead of erroring the whole request.
     """
     return {"widgets": resolve_widgets(req.widgets)}
+
+
+@app.post("/api/preset/dashboard")
+async def preset_dashboard(session: str = "default"):
+    """Render a preset live dashboard for the current domain and push it to the
+    console gallery as artifact widgets (no LLM, deterministic from MCP data).
+
+    Today only the A-share sentiment dashboard is built; unknown domains return
+    404. Widgets are placed under root's row-artifacts row so the gallery picks
+    them up via collectArtifactPanels.
+    """
+    from .airui.renderer import render_console
+    from .airui.session import session_manager
+    from .airui.ws_bridge import push_document
+
+    sess = session_manager.get_or_create(session)
+    if not sess.doc:
+        sess.doc = render_console()
+    doc = sess.doc
+    root = doc.setdefault("root", {"type": "Dashboard", "children": []})
+    children = root.setdefault("children", [])
+    # replace any prior preset row, then (re)insert the fresh one on top
+    children[:] = [c for c in children if not (isinstance(c, dict) and c.get("ref") == "row-artifacts")]
+    children.insert(0, build_artifacts_root()["children"][0])
+    await push_document(session, doc, title="股市情绪看板")
+    return {"ok": True, "title": "股市情绪看板"}
 
 
 @app.get("/api/plugins")
@@ -351,3 +435,165 @@ def trajectory_summary():
     from .agent.trajectory import summarize_trajectories
 
     return summarize_trajectories()
+
+
+# ── 面板与流程（生成式 UI 客制化 SaaS 基石）──────────────────────────
+# 设计见 docs/generative-ui-agent-design.md §6。
+
+class PanelCreate(BaseModel):
+    name: str
+    starter_prompt: str
+    description: str = ""
+    seed_intent: dict | None = None
+    domain: str = ""
+    tags: list[str] | None = None
+    mcp_tools: list[str] | None = None
+
+
+class FlowCreate(BaseModel):
+    name: str
+    steps: list[dict] | None = None
+    description: str = ""
+
+
+@app.get("/api/panels")
+def list_panels(domain: str | None = Query(default=None)):
+    from .agent.panels import list_panels as _list
+
+    return {"panels": _list(domain=domain)}
+
+
+@app.post("/api/panels")
+def create_panel(req: PanelCreate):
+    from .agent.panels import create_panel as _create
+
+    panel = _create(
+        name=req.name,
+        starter_prompt=req.starter_prompt,
+        description=req.description,
+        seed_intent=req.seed_intent,
+        domain=req.domain,
+        tags=req.tags,
+        mcp_tools=req.mcp_tools,
+    )
+    return {"panel": panel}
+
+
+@app.get("/api/panels/{panel_id}")
+def get_panel(panel_id: int):
+    from .agent.panels import get_panel as _get
+
+    panel = _get(panel_id)
+    if not panel:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    return {"panel": panel}
+
+
+@app.delete("/api/panels/{panel_id}")
+def delete_panel(panel_id: int):
+    from .agent.panels import delete_panel as _delete, get_panel as _get
+
+    panel = _get(panel_id)
+    if not panel:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    if panel.get("is_builtin"):
+        raise HTTPException(status_code=403, detail="Built-in panels are protected and cannot be deleted")
+    if not _delete(panel_id):
+        raise HTTPException(status_code=404, detail="Panel not found")
+    return {"ok": True}
+
+
+@app.get("/api/panels/{panel_id}/run")
+def run_panel(panel_id: int):
+    """返回面板的起手提示与种子意图。
+
+    前端拿到后走 sendChat/sendIntent 流式运行（保持与点击闭环一致的 UI），
+    而非后端直接调 agent —— 面板运行复用整条生成式 UI 链路。
+    """
+    from .agent.panels import get_panel as _get
+
+    panel = _get(panel_id)
+    if not panel:
+        raise HTTPException(status_code=404, detail="Panel not found")
+    # 面板接 MCP：声明依赖的工具时，附加提示让 agent 优先调用它们取数/操作
+    mcp_tools = panel.get("mcp_tools") or []
+    starter = panel["starter_prompt"]
+    if mcp_tools:
+        tools_hint = "、".join(mcp_tools)
+        starter = (
+            f"{starter}\n\n（本面板已接入以下工具，请优先调用它们获取真实数据或执行操作："
+            f"{tools_hint}。若工具暂不可用，回退到示例数据并说明。）"
+        )
+    return {
+        "panel": panel,
+        "starter_prompt": starter,
+        "seed_intent": panel.get("seed_intent") or {},
+        "mcp_tools": mcp_tools,
+    }
+
+
+@app.get("/api/flows")
+def list_flows():
+    from .agent.panels import list_flows as _list
+
+    return {"flows": _list()}
+
+
+@app.post("/api/flows")
+def create_flow(req: FlowCreate):
+    from .agent.panels import create_flow as _create
+
+    flow = _create(name=req.name, steps=req.steps, description=req.description)
+    return {"flow": flow}
+
+
+@app.delete("/api/flows/{flow_id}")
+def delete_flow(flow_id: int):
+    from .agent.panels import delete_flow as _delete
+
+    if not _delete(flow_id):
+        raise HTTPException(status_code=404, detail="Flow not found")
+    return {"ok": True}
+
+
+@app.get("/api/flows/{flow_id}/run")
+def run_flow(flow_id: int):
+    """返回流程的有序步骤，前端依次运行（一键流）。
+
+    每步展开为可执行提示：panel_id 步骤查面板拿 starter_prompt（含 MCP 工具增强），
+    prompt 步骤直接用内联提示。前端拿到 steps 后逐个走 sendChat 流式执行。
+    """
+    from .agent.panels import get_flow as _get_flow, get_panel as _get_panel
+
+    flow = _get_flow(flow_id)
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+
+    steps_out: list[dict] = []
+    for i, step in enumerate(flow.get("steps", [])):
+        panel_id = step.get("panel_id")
+        if panel_id:
+            panel = _get_panel(panel_id)
+            if panel:
+                starter = panel["starter_prompt"]
+                mcp_tools = panel.get("mcp_tools") or []
+                if mcp_tools:
+                    starter = (
+                        f"{starter}\n\n（本步骤已接入以下工具，请优先调用："
+                        + "、".join(mcp_tools) + "。）"
+                    )
+                steps_out.append({
+                    "index": i,
+                    "label": step.get("label") or panel["name"],
+                    "prompt": starter,
+                    "panel_id": panel_id,
+                    "mcp_tools": mcp_tools,
+                })
+                continue
+        # 内联 prompt 步骤
+        steps_out.append({
+            "index": i,
+            "label": step.get("label", f"步骤 {i + 1}"),
+            "prompt": step.get("prompt", ""),
+        })
+    return {"flow": flow, "steps": steps_out}

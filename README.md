@@ -1,6 +1,21 @@
 # 云梭 Yunsuo
 
-> 织 agent 运行为可交互的界面 —— FastAPI + React + AIRUI 的通用 agent 操作台。
+> 让用户仅通过点击就能完成与 LLM 的交互 —— 基于生成式 UI 的通用 AI Agent。
+
+云梭把 UI 变成交互本身：每一屏 AIRUI 文档都是 agent 对"用户下一步可能想做什么"的预判，点击即推进下一轮，预判不准时弹窗修正，修正沉淀成记忆让下一屏更准。目标是降低门槛——外行用户不写 prompt，靠"点点点 + 偶尔改一句"就能把 agent 变成专属面板/流程，配合 skill 与 MCP 做到普通人也能客制化专属 SaaS。
+
+当前实现是这条路径的底座：FastAPI + React + AIRUI 的 monorepo，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。从"消息驱动"演进到"点击驱动"是下一步方向，详见 [docs/generative-ui-agent-design.md](docs/generative-ui-agent-design.md)。
+
+## 交互范式
+
+云梭定位是**点击驱动**的生成式 UI agent，核心闭环：
+
+- 预设面板：系统或用户预设的起手 AIRUI 文档，外行用户进来即见合理选项；
+- 预判 UI：agent 为当前上下文生成带预判标签的可点击选项（点击会做什么 / 为什么摆它）；
+- 点击即下一轮：点击把结构化意图回传给 agent，生成下一屏，循环成闭环；
+- 修正弹窗 + 记忆：预判不准时弹窗纠偏，把"预判 vs 实际"偏差存为预判记忆，越用越准。
+
+文字输入从主通道降级为预判失败时的兜底；skill 提供原子行为，MCP 提供原子连接，面板/流程把它们编排成普通人可用的成品。该范式升级而非推翻现有架构——AIRUI 交互事件与 `/ws/airui` 通道、`HOME_PROMPTS` 起手卡片、skill 路由与 MCP 注入都已具备，缺的是意图建模、预判/修正/记忆与面板/流程一等公民。
 
 采用 monorepo 结构，提供聊天、流式运行事件、技能注入、会话记忆、轨迹记录、AIRUI 产物渲染与运行检查面板。
 
@@ -102,6 +117,7 @@ cd apps/console && bun run build
 
 ## 文档
 
+- [docs/generative-ui-agent-design.md](docs/generative-ui-agent-design.md) — 生成式 UI agent 顶层设计（点击驱动交互闭环、预判/修正/记忆、面板与流程、演进路径与现状 gap）
 - [docs/general-agent-console-design.md](docs/general-agent-console-design.md) — 重构历史记录（sentiment 看板 → 通用 agent console）
 - [docs/2026-06-09-airui-usage.md](docs/2026-06-09-airui-usage.md) — AIRUI 中间表示、组件清单、事件与增量更新、React 渲染 API、console 集成
 - [docs/2026-06-09-theme-system.md](docs/2026-06-09-theme-system.md) — 主题架构、内置主题、自定义风格重载

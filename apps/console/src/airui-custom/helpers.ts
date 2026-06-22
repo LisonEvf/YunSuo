@@ -91,6 +91,7 @@ export interface SuggestedAction {
   label: string;
   prompt: string;
   variant?: string;
+  intent?: { action: string; target?: string; label?: string; params?: Record<string, unknown> };
 }
 
 export interface ArtifactPanel {

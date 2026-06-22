@@ -41,7 +41,8 @@ BUILTIN_DOMAIN_TEMPLATES: list[dict] = [
             "title": "股市研究台",
             "subtitle": "点击入口即可拉取行情数据并渲染分析看板。",
            "starters": [
-               {"label": "大盘速览", "prompt": "渲染今日大盘概览看板：主要指数、涨跌家数、板块涨幅榜", "variant": "primary"},
+              {"label": "大盘速览", "prompt": "渲染今日大盘概览看板：主要指数、涨跌家数、板块涨幅榜", "variant": "primary"},
+               {"label": "情绪看板", "prompt": "渲染A股情绪看板：涨停/跌停/封板率/板块梯队/核心指数", "variant": "primary", "preset": "stock-sentiment"},
                {"label": "个股分析", "prompt": "对指定个股生成分析看板：K 线、资金流向、所属板块"},
                {"label": "龙虎榜", "prompt": "渲染今日龙虎榜数据：热门个股、机构与游资动向"},
            ],

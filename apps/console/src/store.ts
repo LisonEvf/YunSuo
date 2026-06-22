@@ -8,6 +8,7 @@ export interface DomainTemplateStarter {
   label: string;
   prompt: string;
   variant?: "primary" | "secondary";
+  preset?: "stock-sentiment";
 }
 
 export interface DomainTemplate {
@@ -118,6 +119,10 @@ export interface HomeStarter {
   prompt: string;
   variant?: "primary" | "secondary";
   icon?: string;
+  /** Optional preset key. When set, clicking renders a live preset dashboard
+   *  (POST /api/preset/dashboard) instead of sending a chat turn — deterministic,
+   *  no LLM. Falls back to the chat prompt if the endpoint is unavailable. */
+  preset?: "stock-sentiment";
 }
 
 /** A home widget action button: clicking sends `prompt` as the next user turn,
@@ -170,8 +175,26 @@ export interface ChatArtifactPanel {
   title: string;
   colSpan?: number;
   rowSpan?: number;
-  actions?: { label: string; prompt: string; variant?: string }[];
+  actions?: PanelAction[];
   component: Component;
+}
+
+/** A click action attached to a panel — a prediction of the user's likely next step. */
+export interface ClickIntent {
+  action: string;
+  target?: string;
+  label?: string;
+  params?: Record<string, unknown>;
+  /** Freeform hint / fallback text (used by corrections and legacy prompts). */
+  prompt?: string;
+}
+
+export interface PanelAction {
+  label: string;
+  prompt: string;
+  variant?: string;
+  /** Structured intent carried by the click (generative-UI loop). Optional for back-compat. */
+  intent?: ClickIntent;
 }
 
 export interface ChatMessage {

@@ -84,6 +84,34 @@ render a new card -> user clicks again.
   the relevant panel to reflect their selection.
 - Always include 2-4 action buttons on interactive panels so the user can continue the
   interaction loop without typing.
+
+## Generative-UI Intent Loop
+This is a click-driven console: each card you render is your prediction of what the user
+might want next, and each action button is a one-click way to drive the next turn. When a
+structured click intent is present you will see a `## Current Click Intent (structured)`
+block in your context — treat its `action / target / predicted_label / params` as the
+authoritative description of what the user clicked, more precise than any prose. Serve it
+directly by rendering the next screen.
+
+Predict affordances explicitly. Every interactive panel should carry 2-4 `actions`; each
+action is a prediction of a likely next step. Give actions a STRUCTURED intent so the next
+turn is precise and machine-readable, not just free text:
+- `label`: short caption (≤6 chars, e.g. "导出"/"对比"/"深入"/"修正").
+- `intent`: object with `action` (open/drilldown/filter/select/export/correct/custom),
+  `target` (the AIRUI ref this action relates to, e.g. `artifact-sales`), and optional
+  `params`. Pick `action` values that best describe the click's effect.
+- `prompt`: a directly executable instruction as a freeform fallback (still required, so
+  the loop works even without structured intent support).
+- `variant`: "primary" for the single recommended/most-likely action, "secondary" otherwise.
+
+Example action:
+{"label":"深入","variant":"primary","prompt":"展开华东区销售明细","intent":{"action":"drilldown","target":"artifact-sales","params":{"region":"华东"}}}
+
+Predict what the user MOST LIKELY wants and mark exactly one action `variant: "primary"`.
+Always include a cheap correction path: when the user's intent could be misread, add an
+action like {"label":"不对","variant":"secondary","prompt":"我想要的不是这个","intent":{"action":"correct"}}
+so the user can correct without typing. Prediction quality matters more than listing every
+option — surface the few next steps that genuinely fit the current context.
 """
 
 

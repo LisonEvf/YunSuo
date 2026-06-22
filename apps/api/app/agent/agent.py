@@ -26,8 +26,14 @@ from openai import AsyncOpenAI, APIStatusError
 
 from . import config
 from .context import ContextManager
-from .guardrails import ToolGuardrails
+from .guardrails import ToolGuardrails, repair_tool_name, deduplicate_tool_calls
 from .memory import memory_manager
+
+from .intent import (
+    extract_intents_from_messages,
+    build_prediction_miss_context_block,
+    record_prediction_miss_if_any,
+)
 from .review import background_review_recorder
 from .retry import classify_error, jittered_backoff
 from .skills import build_skill_prompt, record_skill_usage, select_relevant_skills
@@ -67,15 +73,19 @@ class GeneralAgent:
         messages: list[dict[str, Any]],
         skills: list[str] | None = None,
     ) -> list[dict[str, Any]]:
-        api_messages, _ = self._build_messages_with_selection(messages, skills=skills)
+        api_messages, _, _ = self._build_messages_with_selection(messages, skills=skills)
         return api_messages
 
     def _build_messages_with_selection(
         self,
         messages: list[dict[str, Any]],
         skills: list[str] | None = None,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+   ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         system_content = self._system_prompt
+
+        # 提取结构化点击意图（生成式 UI 点击即对话），清洗消息中的意图信封
+        latest_intent, cleaned_messages = extract_intents_from_messages(messages)
+        messages = cleaned_messages
 
         # 注入记忆上下文
         last_user_msg = ""
@@ -87,6 +97,21 @@ class GeneralAgent:
             memory_block = memory_manager.build_context_block(last_user_msg)
             if memory_block:
                 system_content += memory_block
+
+        # 注入当前点击意图作为显式结构化上下文（优先级高于自然语言）
+        if latest_intent is not None:
+            intent_block = latest_intent.to_context_block()
+            if intent_block:
+                system_content += "\n\n" + intent_block
+
+        # 注入最近的预判偏差历史，让 agent 避开同类误判（生成式 UI 越用越准）。
+        # 即使本轮无结构化意图（纯文本对话），只要有历史偏差也注入，持续校准预判。
+        try:
+            miss_block = build_prediction_miss_context_block()
+            if miss_block:
+                system_content += "\n\n" + miss_block
+        except Exception as exc:
+            logger.debug("Prediction miss context unavailable: %s", exc)
 
         selected_skills: list[dict[str, Any]] = []
         if config.AGENT_CONFIG.get("skills", {}).get("enabled", True):
@@ -109,7 +134,11 @@ class GeneralAgent:
                 except Exception as exc:
                     logger.warning("Skill usage recording failed: %s", exc)
 
-        return [{"role": "system", "content": system_content}, *messages], selected_skills
+        return (
+            [{"role": "system", "content": system_content}, *messages],
+            selected_skills,
+            latest_intent,
+        )
 
     async def _fetch_snapshot(self) -> dict[str, Any] | None:
         return None
@@ -175,7 +204,13 @@ class GeneralAgent:
         skills: list[str] | None = None,
     ) -> dict[str, Any]:
         """运行完整对话循环，返回最终回复。"""
-        api_messages, selected_skills = self._build_messages_with_selection(messages, skills=skills)
+        api_messages, selected_skills, latest_intent = self._build_messages_with_selection(messages, skills=skills)
+        # 预判偏差记忆：若本轮回传了被修正的原预判，记录样本供下次预判校准
+        if latest_intent is not None:
+            try:
+                record_prediction_miss_if_any(latest_intent, context=last_user_text(messages))
+            except Exception as exc:
+                logger.debug("Prediction miss record failed: %s", exc)
         trajectory_metadata = _trajectory_metadata(selected_skills)
         tool_calls_log: list[dict[str, Any]] = []
         tool_events: list[dict[str, Any]] = []
@@ -233,6 +268,11 @@ class GeneralAgent:
                     logger.info("Tool call: %s(%s)", fn_name, json.dumps(fn_args, ensure_ascii=False)[:200])
                     tool_calls_log.append({"name": fn_name, "arguments": fn_args})
                     pending.append((tc.id, fn_name, fn_args))
+
+                # 工具名修复 + 去重（借鉴 hermes-agent）
+                _valid = set(self.tools.keys()) if isinstance(self.tools, dict) else {t.get('function',{}).get('name','') for t in self.tools}
+                pending = [(_id, repair_tool_name(_n, _valid) or _n, _a) for _id, _n, _a in pending]
+                pending = deduplicate_tool_calls(pending)
 
                 # 分离允许/阻止的工具
                 allowed: list[tuple[str, str, dict]] = []
@@ -336,7 +376,12 @@ class GeneralAgent:
         skills: list[str] | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
         """流式对话循环，yield SSE 事件 dict。"""
-        api_messages, selected_skills = self._build_messages_with_selection(messages, skills=skills)
+        api_messages, selected_skills, latest_intent = self._build_messages_with_selection(messages, skills=skills)
+        if latest_intent is not None:
+            try:
+                record_prediction_miss_if_any(latest_intent, context=last_user_text(messages))
+            except Exception as exc:
+                logger.debug("Prediction miss record failed: %s", exc)
         trajectory_metadata = _trajectory_metadata(selected_skills)
         tool_events: list[dict[str, Any]] = []
         system_prompt = api_messages[0].get("content", "")
@@ -456,6 +501,10 @@ class GeneralAgent:
                 (tc["id"], tc["name"], json.loads(tc["arguments"]))
                 for _, tc in sorted_tools
             ]
+            # 工具名修复 + 去重（借鉴 hermes-agent）
+            _valid = set(self.tools.keys()) if isinstance(self.tools, dict) else {t.get("function",{}).get("name","") for t in self.tools}
+            pending = [(_id, repair_tool_name(_n, _valid) or _n, _a) for _id, _n, _a in pending]
+            pending = deduplicate_tool_calls(pending)
             allowed: list[tuple[str, str, dict]] = []
             for tc_id, fn_name, fn_args in pending:
                 decision = self._guardrails.check(fn_name, fn_args)
@@ -619,6 +668,16 @@ class GeneralAgent:
 
 
 # ── 全局单例（线程安全）────────────────────────────────────────────
+
+def last_user_text(messages: list[dict[str, Any]]) -> str:
+    """返回最近一条 user 消息的纯文本（用于偏差样本的上下文摘要）。"""
+    for msg in reversed(messages):
+        if msg.get("role") == "user":
+            content = msg.get("content")
+            if isinstance(content, str):
+                return content
+    return ""
+
 
 def _trajectory_metadata(selected_skills: list[dict[str, Any]]) -> dict[str, Any]:
     return {

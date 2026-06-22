@@ -1,6 +1,23 @@
 import { useStore, type ToolStatus, type ChatArtifactPanel } from "./store";
+import type { ClickIntent, PanelAction } from "./store";
 import type { Component } from "@air-ui/core";
 import { useAirUIStore } from "@air-ui/renderer-react";
+
+/**
+ * 结构化点击意图 —— 生成式 UI「点击即对话」的信封。
+ * 见 docs/generative-ui-agent-design.md §4。前端把意图编码进 user content 的
+ * <<yunsuo-intent:{...}>> 标记块，后端 agent loop 解析后作为显式上下文注入。
+ */
+export interface Intent extends ClickIntent {}
+
+const INTENT_BEGIN = "<<yunsuo-intent:";
+const INTENT_END = ">>";
+
+/** 把意图编码为可嵌入 user content 的信封字符串。 */
+export function encodeIntentEnvelope(intent: Intent): string {
+  const compact = JSON.stringify(intent);
+  return `${INTENT_BEGIN}${compact}${INTENT_END}`;
+}
 
 /**
  * 共享的聊天发送逻辑（流式）。ChatPanel 的输入框与主页 starter 卡片共用。
@@ -11,13 +28,17 @@ export async function sendChat(text: string) {
   const store = useStore.getState();
   if (!trimmed || store.chatLoading) return;
 
-  // 新对话开始：解除首页 pin，让后续 artifact 正常进画廊
-  const airuiState = useAirUIStore.getState();
-  if (airuiState.doc && (airuiState.doc.state as Record<string, unknown>).homePinned) {
-    airuiState.applyPatch([{ op: "update-state", stateDelta: { homePinned: false } }]);
-  }
+ // 新对话开始：解除首页 pin，让后续 artifact 正常进画廊
+ const airuiState = useAirUIStore.getState();
+ if (airuiState.doc && (airuiState.doc.state as Record<string, unknown>).homePinned) {
+   airuiState.applyPatch([{ op: "update-state", stateDelta: { homePinned: false } }]);
+ }
+ // 每轮对话开始时清空画廊旧内容，只显示当前轮次的新产物（不累积历史）
+ if (airuiState.doc) {
+   airuiState.applyPatch([{ op: "update-state", stateDelta: { artifacts: [] } }]);
+ }
 
-  const messages = store.chatMessages;
+ const messages = store.chatMessages;
   store.addChatMessage({ role: "user", content: trimmed });
   store.addChatMessage({ role: "assistant", content: "" });
   store.setChatLoading(true);
@@ -232,6 +253,40 @@ export async function sendInteractionViaChat(
   interaction: string,
   payload: Record<string, unknown> = {},
 ) {
-  const message = formatInteractionMessage(widgetRef, interaction, payload);
+  // 结构化点击意图（生成式 UI 闭环）。自然语言描述保留为信封外的可读上下文，
+ // 后端会优先按结构化意图生成下一屏。
+  const prose = formatInteractionMessage(widgetRef, interaction, payload);
+  const intent: Intent = {
+    action: interaction,
+    target: widgetRef,
+    params: { ...payload },
+  };
+  const message = `${encodeIntentEnvelope(intent)}\n${prose}`;
   await sendChat(message);
+}
+
+/**
+ * 以结构化意图驱动下一轮（生成式 UI 的主入口）。
+ * 用于 action 按钮 / 预判选项点击：携带 action + target + params，
+ * 后端据此精准生成下一屏。freeformHint 作为兜底自然语言（预判修正时尤其有用）。
+ */
+export async function sendIntent(
+  intent: Intent,
+  freeformHint = "",
+): Promise<void> {
+  const envelope = encodeIntentEnvelope(intent);
+  const message = freeformHint ? `${envelope}\n${freeformHint}` : envelope;
+  await sendChat(message);
+}
+
+/**
+ * 点击面板上的 action 按钮（预判选项）。携带结构化 intent；无 intent 时退化为
+ * 旧版的 prompt 纯文本发送，保持向后兼容。
+ */
+export async function sendPanelAction(action: PanelAction): Promise<void> {
+  if (action.intent && action.intent.action) {
+    await sendIntent(action.intent, action.prompt);
+    return;
+  }
+  await sendChat(action.prompt);
 }

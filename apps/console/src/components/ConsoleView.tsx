@@ -40,6 +40,8 @@ function collectArtifactPanels(root: Component | undefined): ArtifactPanel[] {
         title: String(widget?.props?.title ?? ref),
         component: normalizeAirUIComponent(inner),
         actions: Array.isArray(widget?.props?.actions) ? widget.props.actions : undefined,
+        colSpan: typeof widget?.props?.colSpan === "number" ? widget.props.colSpan : undefined,
+        rowSpan: typeof widget?.props?.rowSpan === "number" ? widget.props.rowSpan : undefined,
       };
       return panel;
     })
@@ -60,7 +62,7 @@ function openSettings() {
     settingsSection: "domain",
     draft: {
       ui: { theme: cfg.ui.theme, language: cfg.ui.language },
-      home: { enabled: cfg.home?.enabled ?? true, title: cfg.home?.title ?? "", subtitle: cfg.home?.subtitle ?? "", starters: (cfg.home?.starters ?? []).map((s) => ({ ...s })) },
+      home: { enabled: cfg.home?.enabled ?? true, title: cfg.home?.title ?? "", subtitle: cfg.home?.subtitle ?? "", starters: (cfg.home?.starters ?? []).map((s) => ({ ...s })), widgets: (cfg.home?.widgets ?? []).map((w) => ({ ...w })) },
       model: { ...cfg.model },
       providers: (cfg.providers ?? []).map((p) => ({ ...p })),
       active_provider_id: cfg.active_provider_id ?? null,
@@ -79,13 +81,17 @@ function closeSettings() {
 }
 
 function backHome() {
-  patchConsole({ homePinned: true, artifacts: [], wikiOpen: false, wikiCategory: "" });
+  patchConsole({ homePinned: true, artifacts: [], showcaseView: "", wikiCategory: "" });
 }
 
 function toggleWiki() {
   const doc = useAirUIStore.getState().doc;
-  const open = ((doc?.state as Record<string, unknown> | undefined)?.wikiOpen as boolean) ?? false;
-  patchConsole({ wikiOpen: !open, wikiCategory: "" });
+  const view = ((doc?.state as Record<string, unknown> | undefined)?.showcaseView as string) ?? "";
+  patchConsole({ showcaseView: view === "wiki" ? "" : "wiki", wikiCategory: "" });
+}
+
+function openShowcase(view: string) {
+  patchConsole({ showcaseView: view, wikiCategory: "", homePinned: false, artifacts: [] });
 }
 
 async function saveSettings() {
@@ -180,16 +186,16 @@ export default function ConsoleView() {
   }, [activeSkills, runEvents, applyPatch]);
 
   // 最近一条带 airui 的消息（稳定引用：流式 delta 期间不变化，避免每 token 重渲染）
-  // Most recent assistant turn that produced AIRUI panels. A turn may carry
-  // several panels (airuiPanels) -> each becomes its own Bento card. Falls back
-  // to the legacy single-component `airui` field for older persisted sessions.
-  const lastAiruiMsg = useMemo(
-    () => [...chatMessages].reverse().find((m) => (m.airuiPanels?.length ?? 0) > 0 || m.airui),
-    [chatMessages]
-  );
+ // Most recent assistant turn that produced AIRUI panels. A turn may carry
+ // several panels (airuiPanels) -> each becomes its own Bento card. Falls back
+ // to the legacy single-component `airui` field for older persisted sessions.
+ const lastAiruiMsg = useMemo(
+   () => [...chatMessages].reverse().find((m) => m.role === "assistant"),
+   [chatMessages]
+ );
 
-  const chatArtifacts = useMemo<ArtifactPanel[]>(() => {
-    const msg = lastAiruiMsg;
+ const chatArtifacts = useMemo<ArtifactPanel[]>(() => {
+   const msg = lastAiruiMsg;
     if (msg?.airuiPanels?.length) {
       return msg.airuiPanels.map((p, i) => ({
         ref: p.ref || `chat-card-${i}`,
@@ -209,13 +215,21 @@ export default function ConsoleView() {
   // artifacts 同步：合并后端影子文档面板 + 最近一条聊天 airui（starter 走 chat 通道时由此上主区）
   useEffect(() => {
     if (!useAirUIStore.getState().doc) return;
+    // 新对话（仅 welcome 消息）时回到首页，清空画廊
+    const isNewSession = chatMessages.length <= 1;
+    if (isNewSession) {
+      applyPatch([{ op: "update-state", stateDelta: { homePinned: true, artifacts: [], showcaseView: "", wikiCategory: "" } }]);
+      return;
+    }
+    // 画廊更新策略：每轮对话只显示当前轮次的产物，不累积历史。
+    // 有 chat 对话时（chatMessages > 1）：画廊完全由 chatArtifacts 驱动
+    //   — 当前轮次有 artifact 就显示，没有就清空（不回退到 WS 旧数据）。
+    // 无 chat 对话时（预设看板等非 chat 通道）：画廊由 wsPanels 驱动。
     const wsPanels = collectArtifactPanels(artifactDoc?.root);
-    // Dedupe by ref: a panel pushed via WebSocket AND via the airui SSE event
-    // should render only once. Chat panels fill in when the WS doc is absent.
-    const wsRefs = new Set(wsPanels.map((p) => p.ref));
-    const merged = [...wsPanels, ...chatArtifacts.filter((p) => !wsRefs.has(p.ref))];
+    const hasChatHistory = chatMessages.length > 1;
+    const merged: ArtifactPanel[] = hasChatHistory ? chatArtifacts : wsPanels;
     applyPatch([{ op: "update-state", stateDelta: { artifacts: merged } }]);
-  }, [artifactDoc, chatArtifacts, applyPatch]);
+  }, [artifactDoc, chatArtifacts, applyPatch, chatMessages]);
 
   // loadInspector 函数定义
   const loadInspector = useCallback(async () => {
@@ -271,6 +285,22 @@ export default function ConsoleView() {
   const handleInteraction = useCallback((widgetRef: string, interaction: string, payload: Record<string, unknown>) => {
     if (widgetRef === "console:home" && interaction === "click") backHome();
     else if (widgetRef === "console:wiki" && interaction === "click") toggleWiki();
+    else if (widgetRef === "showcase:wiki" && interaction === "click") openShowcase("wiki");
+    else if (widgetRef === "showcase:stock-sentiment" && interaction === "click") {
+      // Trigger the preset stock-sentiment dashboard (no LLM, deterministic).
+      const airStore = useAirUIStore.getState();
+      useStore.getState().setChatLoading(true);
+      fetch("/api/preset/dashboard", { method: "POST" })
+        .then((r) => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+        .then(() => {
+          useStore.getState().setChatLoading(false);
+          if (airStore.doc) airStore.applyPatch([{ op: "update-state", stateDelta: { homePinned: false, showcaseView: "" } }]);
+        })
+        .catch(() => {
+          useStore.getState().setChatLoading(false);
+          if (airStore.doc) airStore.applyPatch([{ op: "update-state", stateDelta: { showcaseView: "" } }]);
+        });
+    }
     else if (widgetRef === "console:settings" && interaction === "click") openSettings();
     else if (widgetRef === "console:cancel" && interaction === "click") closeSettings();
     else if (widgetRef === "console:save" && interaction === "click") void saveSettings();
